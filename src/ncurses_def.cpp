@@ -38,6 +38,7 @@
 #include "game_constants.h"
 #include "game_ui.h"
 #include "output.h"
+#include "perf.h"
 #include "ui_manager.h"
 
 #if defined(_WIN32)
@@ -425,6 +426,7 @@ void input_manager::pump_events()
 // ignoring preferred keyboard mode
 input_event input_manager::get_input_event( const keyboard_mode /*preferred_keyboard_mode*/ )
 {
+    cata_timer get_input_event_timer( "get_input_event" );
     if( test_mode ) {
         // input should be skipped in caller's code
         throw std::runtime_error( "input_manager::get_input_event called in test mode" );
@@ -436,7 +438,10 @@ input_event input_manager::get_input_event( const keyboard_mode /*preferred_keyb
         previously_pressed_key = 0;
         // flush any output
         catacurses::doupdate();
-        key = getch();
+        {
+            cata_timer getch_timer( "getch", true );
+            key = getch();
+        }
         if( key != ERR ) {
             int newch;
             // Clear the buffer of characters that match the one we're going to act on.
