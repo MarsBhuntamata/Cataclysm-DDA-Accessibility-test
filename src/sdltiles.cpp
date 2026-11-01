@@ -28,6 +28,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "cached_options.h"
 #include "cata_assert.h"
@@ -5906,13 +5907,26 @@ static void CheckMessages()
     }
     if( quit ) {
 #if defined(_WIN32)
-        // Never exit(0) here: this bypasses main.cpp's explicit game shutdown,
-        // leaving global g to be destroyed at atexit after map cache globals.
-        exit_game_from_sdl();
+        // A direct exit(0) leaves g alive for the C runtime's atexit
+        // destructors.  That can destroy map caches after their static
+        // cache pool has gone away.  Clean up while dependencies still exist.
+        // Keep this path in sdltiles.cpp: both game and test executables
+        // compile this file, but tests do not link main.cpp.
+        record_accessibility_checkpoint( "SDL quit: begin shutdown" );
+        shutdown_accessibility();
+        record_accessibility_checkpoint( "SDL quit: accessibility detached" );
+        deinitDebug();
+        record_accessibility_checkpoint( "SDL quit: before game reset" );
+        g.reset();
+        record_accessibility_checkpoint( "SDL quit: game reset complete" );
+        catacurses::endwin();
+        record_accessibility_checkpoint( "SDL quit: curses shutdown complete" );
+        imclient.reset();
+        record_accessibility_checkpoint( "SDL quit: ImGui client reset complete; exiting" );
 #else
         catacurses::endwin();
-        exit( 0 );
 #endif
+        exit( 0 );
     }
 }
 
