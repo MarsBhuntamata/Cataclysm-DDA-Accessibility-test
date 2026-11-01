@@ -21,7 +21,8 @@
 4. Use the inventory's Examine action.
 5. Confirm that NVDA announces the item name, type when distinct, inventory location, and available item information.
 6. Press Ctrl+Shift+R while the item-information window is open. Confirm that the last announcement is repeated and interrupts speech already in progress.
-7. Close the item-information window and confirm that normal inventory interaction continues.
+7. Close the item-information window and press Ctrl+Shift+R again from the inventory. Confirm that the same last announcement can be repeated there too.
+8. Confirm that normal inventory interaction continues.
 
 ## Failure and regression checks
 
