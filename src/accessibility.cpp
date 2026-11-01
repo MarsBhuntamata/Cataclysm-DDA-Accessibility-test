@@ -33,8 +33,7 @@ std::ofstream &accessibility_diagnostic_file()
         std::ofstream output( log_path, std::ios::out | std::ios::trunc );
         if( output ) {
             output << "CDDA NVDA accessibility diagnostics\n";
-            output << "Executable: " << executable.string() << "\n";
-            output << "Diagnostic file: " << log_path.string() << "\n";
+            output << "Diagnostic file is beside cataclysm-tiles.exe.\n";
             output.flush();
         } else {
             OutputDebugStringW( ( L"[accessibility] Could not create diagnostic file: " +
@@ -114,13 +113,13 @@ class nvda_controller_backend : public speech_backend
                 library = LoadLibraryW( full_path.c_str() );
                 if( library != nullptr ) {
                     log_accessibility_diagnostic( "Loaded controller DLL: " +
-                                                  std::filesystem::path( full_path ).string() );
+                                                  ( sizeof( void * ) == 8 ? "nvdaControllerClient.dll or nvdaControllerClient64.dll" :
+                                                    "nvdaControllerClient.dll or nvdaControllerClient32.dll" ) );
                     break;
                 }
                 const DWORD load_error = GetLastError();
-                log_accessibility_diagnostic( "Could not load " +
-                                              std::filesystem::path( full_path ).string() +
-                                              "; Windows error " + std::to_string( load_error ) );
+                log_accessibility_diagnostic( "Could not load controller DLL candidate; Windows error " +
+                                              std::to_string( load_error ) );
             }
             if( library == nullptr ) {
                 log_accessibility_diagnostic( "FAIL: no NVDA controller DLL was loaded." );
