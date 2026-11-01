@@ -21,6 +21,7 @@
 #include <emscripten.h>
 #endif
 
+#include "accessibility.h"
 #include "auto_pickup.h"
 #include "avatar.h"
 #include "cata_path.h"
@@ -603,6 +604,7 @@ bool main_menu::opening_screen()
     ctxt.register_action( "PAGE_DOWN" );
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
+    ctxt.register_action( "REPEAT_NARRATION" );
 
     // for mouse selection
     ctxt.register_action( "SELECT" );
@@ -676,9 +678,48 @@ bool main_menu::opening_screen()
     EM_ASM( window.dispatchEvent( new Event( 'menuready' ) ); );
 #endif
 
+    // Narrate actual menu selection rather than trying to scrape the tiles window.
+    // This also provides an unmistakable first-speech check on startup.
+    auto announce_menu_selection = [this]( bool initial ) {
+        if( sel1 < 0 || static_cast<size_t>( sel1 ) >= vMenuItems.size() ) {
+            return;
+        }
+        std::string label = remove_color_tags( shortcut_text( c_white, vMenuItems[sel1] ) );
+        if( sel1 == getopt( main_menu_opts::NEWCHAR ) &&
+            sel2 >= 0 && static_cast<size_t>( sel2 ) < vNewGameSubItems.size() ) {
+            label += ". " + remove_color_tags( shortcut_text( c_white, vNewGameSubItems[sel2] ) );
+        } else if( sel1 == getopt( main_menu_opts::SETTINGS ) &&
+                   sel2 >= 0 && static_cast<size_t>( sel2 ) < vSettingsSubItems.size() ) {
+            label += ". " + remove_color_tags( shortcut_text( c_white, vSettingsSubItems[sel2] ) );
+        } else if( sel1 == getopt( main_menu_opts::LOADCHAR ) &&
+                   sel2 >= 0 && static_cast<size_t>( sel2 ) < world_generator->get_all_worlds().size() ) {
+            label += ". " + world_generator->get_world_name( sel2 );
+        } else if( sel1 == getopt( main_menu_opts::WORLD ) ) {
+            if( sel2 == 0 ) {
+                label += ". " + std::string( _( "Create World" ) );
+            } else if( sel2 > 0 &&
+                       static_cast<size_t>( sel2 - 1 ) < world_generator->get_all_worlds().size() ) {
+                label += ". " + world_generator->get_world_name( sel2 - 1 );
+            }
+        }
+        if( initial ) {
+            label = std::string( _( "Cataclysm: Dark Days Ahead. Main menu." ) ) + " " + label +
+                    ". " + _( "Use left and right arrows for categories, up and down for choices. Control Shift R repeats speech." );
+        }
+        get_narration_service().announce( {
+            initial ? narration_event::ui_opened : narration_event::selection_changed,
+            label, true
+        } );
+    };
+    if( !start ) {
+        announce_menu_selection( true );
+    }
+
     while( !start ) {
         ui_manager::redraw();
         std::string action = ctxt.handle_input();
+        const int previous_sel1 = sel1;
+        const int previous_sel2 = sel2;
         input_event sInput = ctxt.get_raw_input();
 
         // check automatic menu shortcuts
@@ -764,7 +805,9 @@ bool main_menu::opening_screen()
         }
 
         // also check special keys
-        if( action == "QUIT" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "QUIT" ) {
 #if !defined(EMSCRIPTEN)
             if( query_yn( _( "Really quit?" ) ) ) {
                 return false;
@@ -917,6 +960,9 @@ bool main_menu::opening_screen()
                 default:
                     break;
             }
+        }
+        if( !start && ( sel1 != previous_sel1 || sel2 != previous_sel2 ) ) {
+            announce_menu_selection( false );
         }
     }
     if( start && !load_game && get_scenario() ) {
