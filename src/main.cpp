@@ -31,6 +31,7 @@
 
 #include <flatbuffers/util.h>
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "cata_allocator.h"
 #include "cata_path.h"
@@ -781,6 +782,7 @@ int main( int argc, const char *argv[] )
     }
 
     set_language_from_options();
+    initialize_accessibility();
 
     rng_set_engine_seed( cli.seed );
 
@@ -877,6 +879,7 @@ int main( int argc, const char *argv[] )
         while( !g->do_turn() ) {}
     }
 
+    shutdown_accessibility();
     exit_handler( -999 );
     return 0;
 }
