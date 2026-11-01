@@ -53,6 +53,7 @@ TEST_CASE( "narration service remembers and repeats announcements", "[accessibil
     REQUIRE( backend.requests.size() == 2 );
     CHECK( backend.requests.back().text == "A sturdy wooden club." );
     CHECK( backend.requests.back().event == narration_event::item_description_opened );
+    CHECK( backend.requests.back().interrupt );
 
     service.cancel();
     CHECK( backend.cancel_count == 1 );
