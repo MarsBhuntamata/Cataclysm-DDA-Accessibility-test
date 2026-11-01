@@ -6,6 +6,7 @@
 #include <tuple>
 #include <unordered_set>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "avatar_action.h"
 #include "basecamp.h"
@@ -28,6 +29,7 @@
 #include "input_enums.h"
 #include "inventory.h"
 #include "item.h"
+#include "iteminfo_accessibility.h"
 #include "item_category.h"
 #include "item_contents.h"
 #include "item_pocket.h"
@@ -4306,11 +4308,16 @@ void inventory_selector::action_examine( const item_location &sitem )
     std::vector<iteminfo> vDummy;
 
     sitem->info( true, vThisItem );
-    vThisItem.insert( vThisItem.begin(),
-    { {}, string_format( _( "Location: %s" ), sitem.describe( &u ) ) } );
+    const std::string item_name = sitem->tname( 1, tname::unprefixed_tname, true );
+    const std::string type_name = sitem->type_name();
+    const std::string location = sitem.describe( &u );
+    const std::string narration = make_item_narration_text( item_name, type_name, vThisItem, location );
+    get_narration_service().announce( { narration_event::item_description_opened, narration, false } );
 
-    item_info_data data( sitem->tname( 1, tname::unprefixed_tname, true ), sitem->type_name(),
-                         vThisItem, vDummy );
+    vThisItem.insert( vThisItem.begin(),
+    { {}, string_format( _( "Location: %s" ), location ) } );
+
+    item_info_data data( item_name, type_name, vThisItem, vDummy );
     data.handle_scrolling = true;
     data.arrow_scrolling = true;
     int maxwidth = std::max( FULL_SCREEN_WIDTH, TERMX );
