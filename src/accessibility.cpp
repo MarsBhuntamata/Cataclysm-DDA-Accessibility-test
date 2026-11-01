@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -43,7 +42,7 @@ class nvda_controller_backend : public speech_backend
             library_path.resize( separator + 1 );
 
             const wchar_t *library_names[] = {
-                sizeof( void * ) == 8 ? L"nvdaControllerClient.dll" : L"nvdaControllerClient.dll",
+                L"nvdaControllerClient.dll",
                 sizeof( void * ) == 8 ? L"nvdaControllerClient64.dll" : L"nvdaControllerClient32.dll"
             };
 
@@ -63,6 +62,8 @@ class nvda_controller_backend : public speech_backend
                              GetProcAddress( library, "nvdaController_speakText" ) );
             cancel_speech = reinterpret_cast<cancel_speech_fn>(
                                 GetProcAddress( library, "nvdaController_cancelSpeech" ) );
+            braille_message = reinterpret_cast<braille_message_fn>(
+                                  GetProcAddress( library, "nvdaController_brailleMessage" ) );
 
             if( test_if_running == nullptr || speak_text == nullptr || cancel_speech == nullptr ) {
                 FreeLibrary( library );
@@ -91,15 +92,25 @@ class nvda_controller_backend : public speech_backend
             }
         }
 
+        void braille( const std::string &text ) override
+        {
+            if( is_running() && braille_message != nullptr ) {
+                const std::wstring wide_text = utf8_to_wstr( text );
+                braille_message( wide_text.c_str() );
+            }
+        }
+
     private:
         using test_if_running_fn = unsigned long ( __stdcall * )( void );
         using speak_text_fn = unsigned long ( __stdcall * )( const wchar_t * );
         using cancel_speech_fn = unsigned long ( __stdcall * )( void );
+        using braille_message_fn = unsigned long ( __stdcall * )( const wchar_t * );
 
         HMODULE library = nullptr;
         test_if_running_fn test_if_running = nullptr;
         speak_text_fn speak_text = nullptr;
         cancel_speech_fn cancel_speech = nullptr;
+        braille_message_fn braille_message = nullptr;
 
         bool is_running() const
         {
@@ -151,6 +162,13 @@ void narration_service::cancel()
 {
     if( backend != nullptr ) {
         backend->cancel();
+    }
+}
+
+void narration_service::braille( const std::string &text )
+{
+    if( backend != nullptr && !text.empty() ) {
+        backend->braille( text );
     }
 }
 
