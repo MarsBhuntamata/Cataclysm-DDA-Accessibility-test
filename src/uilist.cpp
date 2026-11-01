@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "cached_options.h" // IWYU pragma: keep
 #include "cata_assert.h"
@@ -33,6 +34,52 @@
 #if defined(TILES) && !defined(__ANDROID__)
 #include "sdl_wrappers.h"
 #endif
+
+namespace
+{
+// Speak the selected entry's underlying data, never pixels or ImGui redraws.
+// The same list implementation is used by world, character and item menus.
+std::string accessible_list_entry( const uilist &menu )
+{
+    if( menu.selected < 0 || static_cast<size_t>( menu.selected ) >= menu.entries.size() ) {
+        return _( "No menu entry selected." );
+    }
+
+    const uilist_entry &entry = menu.entries[menu.selected];
+    std::string result = remove_color_tags( entry.txt );
+    const std::string secondary = remove_color_tags( entry.ctxt );
+    if( !secondary.empty() ) {
+        result += ". " + secondary;
+    }
+    if( !entry.enabled ) {
+        result += ". " + std::string( _( "Unavailable" ) );
+    }
+    if( menu.desc_enabled ) {
+        const std::string &description = menu.footer_text.empty() ? entry.desc : menu.footer_text;
+        if( !description.empty() ) {
+            result += ". " + remove_color_tags( description );
+        }
+    }
+    return result;
+}
+
+std::string accessible_list_heading( const uilist &menu )
+{
+    const std::string title = remove_color_tags( menu.title );
+    const std::string prompt = remove_color_tags( menu.text );
+    std::string result = title;
+    if( !prompt.empty() && prompt != title ) {
+        if( !result.empty() ) {
+            result += ". ";
+        }
+        result += prompt;
+    }
+    if( result.empty() ) {
+        result = _( "Menu" );
+    }
+    return result;
+}
+} // namespace
 
 void uilist_impl::draw_controls()
 {
@@ -516,6 +563,7 @@ void uilist::register_uilist_inputs( input_context &ctxt ) const
     }
     ctxt.register_action( "ANY_INPUT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     //TODO: redundant, remove
     for( const auto &additional_action : additional_actions ) {
         ctxt.register_action( additional_action.first, additional_action.second );
@@ -901,9 +949,43 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
         return nullptr;
     }
     shared_ptr_fast<uilist_impl> ui = create_or_get_ui();
+    bool announced_opening = false;
+    std::string announced_focus;
+    // A menu's selection can change either in query_once() or during ImGui
+    // redraw (e.g. changing category tabs). Compare on both sides of input.
+    auto focused_text = [this]() {
+        std::string label;
+        if( current_category < categories.size() ) {
+            label = remove_color_tags( categories[current_category].second ) + ". ";
+        }
+        return label + accessible_list_entry( *this );
+    };
     do {
         ui_manager::redraw();
+        const std::string before_input = focused_text();
+        if( !announced_opening ) {
+            get_narration_service().announce( {
+                narration_event::ui_opened,
+                accessible_list_heading( *this ) + ". " + before_input, true
+            } );
+            announced_focus = before_input;
+            announced_opening = true;
+        } else if( before_input != announced_focus ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, before_input, true
+            } );
+            announced_focus = before_input;
+        }
+
         query_once( ctxt, timeout, allow_unfiltered_hotkeys );
+
+        const std::string after_input = focused_text();
+        if( ret == UILIST_WAIT_INPUT && after_input != announced_focus ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, after_input, true
+            } );
+            announced_focus = after_input;
+        }
     } while( loop && ret == UILIST_WAIT_INPUT );
     return ui;
 }
@@ -998,7 +1080,9 @@ void uilist::query_once( input_context &ctxt, int timeout,
 
     scrollby( scroll_amount_from_action( ret_act ) );
 
-    if( filtering && ret_act == "UILIST.FILTER" ) {
+    if( ret_act == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+    } else if( filtering && ret_act == "UILIST.FILTER" ) {
         inputfilter();
     } else if( !categories.empty() && ( ret_act == "UILIST.LEFT" || ret_act == "UILIST.RIGHT" ) ) {
         switch_to_category = inc_clamp_wrap( current_category, ret_act == "UILIST.RIGHT",
