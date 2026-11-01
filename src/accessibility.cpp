@@ -19,7 +19,7 @@ namespace
 std::ofstream &accessibility_diagnostic_file()
 {
     static std::ofstream file = []() {
-        std::vector<wchar_t> executable_path( 32768, L'\\0' );
+        std::vector<wchar_t> executable_path( 32768, L'\0' );
         const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
                                     static_cast<DWORD>( executable_path.size() ) );
         if( path_length == 0 || path_length >= executable_path.size() ) {
@@ -64,7 +64,7 @@ std::wstring utf8_to_wide( const std::string &text )
     if( required <= 0 ) {
         return std::wstring();
     }
-    std::wstring result( static_cast<size_t>( required ), L'\\0' );
+    std::wstring result( static_cast<size_t>( required ), L'\0' );
     const int converted = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
                           static_cast<int>( text.size() ), result.data(), required );
     if( converted != required ) {
@@ -83,7 +83,7 @@ class nvda_controller_backend : public speech_backend
         bool initialize()
         {
             log_accessibility_diagnostic( "Backend initialization started." );
-            std::vector<wchar_t> executable_path( 32768, L'\\0' );
+            std::vector<wchar_t> executable_path( 32768, L'\0' );
             const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
                                         static_cast<DWORD>( executable_path.size() ) );
             if( path_length == 0 || path_length >= executable_path.size() ) {
