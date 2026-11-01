@@ -66,4 +66,10 @@ class narration_service
 /// Access the process-wide narration service.
 narration_service &get_narration_service();
 
+/// Load an available platform speech backend. Returns true when one is ready.
+bool initialize_accessibility();
+
+/// Detach and release the active platform speech backend.
+void shutdown_accessibility();
+
 #endif // CATA_SRC_ACCESSIBILITY_H
