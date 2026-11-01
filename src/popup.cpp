@@ -4,6 +4,7 @@
 #include <array>
 #include <memory>
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "cata_imgui.h"
 #include "catacharset.h"
@@ -272,6 +273,7 @@ std::vector<std::vector<std::string>> query_popup_impl::fold_query(
 
 void query_popup::invalidate_ui() const
 {
+    accessibility_announced = false;
     std::shared_ptr<query_popup_impl> ui = p_impl.lock();
     if( ui ) {
         ui->mark_resized();
@@ -317,6 +319,37 @@ query_popup::result query_popup::query_once()
     if( cancel ) {
         ctxt.register_action( "QUIT" );
     }
+    ctxt.register_action( "REPEAT_NARRATION" );
+
+    // Read the actual prompt and focused response, not the rendered ImGui
+    // window. The query_once() loop can poll dozens of times for one input.
+    auto current_option = [&]() {
+        const int index = impl->keyboard_selected_option;
+        if( index < 0 || static_cast<size_t>( index ) >= options.size() ) {
+            return std::string();
+        }
+        std::string label = ctxt.get_action_name( options[index].action );
+        if( label.empty() ) {
+            label = options[index].action;
+        }
+        return remove_color_tags( label );
+    };
+    if( !accessibility_announced ) {
+        std::string prompt = remove_color_tags( text );
+        const std::string selection = current_option();
+        if( !selection.empty() ) {
+            if( !prompt.empty() ) {
+                prompt += ". ";
+            }
+            prompt += std::string( _( "Selected" ) ) + ": " + selection;
+            if( options.size() > 1 ) {
+                prompt += ". " + std::string( _( "Use left and right arrows to choose." ) );
+            }
+        }
+        get_narration_service().announce( { narration_event::ui_opened, prompt, true } );
+        accessibility_announced = true;
+    }
+    const short previous_option = impl->keyboard_selected_option;
 
     result res;
     // Assign outside construction of `res` to ensure execution order
@@ -343,7 +376,10 @@ query_popup::result query_popup::query_once()
         res.evt.type == input_event_t::timeout
     );
 
-    if( cancel && res.action == "QUIT" ) {
+    if( res.action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+        res.wait_input = true;
+    } else if( cancel && res.action == "QUIT" ) {
         res.wait_input = false;
     } else if( res.action == "CONFIRM" ) {
         if( cur < options.size() ) {
@@ -381,6 +417,12 @@ query_popup::result query_popup::query_once()
         }
     }
 
+    if( res.wait_input && impl->keyboard_selected_option != previous_option ) {
+        get_narration_service().announce( {
+            narration_event::selection_changed, current_option(), true
+        } );
+    }
+
     return res;
 }
 
@@ -398,6 +440,7 @@ std::shared_ptr<query_popup_impl> query_popup::create_or_get_impl()
 }
 query_popup::result query_popup::query()
 {
+    accessibility_announced = false;
     std::shared_ptr<query_popup_impl> ui = create_or_get_impl();
 
     result res;
