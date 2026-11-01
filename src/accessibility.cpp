@@ -1,7 +1,5 @@
 #include "accessibility.h"
 
-#include "debug.h"
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,12 +10,51 @@
 #endif
 #include <windows.h>
 
-#endif
+#include <filesystem>
+#include <fstream>
 
 namespace
 {
 
-#if defined(_WIN32)
+std::ofstream &accessibility_diagnostic_file()
+{
+    static std::ofstream file = []() {
+        std::vector<wchar_t> executable_path( 32768, L'\\0' );
+        const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
+                                    static_cast<DWORD>( executable_path.size() ) );
+        if( path_length == 0 || path_length >= executable_path.size() ) {
+            OutputDebugStringA( "[accessibility] Could not determine executable path for diagnostics.\n" );
+            return std::ofstream();
+        }
+
+        const std::filesystem::path executable( std::wstring( executable_path.data(), path_length ) );
+        const std::filesystem::path log_path = executable.parent_path() /
+                                               L"nvda-accessibility-diagnostics.txt";
+        std::ofstream output( log_path, std::ios::out | std::ios::trunc );
+        if( output ) {
+            output << "CDDA NVDA accessibility diagnostics\n";
+            output << "Executable: " << executable.string() << "\n";
+            output << "Diagnostic file: " << log_path.string() << "\n";
+            output.flush();
+        } else {
+            OutputDebugStringW( ( L"[accessibility] Could not create diagnostic file: " +
+                                  log_path.wstring() + L"\n" ).c_str() );
+        }
+        return output;
+    }();
+    return file;
+}
+
+void log_accessibility_diagnostic( const std::string &message )
+{
+    std::ofstream &file = accessibility_diagnostic_file();
+    if( file ) {
+        file << message << std::endl;
+    } else {
+        OutputDebugStringA( ( "[accessibility] " + message + "\n" ).c_str() );
+    }
+}
+
 std::wstring utf8_to_wide( const std::string &text )
 {
     if( text.empty() ) {
@@ -28,7 +65,7 @@ std::wstring utf8_to_wide( const std::string &text )
     if( required <= 0 ) {
         return std::wstring();
     }
-    std::wstring result( static_cast<size_t>( required ), L'\0' );
+    std::wstring result( static_cast<size_t>( required ), L'\\0' );
     const int converted = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
                           static_cast<int>( text.size() ), result.data(), required );
     if( converted != required ) {
@@ -41,25 +78,28 @@ class nvda_controller_backend : public speech_backend
 {
     public:
         // Keep the controller DLL loaded until Windows tears down the process.
-        // Unloading it during normal game shutdown can run DLL teardown code while
-        // other process-wide objects are already being destroyed.
+        // The DLL is intentionally not unloaded during game shutdown.
         ~nvda_controller_backend() override = default;
 
         bool initialize()
         {
-            std::vector<wchar_t> executable_path( 32768, L'\0' );
+            log_accessibility_diagnostic( "Backend initialization started." );
+            std::vector<wchar_t> executable_path( 32768, L'\\0' );
             const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
                                         static_cast<DWORD>( executable_path.size() ) );
             if( path_length == 0 || path_length >= executable_path.size() ) {
+                log_accessibility_diagnostic( "FAIL: GetModuleFileNameW failed; Windows error " +
+                                              std::to_string( GetLastError() ) );
                 return false;
             }
 
-            std::wstring library_path( executable_path.data(), path_length );
-            const size_t separator = library_path.find_last_of( L"\\/" );
+            std::wstring library_directory( executable_path.data(), path_length );
+            const size_t separator = library_directory.find_last_of( L"\\/" );
             if( separator == std::wstring::npos ) {
+                log_accessibility_diagnostic( "FAIL: executable path had no directory separator." );
                 return false;
             }
-            library_path.resize( separator + 1 );
+            library_directory.resize( separator + 1 );
 
             const wchar_t *legacy_library_name = sizeof( void * ) == 8 ?
                                                     L"nvdaControllerClient64.dll" :
@@ -70,18 +110,20 @@ class nvda_controller_backend : public speech_backend
             };
 
             for( const wchar_t *library_name : library_names ) {
-                library = LoadLibraryW( ( library_path + library_name ).c_str() );
+                const std::wstring full_path = library_directory + library_name;
+                library = LoadLibraryW( full_path.c_str() );
                 if( library != nullptr ) {
-                    DebugLog( D_INFO, D_MAIN ) << "[accessibility] Loaded NVDA controller DLL: "
-                                               << ( sizeof( void * ) == 8 ? "64-bit" : "32-bit" );
+                    log_accessibility_diagnostic( "Loaded controller DLL: " +
+                                                  std::filesystem::path( full_path ).string() );
                     break;
                 }
-                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Could not load "
-                                              << ( sizeof( void * ) == 8 ? "nvdaControllerClient.dll or nvdaControllerClient64.dll" :
-                                                   "nvdaControllerClient.dll or nvdaControllerClient32.dll" )
-                                              << "; Windows error " << GetLastError();
+                const DWORD load_error = GetLastError();
+                log_accessibility_diagnostic( "Could not load " +
+                                              std::filesystem::path( full_path ).string() +
+                                              "; Windows error " + std::to_string( load_error ) );
             }
             if( library == nullptr ) {
+                log_accessibility_diagnostic( "FAIL: no NVDA controller DLL was loaded." );
                 return false;
             }
 
@@ -94,46 +136,63 @@ class nvda_controller_backend : public speech_backend
             braille_message = reinterpret_cast<braille_message_fn>(
                                   GetProcAddress( library, "nvdaController_brailleMessage" ) );
 
+            log_accessibility_diagnostic( std::string( "API exports: testIfRunning=" ) +
+                                          ( test_if_running ? "yes" : "NO" ) +
+                                          ", speakText=" + ( speak_text ? "yes" : "NO" ) +
+                                          ", cancelSpeech=" + ( cancel_speech ? "yes" : "NO" ) +
+                                          ", brailleMessage=" + ( braille_message ? "yes" : "no" ) );
             if( test_if_running == nullptr || speak_text == nullptr || cancel_speech == nullptr ) {
-                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA controller DLL is missing a required API export.";
+                log_accessibility_diagnostic( "FAIL: controller DLL is missing a required API export." );
                 return false;
             }
+
             const unsigned long running_result = test_if_running();
+            log_accessibility_diagnostic( "nvdaController_testIfRunning returned " +
+                                          std::to_string( running_result ) +
+                                          ( running_result == 0 ? " (NVDA available)." : " (NVDA unavailable)." ) );
             if( running_result != 0 ) {
-                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] NVDA is not reachable; controller API returned "
-                                              << running_result << ".";
                 return false;
             }
-            DebugLog( D_INFO, D_MAIN ) << "[accessibility] NVDA controller API is ready.";
+            log_accessibility_diagnostic( "PASS: NVDA controller backend is ready." );
             return true;
         }
 
         void speak( const narration_request &request ) override
         {
+            log_accessibility_diagnostic( "Speech requested: event=" +
+                                          std::to_string( static_cast<int>( request.event ) ) +
+                                          ", UTF-8 bytes=" + std::to_string( request.text.size() ) +
+                                          ", interrupt=" + ( request.interrupt ? "yes" : "no" ) );
             const unsigned long running_result = test_if_running == nullptr ? 1 : test_if_running();
+            log_accessibility_diagnostic( "Speech-time testIfRunning returned " +
+                                          std::to_string( running_result ) );
             if( running_result != 0 ) {
-                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Speech skipped; NVDA test returned "
-                                              << running_result << ".";
+                log_accessibility_diagnostic( "FAIL: speech skipped because NVDA is unavailable." );
                 return;
             }
             if( request.interrupt ) {
-                cancel_speech();
+                const unsigned long cancel_result = cancel_speech();
+                log_accessibility_diagnostic( "nvdaController_cancelSpeech returned " +
+                                              std::to_string( cancel_result ) );
             }
             const std::wstring text = utf8_to_wide( request.text );
             if( text.empty() && !request.text.empty() ) {
-                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] UTF-8 to UTF-16 conversion failed.";
+                log_accessibility_diagnostic( "FAIL: UTF-8 to UTF-16 conversion failed." );
                 return;
             }
             const unsigned long speak_result = speak_text( text.c_str() );
-            if( speak_result != 0 ) {
-                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA speakText returned " << speak_result << ".";
-            }
+            log_accessibility_diagnostic( "nvdaController_speakText returned " +
+                                          std::to_string( speak_result ) +
+                                          ( speak_result == 0 ? " (success)." : " (failure)." ) );
         }
 
         void cancel() override
         {
             if( is_running() ) {
-                cancel_speech();
+                const unsigned long result = cancel_speech();
+                log_accessibility_diagnostic( "Cancel request returned " + std::to_string( result ) );
+            } else {
+                log_accessibility_diagnostic( "Cancel request skipped; NVDA is unavailable." );
             }
         }
 
@@ -141,7 +200,8 @@ class nvda_controller_backend : public speech_backend
         {
             if( is_running() && braille_message != nullptr ) {
                 const std::wstring wide_text = utf8_to_wide( text );
-                braille_message( wide_text.c_str() );
+                const unsigned long result = braille_message( wide_text.c_str() );
+                log_accessibility_diagnostic( "Braille request returned " + std::to_string( result ) );
             }
         }
 
@@ -168,9 +228,9 @@ std::unique_ptr<nvda_controller_backend> &get_nvda_backend()
     static std::unique_ptr<nvda_controller_backend> backend;
     return backend;
 }
-#endif
 
 } // namespace
+#endif
 
 void narration_service::set_backend( speech_backend *new_backend )
 {
@@ -186,19 +246,23 @@ void narration_service::announce( const narration_request &request )
     last_request = request;
     has_last_request = true;
 
+#if defined(_WIN32)
+    log_accessibility_diagnostic( "Narration service received event=" +
+                                  std::to_string( static_cast<int>( request.event ) ) +
+                                  ", UTF-8 bytes=" + std::to_string( request.text.size() ) +
+                                  ( backend != nullptr ? "; backend attached." : "; NO backend attached." ) );
+#endif
     if( backend != nullptr ) {
-        DebugLog( D_INFO, D_MAIN ) << "[accessibility] Sending narration event "
-                                  << static_cast<int>( request.event ) << " (" << request.text.size()
-                                  << " UTF-8 bytes) to the active backend.";
         backend->speak( request );
-    } else {
-        DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Narration requested but no speech backend is active.";
     }
 }
 
 bool narration_service::repeat_last()
 {
     if( !has_last_request ) {
+#if defined(_WIN32)
+        log_accessibility_diagnostic( "Repeat requested, but no previous narration exists." );
+#endif
         return false;
     }
 
@@ -206,6 +270,10 @@ bool narration_service::repeat_last()
         narration_request repeated = last_request;
         repeated.interrupt = true;
         backend->speak( repeated );
+    } else {
+#if defined(_WIN32)
+        log_accessibility_diagnostic( "Repeat requested, but no speech backend is attached." );
+#endif
     }
     return true;
 }
@@ -238,16 +306,17 @@ narration_service &get_narration_service()
 bool initialize_accessibility()
 {
 #if defined(_WIN32)
+    log_accessibility_diagnostic( "Accessibility initialization entry point reached." );
     std::unique_ptr<nvda_controller_backend> &backend = get_nvda_backend();
     backend = std::make_unique<nvda_controller_backend>();
     if( !backend->initialize() ) {
-        DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA backend initialization failed.";
+        log_accessibility_diagnostic( "FAIL: NVDA backend initialization failed." );
         backend.reset();
         get_narration_service().set_backend( nullptr );
         return false;
     }
     get_narration_service().set_backend( backend.get() );
-    DebugLog( D_INFO, D_MAIN ) << "[accessibility] NVDA backend initialized successfully.";
+    log_accessibility_diagnostic( "PASS: NVDA backend initialized and attached to narration service." );
     return true;
 #else
     get_narration_service().set_backend( nullptr );
@@ -257,9 +326,13 @@ bool initialize_accessibility()
 
 void shutdown_accessibility()
 {
+#if defined(_WIN32)
+    log_accessibility_diagnostic( "Accessibility shutdown entry point reached." );
+#endif
     get_narration_service().set_backend( nullptr );
 #if defined(_WIN32)
     // The controller DLL intentionally remains loaded until process termination.
     get_nvda_backend().reset();
+    log_accessibility_diagnostic( "Accessibility backend detached; controller DLL remains loaded." );
 #endif
 }
