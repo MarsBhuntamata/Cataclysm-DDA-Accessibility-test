@@ -1,0 +1,71 @@
+name: NVDA accessibility test build
+
+on:
+  push:
+    branches:
+      - balloon-accessibility-framework
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'data/raw/keybindings.json'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'build-scripts/**'
+      - 'msvc-full-features/**'
+      - '.github/workflows/nvda-accessibility-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: nvda-accessibility-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64 tiles and sound
+    runs-on: windows-2022
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install CMake
+        uses: lukka/get-cmake@v3.31.6
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ runner.workspace }}\\b\\vcpkg'
+          vcpkgGitCommitId: 'f6672d8e480ccdecddfad3fd1b838ba369ffe6cd'
+
+      - name: Configure Windows tiles build
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\\b\\vcpkg"
+          cmake --preset windows-tiles-sounds-x64-msvc
+
+      - name: Compile game and accessibility tests
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\\b\\vcpkg"
+          cmake --build --preset windows-tiles-sounds-x64-msvc --target cataclysm-tiles cata_test-tiles --parallel 2
+
+      - name: Run focused accessibility tests
+        shell: pwsh
+        run: |
+          $test = Get-ChildItem -Path out/build/windows-tiles-sounds-x64-msvc -Filter cata_test-tiles.exe -Recurse | Select-Object -First 1
+          if (-not $test) { throw "The test executable was not produced." }
+          & $test.FullName "[accessibility]" --rng-seed 12345
+
+      - name: Upload Windows game executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdda-nvda-test-build
+          path: out/build/windows-tiles-sounds-x64-msvc/**/cataclysm-tiles.exe
+          if-no-files-found: error
+          retention-days: 14
