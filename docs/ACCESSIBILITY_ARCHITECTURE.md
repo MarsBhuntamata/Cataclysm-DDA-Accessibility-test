@@ -116,6 +116,6 @@ This is an early vertical slice, not a complete accessible game yet:
 - The NVDA DLL must be present beside the executable. The prototype does not download or install it.
 - NVDA is the only implemented output backend so far. System Access and SAPI fallback are not implemented yet.
 - Braille forwarding is available through the service but has not yet been connected to automatic UI events.
-- The inventory description is currently announced when opened. Scroll-position announcements and focus restoration still need implementation. A repeat command is available inside the item-information window on Ctrl+Shift+R; Ctrl+R is already assigned to a debug-dialogue action in the upstream default keybindings.
+- The inventory description is currently announced when opened. Scroll-position announcements and focus restoration still need implementation. A repeat command is available in the inventory and item-information window on Ctrl+Shift+R; Ctrl+R is already assigned to a debug-dialogue action in the upstream default keybindings.
 - The tests have been added to the project's Catch-based test suite, but a Windows build and live NVDA test have not yet been run from this environment.
 - Narration requests are forwarded immediately. A managed queue, verbosity controls, and event-specific announcement policies remain future work.
