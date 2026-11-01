@@ -97,9 +97,41 @@ jobs:
           $mpg123 = Get-ChildItem -Path $installedRoot -Filter mpg123.dll -File -Recurse | Select-Object -First 1
           if (-not $mpg123) { throw "mpg123.dll is required by the game but was not found under $installedRoot" }
           Copy-Item -LiteralPath $mpg123.FullName -Destination $stage -Force
-          Write-Host "Packaged files:"
-          Get-ChildItem -Path $stage -File | ForEach-Object { Write-Host $_.Name }
-          if (-not (Test-Path (Join-Path $stage "mpg123.dll"))) { throw "mpg123.dll was not staged." }
+
+          # Fetch the official, redistributable NVDA Controller Client library.
+          # Without this DLL the game's NVDA speech backend cannot initialize.
+          $nvdaClientVersion = "2026.3"
+          $nvdaClientUrl = "https://download.nvaccess.org/releases/$nvdaClientVersion/nvda_${nvdaClientVersion}_controllerClient.zip"
+          $clientZip = Join-Path $env:RUNNER_TEMP "nvda-controller-client.zip"
+          $clientDir = Join-Path $env:RUNNER_TEMP "nvda-controller-client"
+          Invoke-WebRequest -Uri $nvdaClientUrl -OutFile $clientZip
+          Expand-Archive -LiteralPath $clientZip -DestinationPath $clientDir -Force
+          $clientDll = Get-ChildItem -LiteralPath $clientDir -Filter nvdaControllerClient.dll -File -Recurse |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+            Select-Object -First 1
+          if (-not $clientDll) { throw "The official NVDA client archive did not contain an x64 nvdaControllerClient.dll." }
+          Copy-Item -LiteralPath $clientDll.FullName -Destination $stage -Force
+          $clientLicense = Get-ChildItem -LiteralPath $clientDir -Filter license.txt -File -Recurse | Select-Object -First 1
+          if (-not $clientLicense) { throw "NVDA Controller Client license.txt was not found." }
+          Copy-Item -LiteralPath $clientLicense.FullName -Destination (Join-Path $stage "nvda-controller-client-license.txt") -Force
+
+          # The game must be launched beside its game data and graphics.
+          # Packaging only the exe and DLLs makes a nonfunctional standalone zip.
+          Copy-Item -LiteralPath (Join-Path $PWD "data") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "gfx") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "LICENSE.txt") -Destination $stage -Force
+
+          @'
+@echo off
+cd /d "%~dp0"
+"cataclysm-tiles.exe"
+'@ | Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
+
+          foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
+            if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing packaged dependency: $required" }
+          }
+          Write-Host "Packaged game, runtime dependencies, NVDA Controller Client and game data."
+          Get-ChildItem -Path $stage | ForEach-Object { Write-Host $_.Name }
 
       - name: Upload Windows game and runtime package
         uses: actions/upload-artifact@v4
