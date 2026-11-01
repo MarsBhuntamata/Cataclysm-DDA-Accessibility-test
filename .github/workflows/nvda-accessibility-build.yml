@@ -25,7 +25,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 120
     env:
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\\.github\\vcpkg_triplets
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\.github\vcpkg_triplets
 
     steps:
       - name: Check out source
@@ -44,20 +44,20 @@ jobs:
       - name: Install vcpkg
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
         with:
-          vcpkgDirectory: '${{ runner.workspace }}\\b\\vcpkg'
+          vcpkgDirectory: '${{ runner.workspace }}\b\vcpkg'
           vcpkgGitCommitId: 'f6672d8e480ccdecddfad3fd1b838ba369ffe6cd'
 
       - name: Configure Windows tiles build
         shell: pwsh
         run: |
-          $env:VCPKG_ROOT = "${{ runner.workspace }}\\b\\vcpkg"
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
           $env:VCPKG_INSTALLATION_ROOT = $env:VCPKG_ROOT
           cmake --preset windows-tiles-sounds-x64-msvc
 
       - name: Compile game and accessibility tests
         shell: pwsh
         run: |
-          $env:VCPKG_ROOT = "${{ runner.workspace }}\\b\\vcpkg"
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
           cmake --build --preset windows-tiles-sounds-x64-msvc --target cataclysm-tiles cata_test-tiles --parallel 2
 
       - name: Run focused accessibility tests
