@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <unordered_set>
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "calendar.h"
 #include "catacharset.h"
@@ -206,6 +207,19 @@ class messages_impl
             }
 
             messages.emplace_back( m );
+
+            // Gameplay messages have their own log, distinct from popup,
+            // inventory and menu UIs. Speak new visible messages once at
+            // creation; repeated/coalesced and cooldown-hidden entries are
+            // intentionally silent. Warnings may preempt stale speech.
+            const game_message &latest = messages.back();
+            if( latest.type != m_debug && !latest.is_in_cooldown() ) {
+                get_narration_service().announce( {
+                    narration_event::game_message,
+                    remove_color_tags( latest.message ),
+                    latest.type == m_bad || latest.type == m_warning
+                } );
+            }
         }
 
         /** Check if the current message needs to be prevented (hidden) or not from being displayed in the side bar.
