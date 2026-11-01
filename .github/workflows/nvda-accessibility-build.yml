@@ -58,6 +58,15 @@ jobs:
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
+          $installedRoot = Join-Path $PWD "out/build/windows-tiles-sounds-x64-msvc/vcpkg_installed/x64-windows-static"
+          $glslang = Get-ChildItem -Path $installedRoot -Filter glslangValidator.exe -File -Recurse | Select-Object -First 1
+          if (-not $glslang) { throw "vcpkg installed glslang but glslangValidator.exe was not found under $installedRoot" }
+          $shadercross = Get-ChildItem -Path $installedRoot -Filter shadercross.exe -File -Recurse | Select-Object -First 1
+          if (-not $shadercross) { throw "vcpkg installed SDL shadercross but shadercross.exe was not found under $installedRoot" }
+          $env:GLSLANG = $glslang.FullName
+          $env:SDL_SHADERCROSS = $shadercross.FullName
+          Write-Host "Using glslangValidator: $env:GLSLANG"
+          Write-Host "Using shadercross: $env:SDL_SHADERCROSS"
           cmake --build --preset windows-tiles-sounds-x64-msvc --target cataclysm-tiles cata_test-tiles --parallel 2
 
       - name: Run focused accessibility tests
