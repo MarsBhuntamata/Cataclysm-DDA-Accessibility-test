@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "achievement.h"
 #include "action.h"
 #include "activity_actor_definitions.h"
@@ -2925,6 +2926,16 @@ talk_topic dialogue::opt_imgui( dialogue_imgui_impl &d_img, const talk_topic &to
 
     // Re-init everytime we get here (new topic, new selections, don't try to preserve old selection)
     d_img.sel_response = 0;
+    // NPC/computer dialogue uses its own ImGui UI, not a uilist. Read the
+    // actual dynamic line once per topic, then only the focused responses.
+    std::string spoken_line = remove_color_tags( challenge );
+    if( !spoken_line.empty() ) {
+        get_narration_service().announce( {
+            narration_event::ui_opened,
+            spoken_line + ". " + remove_color_tags( response_lines.front().text ),
+            true
+        } );
+    }
     size_t response_ind = response_hotkeys.size();
     bool okay;
     do {
@@ -2938,6 +2949,7 @@ talk_topic dialogue::opt_imgui( dialogue_imgui_impl &d_img, const talk_topic &to
             ui_manager::invalidate_all_ui_adaptors();
             ui_manager::redraw();
             action = ctxt.handle_input();
+            const int previous_spoken_response = d_img.sel_response;
 
             // Mouse click is an input type that would result in a continue, so we need to set our action before that.
             if( action == "CONFIRM" || d_img.user_clicked_response_button ) {
@@ -2955,7 +2967,9 @@ talk_topic dialogue::opt_imgui( dialogue_imgui_impl &d_img, const talk_topic &to
             if( evt.type == input_event_t::error || evt.type == input_event_t::timeout ) {
                 continue;
             }
-            if( action == "HELP_KEYBINDINGS" ) {
+            if( action == "REPEAT_NARRATION" ) {
+                get_narration_service().repeat_last();
+            } else if( action == "HELP_KEYBINDINGS" ) {
                 // Reallocate hotkeys as keybindings may have changed
                 generate_response_lines();
             } else if( action == "DOWN" ) {
@@ -3003,6 +3017,13 @@ talk_topic dialogue::opt_imgui( dialogue_imgui_impl &d_img, const talk_topic &to
                 d_img.sel_response = static_cast<int>( response_hotkeys.size() - 1 );
             } else if( d_img.sel_response < 0 ) {
                 d_img.sel_response = 0;
+            }
+            if( d_img.sel_response != previous_spoken_response &&
+                static_cast<size_t>( d_img.sel_response ) < response_lines.size() ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    remove_color_tags( response_lines[d_img.sel_response].text ), true
+                } );
             }
 
         } while( response_ind >= response_hotkeys.size() ||
