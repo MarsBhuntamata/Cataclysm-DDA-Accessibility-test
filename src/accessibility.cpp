@@ -1,5 +1,7 @@
 #include "accessibility.h"
 
+#include "debug.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,11 +40,10 @@ std::wstring utf8_to_wide( const std::string &text )
 class nvda_controller_backend : public speech_backend
 {
     public:
-        ~nvda_controller_backend() override {
-            if( library != nullptr ) {
-                FreeLibrary( library );
-            }
-        }
+        // Keep the controller DLL loaded until Windows tears down the process.
+        // Unloading it during normal game shutdown can run DLL teardown code while
+        // other process-wide objects are already being destroyed.
+        ~nvda_controller_backend() override = default;
 
         bool initialize()
         {
@@ -71,8 +72,14 @@ class nvda_controller_backend : public speech_backend
             for( const wchar_t *library_name : library_names ) {
                 library = LoadLibraryW( ( library_path + library_name ).c_str() );
                 if( library != nullptr ) {
+                    DebugLog( D_INFO, D_MAIN ) << "[accessibility] Loaded NVDA controller DLL: "
+                                               << ( sizeof( void * ) == 8 ? "64-bit" : "32-bit" );
                     break;
                 }
+                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Could not load "
+                                              << ( sizeof( void * ) == 8 ? "nvdaControllerClient.dll or nvdaControllerClient64.dll" :
+                                                   "nvdaControllerClient.dll or nvdaControllerClient32.dll" )
+                                              << "; Windows error " << GetLastError();
             }
             if( library == nullptr ) {
                 return false;
@@ -88,23 +95,39 @@ class nvda_controller_backend : public speech_backend
                                   GetProcAddress( library, "nvdaController_brailleMessage" ) );
 
             if( test_if_running == nullptr || speak_text == nullptr || cancel_speech == nullptr ) {
-                FreeLibrary( library );
-                library = nullptr;
+                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA controller DLL is missing a required API export.";
                 return false;
             }
+            const unsigned long running_result = test_if_running();
+            if( running_result != 0 ) {
+                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] NVDA is not reachable; controller API returned "
+                                              << running_result << ".";
+                return false;
+            }
+            DebugLog( D_INFO, D_MAIN ) << "[accessibility] NVDA controller API is ready.";
             return true;
         }
 
         void speak( const narration_request &request ) override
         {
-            if( !is_running() ) {
+            const unsigned long running_result = test_if_running == nullptr ? 1 : test_if_running();
+            if( running_result != 0 ) {
+                DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Speech skipped; NVDA test returned "
+                                              << running_result << ".";
                 return;
             }
             if( request.interrupt ) {
                 cancel_speech();
             }
             const std::wstring text = utf8_to_wide( request.text );
-            speak_text( text.c_str() );
+            if( text.empty() && !request.text.empty() ) {
+                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] UTF-8 to UTF-16 conversion failed.";
+                return;
+            }
+            const unsigned long speak_result = speak_text( text.c_str() );
+            if( speak_result != 0 ) {
+                DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA speakText returned " << speak_result << ".";
+            }
         }
 
         void cancel() override
@@ -164,7 +187,12 @@ void narration_service::announce( const narration_request &request )
     has_last_request = true;
 
     if( backend != nullptr ) {
+        DebugLog( D_INFO, D_MAIN ) << "[accessibility] Sending narration event "
+                                  << static_cast<int>( request.event ) << " (" << request.text.size()
+                                  << " UTF-8 bytes) to the active backend.";
         backend->speak( request );
+    } else {
+        DebugLog( D_WARNING, D_MAIN ) << "[accessibility] Narration requested but no speech backend is active.";
     }
 }
 
@@ -213,11 +241,13 @@ bool initialize_accessibility()
     std::unique_ptr<nvda_controller_backend> &backend = get_nvda_backend();
     backend = std::make_unique<nvda_controller_backend>();
     if( !backend->initialize() ) {
+        DebugLog( D_ERROR, D_MAIN ) << "[accessibility] NVDA backend initialization failed.";
         backend.reset();
         get_narration_service().set_backend( nullptr );
         return false;
     }
     get_narration_service().set_backend( backend.get() );
+    DebugLog( D_INFO, D_MAIN ) << "[accessibility] NVDA backend initialized successfully.";
     return true;
 #else
     get_narration_service().set_backend( nullptr );
@@ -229,6 +259,7 @@ void shutdown_accessibility()
 {
     get_narration_service().set_backend( nullptr );
 #if defined(_WIN32)
+    // The controller DLL intentionally remains loaded until process termination.
     get_nvda_backend().reset();
 #endif
 }
