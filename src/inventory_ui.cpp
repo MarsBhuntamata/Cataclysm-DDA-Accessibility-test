@@ -3457,6 +3457,7 @@ inventory_selector::inventory_selector( Character &u, const inventory_selector_p
     ctxt.register_action( "CLICK_AND_DRAG" );
     ctxt.register_action( "SELECT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "VIEW_CATEGORY_MODE" );
     ctxt.register_action( "TOGGLE_NUMPAD_NAVIGATION" );
     ctxt.register_action( "ANY_INPUT" ); // For invlets
@@ -3620,7 +3621,9 @@ void selection_column::cycle_hide_override()
 
 void inventory_selector::on_input( const inventory_input &input )
 {
-    if( input.action == "CATEGORY_SELECTION" ) {
+    if( input.action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+    } else if( input.action == "CATEGORY_SELECTION" ) {
         toggle_navigation_mode();
     } else if( input.action == "PREV_COLUMN" ) {
         toggle_active_column( scroll_direction::BACKWARD );
