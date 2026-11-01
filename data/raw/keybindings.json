@@ -5590,18 +5590,18 @@
   {
     "type": "keybinding",
     "id": "REPEAT_NARRATION",
-    "name": "Repeat last narration",
+    "name": "Repeat last narration (F7)",
     "bindings": [
-      { "input_method": "keyboard_code", "key": "r", "mod": [ "ctrl", "shift" ] }
+      { "input_method": "keyboard_any", "key": "F7" }
     ]
   },
   {
     "type": "keybinding",
     "id": "DESCRIBE_LOCATION",
-    "name": "Describe terrain underfoot",
+    "name": "Describe terrain underfoot (F6)",
     "category": "DEFAULTMODE",
     "bindings": [
-      { "input_method": "keyboard_code", "key": "l", "mod": [ "ctrl", "shift" ] }
+      { "input_method": "keyboard_any", "key": "F6" }
     ]
   }
 ]
