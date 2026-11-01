@@ -4312,7 +4312,7 @@ void inventory_selector::action_examine( const item_location &sitem )
     const std::string type_name = sitem->type_name();
     const std::string location = sitem.describe( &u );
     const std::string narration = make_item_narration_text( item_name, type_name, vThisItem, location );
-    get_narration_service().announce( { narration_event::item_description_opened, narration, false } );
+    get_narration_service().announce( { narration_event::item_description_opened, narration, true } );
 
     vThisItem.insert( vThisItem.begin(),
     { {}, string_format( _( "Location: %s" ), location ) } );
