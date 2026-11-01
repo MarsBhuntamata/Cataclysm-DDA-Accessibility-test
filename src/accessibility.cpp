@@ -17,6 +17,25 @@ namespace
 {
 
 #if defined(_WIN32)
+std::wstring utf8_to_wide( const std::string &text )
+{
+    if( text.empty() ) {
+        return std::wstring();
+    }
+    const int required = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                         static_cast<int>( text.size() ), nullptr, 0 );
+    if( required <= 0 ) {
+        return std::wstring();
+    }
+    std::wstring result( static_cast<size_t>( required ), L'\\0' );
+    const int converted = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                          static_cast<int>( text.size() ), result.data(), required );
+    if( converted != required ) {
+        return std::wstring();
+    }
+    return result;
+}
+
 class nvda_controller_backend : public speech_backend
 {
     public:
@@ -85,7 +104,7 @@ class nvda_controller_backend : public speech_backend
             if( request.interrupt ) {
                 cancel_speech();
             }
-            const std::wstring text = utf8_to_wstr( request.text );
+            const std::wstring text = utf8_to_wide( request.text );
             speak_text( text.c_str() );
         }
 
@@ -99,7 +118,7 @@ class nvda_controller_backend : public speech_backend
         void braille( const std::string &text ) override
         {
             if( is_running() && braille_message != nullptr ) {
-                const std::wstring wide_text = utf8_to_wstr( text );
+                const std::wstring wide_text = utf8_to_wide( text );
                 braille_message( wide_text.c_str() );
             }
         }
