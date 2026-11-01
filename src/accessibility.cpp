@@ -42,9 +42,12 @@ class nvda_controller_backend : public speech_backend
             }
             library_path.resize( separator + 1 );
 
+            const wchar_t *legacy_library_name = sizeof( void * ) == 8 ?
+                                                    L"nvdaControllerClient64.dll" :
+                                                    L"nvdaControllerClient32.dll";
             const wchar_t *library_names[] = {
                 L"nvdaControllerClient.dll",
-                sizeof( void * ) == 8 ? L"nvdaControllerClient64.dll" : L"nvdaControllerClient32.dll"
+                legacy_library_name
             };
 
             for( const wchar_t *library_name : library_names ) {
