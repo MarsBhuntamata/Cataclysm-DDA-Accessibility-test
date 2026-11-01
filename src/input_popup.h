@@ -60,6 +60,7 @@ class input_popup : public cataimgui::window
         cataimgui::bounds get_bounds() override;
 
         bool handle_custom_callbacks( const std::string &action );
+        void announce_accessible_prompt( const std::string &current_value );
 
         input_context ctxt;
         std::string label;
@@ -72,6 +73,8 @@ class input_popup : public cataimgui::window
 
     private:
         std::string description;
+        std::string accessible_title;
+        bool accessible_prompt_announced = false;
         nc_color description_default_color = c_green;
 
         point pos;
