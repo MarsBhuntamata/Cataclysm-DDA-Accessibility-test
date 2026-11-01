@@ -86,6 +86,10 @@ jobs:
           $stage = Join-Path $PWD "out/package/cdda-nvda-test-build"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item -LiteralPath $exe.FullName -Destination $stage
+          $pdb = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.pdb -File -Recurse | Select-Object -First 1
+          if (-not $pdb) { throw "The game PDB was not produced; symbolized crash diagnosis would not be possible." }
+          Copy-Item -LiteralPath $pdb.FullName -Destination $stage
+          Write-Host "Packaged debug symbols: $($pdb.FullName)"
           $dlls = Get-ChildItem -Path (Join-Path $installedRoot "bin") -Filter *.dll -File -ErrorAction SilentlyContinue
           foreach ($dll in $dlls) {
             Copy-Item -LiteralPath $dll.FullName -Destination $stage -Force
