@@ -5594,5 +5594,14 @@
     "bindings": [
       { "input_method": "keyboard_code", "key": "r", "mod": [ "ctrl", "shift" ] }
     ]
+  },
+  {
+    "type": "keybinding",
+    "id": "DESCRIBE_LOCATION",
+    "name": "Describe terrain underfoot",
+    "category": "DEFAULTMODE",
+    "bindings": [
+      { "input_method": "keyboard_code", "key": "l", "mod": [ "ctrl", "shift" ] }
+    ]
   }
 ]
