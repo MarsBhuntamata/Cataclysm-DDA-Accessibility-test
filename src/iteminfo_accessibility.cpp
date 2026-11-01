@@ -2,6 +2,7 @@
 
 #include "output.h"
 #include "string_formatter.h"
+#include "translations.h"
 
 namespace
 {
@@ -20,7 +21,7 @@ void append_paragraph( std::string &target, const std::string &paragraph )
 std::string iteminfo_entry_text( const iteminfo &entry )
 {
     if( entry.sType == "DESCRIPTION" ) {
-        return entry.sName == "--" ? std::string() : entry.sName;
+        return !entry.bDrawName || entry.sName == "--" ? std::string() : entry.sName;
     }
 
     if( entry.isTable ) {
