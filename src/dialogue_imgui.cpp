@@ -205,6 +205,7 @@ void dialogue_imgui::draw_dialogue_imgui( bool is_computer, bool is_not_conversa
     ctxt.register_action( "DEBUG_DIALOGUE_RESP_EFFECT" );
     ctxt.register_action( "DEBUG_DIALOGUE_SHOW_ALL_RESPONSE" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "QUIT" );
 
     ctxt.set_timeout( 10 );
