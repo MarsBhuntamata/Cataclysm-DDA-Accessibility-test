@@ -587,17 +587,6 @@ bool assure_essential_dirs_exist()
 
 }  // namespace
 
-[[noreturn]] void exit_game_from_sdl()
-{
-    // SDL's direct exit(0) path left the global game alive until CRT atexit
-    // destruction.  The game owns maps whose cache deleters depend on global
-    // cache-pool state, so atexit destruction can hit static lifetime ordering
-    // faults.  Explicitly destroy the game while its dependencies are alive.
-    record_accessibility_checkpoint( "SDL window close: delegating to normal exit handler" );
-    exit_handler( 0 );
-    std::abort(); // exit_handler(0) is unconditional, but tell the compiler.
-}
-
 #if defined(EMSCRIPTEN)
 EM_ASYNC_JS( void, mount_idbfs, (), {
     console.log( "Mounting IDBFS for persistence..." );
