@@ -1,5 +1,28 @@
 # Accessibility Prototype Test Plan
 
+## Expanded map and gameplay narration milestone
+
+These keys are available in the regular game world, without spending a turn:
+
+- **F6**: Describe terrain beneath the player.
+- **F7**: Repeat the most recent speech (also in supported menus and look-around).
+- **F8**: Survey the eight immediately adjacent tiles, clockwise from north. Include visible creatures and ground-item presence without revealing unseen tiles.
+- **F9**: Read stamina, pain, hunger, thirst, and minimum/maximum body-part hit points (raw game values).
+- **F10**: Read up to five recent gameplay messages, oldest first.
+- **F11**: Toggle automatic terrain-change speech while walking. Off by default; only speaks when terrain names change.
+- **Look around**: Move the usual look cursor; NVDA should read the relative direction/distance, visible terrain, creatures, and items. The cursor does not consume a turn.
+
+If the function row controls hardware, use Fn plus the corresponding function key. Start from a fresh extracted package or ensure customized keybindings do not override these defaults.
+
+### Additional regression checks
+
+- Verify known-visible vs unseen tiles in the F8 survey and look cursor.
+- Confirm look-around speaks only on cursor change and F7 repeats it.
+- Check F9 in injured and healthy characters. Numbers are raw game data, not diagnoses.
+- Confirm F10 reports actual recent messages and does not advance turns.
+- Toggle F11 on, move between different terrain, then turn off and confirm silence on movement.
+- Verify NPC dialogues, input popups, menus, inventory, and clean window close still work.
+
 ## Build checks
 
 - Build the Windows x64 tiles target from the `balloon-accessibility-framework` branch.

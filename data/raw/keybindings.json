@@ -5603,5 +5603,33 @@
     "bindings": [
       { "input_method": "keyboard_any", "key": "F6" }
     ]
+  },
+  {
+    "type": "keybinding",
+    "id": "SURVEY_SURROUNDINGS",
+    "name": "Describe the eight adjacent tiles (F8)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "DESCRIBE_STATUS",
+    "name": "Describe character status (F9)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F9" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_RECENT_MESSAGES",
+    "name": "Read recent game messages (F10)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F10" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "TOGGLE_TERRAIN_NARRATION",
+    "name": "Toggle terrain-change speech (F11)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F11" } ]
   }
 ]

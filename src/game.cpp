@@ -2545,6 +2545,36 @@ tripoint_rel_omt game::mouse_edge_scrolling_overmap( input_context &ctxt )
     return ret.first;
 }
 
+std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
+{
+    map &here = get_map();
+    avatar &observer = get_avatar();
+    if( !here.inbounds( tile ) ) {
+        return _( "Outside the loaded map." );
+    }
+    if( tile != observer.pos_bub() && !observer.sees( here, tile ) ) {
+        return _( "Not visible." );
+    }
+
+    std::string description = here.name( tile );
+    if( tile != observer.pos_bub() ) {
+        const Creature *critter = get_creature_tracker().creature_at( tile, true );
+        if( critter != nullptr && observer.sees( here, *critter ) ) {
+            description += ". " + string_format( _( "Creature: %s" ), critter->disp_name() );
+        }
+    }
+    if( here.sees_some_items( tile, observer ) ) {
+        description += ". " + std::string( _( "Items on the ground." ) );
+    }
+    return description;
+}
+
+bool &accessibility_auto_terrain_announcements()
+{
+    static bool enabled = false;
+    return enabled;
+}
+
 input_context get_default_mode_input_context()
 {
     static input_context default_ctxt = [] {
@@ -2596,6 +2626,11 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "look" );
         ctxt.register_action( "DESCRIBE_LOCATION", to_translation( "Describe current terrain" ) );
         ctxt.register_action( "REPEAT_NARRATION", to_translation( "Repeat last narration" ) );
+        ctxt.register_action( "SURVEY_SURROUNDINGS", to_translation( "Describe eight nearby tiles" ) );
+        ctxt.register_action( "DESCRIBE_STATUS", to_translation( "Describe player status" ) );
+        ctxt.register_action( "READ_RECENT_MESSAGES", to_translation( "Read recent game messages" ) );
+        ctxt.register_action( "TOGGLE_TERRAIN_NARRATION",
+                              to_translation( "Toggle automatic terrain-change speech" ) );
         ctxt.register_action( "peek" );
         ctxt.register_action( "listitems" );
         ctxt.register_action( "zones" );
@@ -6061,6 +6096,7 @@ look_around_result game::look_around(
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "zoom_out" );
     ctxt.register_action( "zoom_in" );
     ctxt.register_action( "toggle_pixel_minimap" );
@@ -6073,6 +6109,9 @@ look_around_result game::look_around(
     const visibility_variables &cache = here.get_visibility_variables_cache();
 
     bool blink = true;
+    // Look-around uses a hand-moved cursor, not a uilist. Read it only when
+    // the position changes and only for the ordinary browsing mode.
+    std::optional<tripoint_bub_ms> last_spoken_look_position;
     look_around_result result;
 
     shared_ptr_fast<draw_callback_t> ter_indicator_cb;
@@ -6174,6 +6213,37 @@ look_around_result game::look_around(
         invalidate_main_ui_adaptor();
         ui_manager::redraw();
 
+        if( show_window && !select_zone && !peeking && !is_moving_zone &&
+            ( !last_spoken_look_position || *last_spoken_look_position != lp ) ) {
+            const tripoint_bub_ms home = u.pos_bub();
+            const int dx = lp.x() - home.x();
+            const int dy = lp.y() - home.y();
+            std::string relative;
+            if( dx == 0 && dy == 0 ) {
+                relative = _( "your position" );
+            } else {
+                if( dy != 0 ) {
+                    relative += string_format( dy < 0 ? _( "%d north" ) : _( "%d south" ), std::abs( dy ) );
+                }
+                if( dx != 0 ) {
+                    if( !relative.empty() ) {
+                        relative += ", ";
+                    }
+                    relative += string_format( dx < 0 ? _( "%d west" ) : _( "%d east" ), std::abs( dx ) );
+                }
+            }
+            if( lp.z() != home.z() ) {
+                relative += string_format( _( ", level offset %d" ), lp.z() - home.z() );
+            }
+            get_narration_service().announce( {
+                narration_event::selection_changed,
+                string_format( _( "Look cursor: %s. %s" ), relative,
+                               accessibility_describe_local_tile( lp ) ),
+                true
+            } );
+            last_spoken_look_position = lp;
+        }
+
         if( ( select_zone && has_first_point ) || is_moving_zone ) {
             ctxt.set_timeout( get_option<int>( "BLINK_SPEED" ) );
         }
@@ -6196,7 +6266,9 @@ look_around_result game::look_around(
         } else if( action == "TIMEOUT" ) {
             blink = !blink;
         }
-        if( action == "LIST_ITEMS" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "LIST_ITEMS" ) {
             list_surroundings();
         } else if( action == "TOGGLE_FAST_SCROLL" ) {
             fast_scroll = !fast_scroll;
@@ -7597,6 +7669,7 @@ bool game::walk_move( const tripoint_bub_ms &dest_loc, const bool via_ramp,
     }
     map &here = get_map();
     const tripoint_bub_ms pos = u.pos_bub( here );
+    const std::string old_terrain_name = here.name( pos );
 
     const tripoint_abs_ms dest_loc_abs = here.get_abs( dest_loc );
 
@@ -7964,6 +8037,18 @@ bool game::walk_move( const tripoint_bub_ms &dest_loc, const bool via_ramp,
     }
 
     on_move_effects();
+
+    // This is deliberately opt-in, and speaks only when the terrain name
+    // changes, rather than once per step through identical floor/road tiles.
+    if( accessibility_auto_terrain_announcements() ) {
+        const std::string new_terrain_name = here.name( u.pos_bub() );
+        if( new_terrain_name != old_terrain_name ) {
+            get_narration_service().announce( {
+                narration_event::movement,
+                string_format( _( "Now on %s." ), new_terrain_name ), false
+            } );
+        }
+    }
 
     return true;
 }

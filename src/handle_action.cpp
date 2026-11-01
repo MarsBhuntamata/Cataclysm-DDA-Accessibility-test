@@ -1,6 +1,7 @@
 #include "game.h" // IWYU pragma: associated
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <initializer_list>
@@ -9,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "accessibility.h"
 #include "action.h"
@@ -3289,13 +3291,75 @@ bool game::handle_action()
     if( action == "DESCRIBE_LOCATION" ) {
         get_narration_service().announce( {
             narration_event::movement,
-            string_format( _( "You are standing on %s." ), here.name( player_character.pos_bub() ) ),
+            string_format( _( "You are standing on %s." ),
+                           accessibility_describe_local_tile( player_character.pos_bub() ) ),
             true
         } );
         return false;
     }
     if( action == "REPEAT_NARRATION" ) {
         get_narration_service().repeat_last();
+        return false;
+    }
+    if( action == "SURVEY_SURROUNDINGS" ) {
+        struct direction_info {
+            std::string name;
+            int dx;
+            int dy;
+        };
+        const std::array<direction_info, 8> directions = {{
+                { _( "north" ), 0, -1 },
+                { _( "northeast" ), 1, -1 },
+                { _( "east" ), 1, 0 },
+                { _( "southeast" ), 1, 1 },
+                { _( "south" ), 0, 1 },
+                { _( "southwest" ), -1, 1 },
+                { _( "west" ), -1, 0 },
+                { _( "northwest" ), -1, -1 }
+            }};
+        std::string report = _( "Surroundings." );
+        const tripoint_bub_ms origin = player_character.pos_bub();
+        for( const direction_info &dir : directions ) {
+            tripoint_bub_ms tile = origin;
+            tile.x() += dir.dx;
+            tile.y() += dir.dy;
+            report += " " + dir.name + ": " + accessibility_describe_local_tile( tile ) + ".";
+        }
+        get_narration_service().announce( { narration_event::contextual_help, report, true } );
+        return false;
+    }
+    if( action == "DESCRIBE_STATUS" ) {
+        const int stamina_max = std::max( 1, player_character.get_stamina_max() );
+        const int stamina_percent = player_character.get_stamina() * 100 / stamina_max;
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            string_format( _( "Status. Stamina %d percent. Pain %d. Hunger %d. Thirst %d. "
+                              "Lowest body-part hit points %d, highest %d." ),
+                           stamina_percent, player_character.get_pain(),
+                           player_character.get_hunger(), player_character.get_thirst(),
+                           player_character.get_lowest_hp(), player_character.get_highest_hp() ),
+            true
+        } );
+        return false;
+    }
+    if( action == "READ_RECENT_MESSAGES" ) {
+        const std::vector<std::pair<std::string, std::string>> recent = Messages::recent_messages( 5 );
+        std::string report = recent.empty() ? std::string( _( "No recent game messages." ) ) :
+                             std::string( _( "Last five game messages, oldest first." ) );
+        for( const auto &message : recent ) {
+            report += " " + message.second + ".";
+        }
+        get_narration_service().announce( { narration_event::game_message, report, true } );
+        return false;
+    }
+    if( action == "TOGGLE_TERRAIN_NARRATION" ) {
+        bool &enabled = accessibility_auto_terrain_announcements();
+        enabled = !enabled;
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            enabled ? std::string( _( "Automatic terrain-change speech on." ) ) :
+                      std::string( _( "Automatic terrain-change speech off." ) ), true
+        } );
         return false;
     }
 
