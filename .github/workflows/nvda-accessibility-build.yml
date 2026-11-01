@@ -24,21 +24,25 @@ jobs:
     name: Windows x64 tiles and sound
     runs-on: windows-2022
     timeout-minutes: 120
+    env:
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\\.github\\vcpkg_triplets
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
 
       - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
       - name: Install CMake
-        uses: lukka/get-cmake@v3.31.6
+        uses: lukka/get-cmake@f176ccd3f28bda569c43aae4894f06b2435a3375 # latest
+        with:
+          cmakeVersion: 3.31.6
 
       - name: Install vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
         with:
           vcpkgDirectory: '${{ runner.workspace }}\\b\\vcpkg'
           vcpkgGitCommitId: 'f6672d8e480ccdecddfad3fd1b838ba369ffe6cd'
@@ -47,6 +51,7 @@ jobs:
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = "${{ runner.workspace }}\\b\\vcpkg"
+          $env:VCPKG_INSTALLATION_ROOT = $env:VCPKG_ROOT
           cmake --preset windows-tiles-sounds-x64-msvc
 
       - name: Compile game and accessibility tests
