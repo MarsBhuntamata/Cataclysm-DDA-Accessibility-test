@@ -528,6 +528,9 @@ class uilist // NOLINT(cata-xy)
         int vmax = 0;
 
         bool started = false;
+        // Persist speech state across query(loop=false) polling calls.
+        bool accessibility_announced_opening = false;
+        std::string accessibility_announced_focus;
         bool clicked = false;
         bool need_to_scroll = false;
 
