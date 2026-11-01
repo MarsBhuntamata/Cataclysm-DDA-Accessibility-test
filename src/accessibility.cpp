@@ -10,7 +10,6 @@
 #endif
 #include <windows.h>
 
-#include "catacharset.h"
 #endif
 
 namespace
@@ -27,7 +26,7 @@ std::wstring utf8_to_wide( const std::string &text )
     if( required <= 0 ) {
         return std::wstring();
     }
-    std::wstring result( static_cast<size_t>( required ), L'\\0' );
+    std::wstring result( static_cast<size_t>( required ), L'\0' );
     const int converted = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
                           static_cast<int>( text.size() ), result.data(), required );
     if( converted != required ) {
