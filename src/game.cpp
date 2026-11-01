@@ -56,6 +56,7 @@
 #include "bodypart.h"
 #include "butchery_requirements.h"
 #include "butchery.h"
+#include "accessibility.h"
 #include "cached_options.h"
 #include "cata_imgui.h"
 #include "cata_path.h"
@@ -2593,6 +2594,8 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "butcher" );
         ctxt.register_action( "chat" );
         ctxt.register_action( "look" );
+        ctxt.register_action( "DESCRIBE_LOCATION", to_translation( "Describe current terrain" ) );
+        ctxt.register_action( "REPEAT_NARRATION", to_translation( "Repeat last narration" ) );
         ctxt.register_action( "peek" );
         ctxt.register_action( "listitems" );
         ctxt.register_action( "zones" );
