@@ -8,6 +8,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_stdlib.h"
 #include "input_enums.h"
+#include "output.h"
 #include "ret_val.h"
 #include "text.h"
 #include "translations.h"
