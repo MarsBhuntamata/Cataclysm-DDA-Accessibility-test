@@ -1,6 +1,7 @@
 #include "iteminfo_accessibility.h"
 
 #include "output.h"
+#include "string_formatter.h"
 
 namespace
 {
@@ -67,10 +68,10 @@ std::string make_item_narration_text( const std::string &item_name,
     append_paragraph( result, item_name );
 
     if( !type_name.empty() && item_name.find( type_name ) == std::string::npos ) {
-        append_paragraph( result, "Type: " + type_name );
+        append_paragraph( result, string_format( _( "Type: %s" ), type_name ) );
     }
     if( !location.empty() ) {
-        append_paragraph( result, "Location: " + location );
+        append_paragraph( result, string_format( _( "Location: %s" ), location ) );
     }
 
     for( const iteminfo &entry : info ) {
