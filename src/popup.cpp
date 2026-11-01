@@ -13,6 +13,7 @@
 #include "input_context.h"
 #include "output.h"
 #include "string_formatter.h"
+#include "translations.h"
 #include "ui_manager.h"
 
 class query_popup_impl : public cataimgui::window
