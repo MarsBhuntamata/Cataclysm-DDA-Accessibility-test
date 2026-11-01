@@ -230,6 +230,9 @@ class query_popup
 
         std::weak_ptr<query_popup_impl> p_impl;
 
+        // Avoid repeating prompt speech on every input polling iteration.
+        mutable bool accessibility_announced = false;
+
         // UI caches
         mutable std::vector<std::string> folded_msg;
         mutable std::vector<button> buttons;
