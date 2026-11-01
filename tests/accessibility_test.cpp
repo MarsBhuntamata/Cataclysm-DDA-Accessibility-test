@@ -19,8 +19,13 @@ class recording_speech_backend : public speech_backend
             ++cancel_count;
         }
 
+        void braille( const std::string &text ) override {
+            braille_messages.push_back( text );
+        }
+
         std::vector<narration_request> requests;
         int cancel_count = 0;
+        std::vector<std::string> braille_messages;
 };
 
 } // namespace
@@ -51,6 +56,10 @@ TEST_CASE( "narration service remembers and repeats announcements", "[accessibil
 
     service.cancel();
     CHECK( backend.cancel_count == 1 );
+
+    service.braille( "Item details" );
+    REQUIRE( backend.braille_messages.size() == 1 );
+    CHECK( backend.braille_messages.back() == "Item details" );
 }
 
 TEST_CASE( "empty narration requests are ignored", "[accessibility]" )
@@ -69,7 +78,9 @@ TEST_CASE( "narration service safely accepts announcements without a backend", "
 {
     narration_service service;
 
-    service.announce( narration_request{ narration_event::game_message, "The door is locked.", false } );
+    service.announce( narration_request{
+        narration_event::game_message, "The door is locked.", false
+    } );
 
     CHECK( service.has_last_announcement() );
     CHECK( service.repeat_last() );
