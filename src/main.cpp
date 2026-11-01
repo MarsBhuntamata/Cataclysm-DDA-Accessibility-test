@@ -151,13 +151,19 @@ void exit_handler( int s )
     if( s != 2 || query_yn( _( "Really Quit?  All unsaved changes will be lost." ) ) ) {
         // exit() below bypasses the normal return path from main().  Detach the
         // NVDA backend before destroying game state and shutting down logging.
+        record_accessibility_checkpoint( "exit_handler: starting shutdown" );
         shutdown_accessibility();
+        record_accessibility_checkpoint( "exit_handler: accessibility detached" );
         deinitDebug();
+        record_accessibility_checkpoint( "exit_handler: debug logging closed" );
 
         int exit_status = 0;
+        record_accessibility_checkpoint( "exit_handler: before game reset" );
         g.reset();
+        record_accessibility_checkpoint( "exit_handler: game reset complete" );
 
         catacurses::endwin();
+        record_accessibility_checkpoint( "exit_handler: curses shutdown complete" );
 
 #if defined(__ANDROID__)
         // Avoid capturing SIGABRT on exit on Android in crash report
@@ -165,7 +171,9 @@ void exit_handler( int s )
         signal( SIGABRT, SIG_DFL );
 #endif
 
+        record_accessibility_checkpoint( "exit_handler: before ImGui client reset" );
         imclient.reset();
+        record_accessibility_checkpoint( "exit_handler: ImGui client reset complete; exiting" );
         exit( exit_status );
     }
     inp_mngr.set_timeout( old_timeout );
