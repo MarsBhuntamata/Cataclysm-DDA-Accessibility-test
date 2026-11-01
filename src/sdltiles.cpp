@@ -5905,8 +5905,14 @@ static void CheckMessages()
         try_sdl_update();
     }
     if( quit ) {
+#if defined(_WIN32)
+        // Never exit(0) here: this bypasses main.cpp's explicit game shutdown,
+        // leaving global g to be destroyed at atexit after map cache globals.
+        exit_game_from_sdl();
+#else
         catacurses::endwin();
         exit( 0 );
+#endif
     }
 }
 
