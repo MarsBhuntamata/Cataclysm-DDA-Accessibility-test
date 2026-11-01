@@ -3531,8 +3531,46 @@ drop_location inventory_selector::get_only_choice() const
     return drop_location();
 }
 
+void inventory_selector::announce_inventory_focus( bool opening )
+{
+    const inventory_entry &entry = get_highlighted();
+    std::string focus;
+    if( entry.is_item() ) {
+        focus = entry.any_item()->tname();
+        if( !entry.enabled ) {
+            focus += ". " + std::string( _( "Unavailable" ) );
+        }
+    } else if( entry.is_category() ) {
+        focus = entry.get_category_ptr()->name_header();
+    } else {
+        focus = _( "No item selected." );
+    }
+
+    // The column and row are part of focus identity: two different stacks
+    // can have identical names. Do not announce unchanged input or redraws.
+    const std::string identity = std::to_string( active_column_index ) + ":" +
+                                 std::to_string( get_active_column().get_highlighted_index() ) +
+                                 ":" + focus;
+    if( !opening && identity == last_inventory_focus ) {
+        return;
+    }
+    last_inventory_focus = identity;
+    inventory_narration_started = true;
+    if( opening ) {
+        focus = ( title.empty() ? std::string( _( "Inventory" ) ) :
+                  remove_color_tags( title ) ) + ". " + focus;
+    }
+    get_narration_service().announce( {
+        opening ? narration_event::ui_opened : narration_event::selection_changed,
+        focus, true
+    } );
+}
+
 inventory_input inventory_selector::get_input()
 {
+    // Called after the inventory layout has been drawn, so focus is valid.
+    // Also catches focus changes made outside on_input, such as mouse hover.
+    announce_inventory_focus( !inventory_narration_started );
     std::string const &action = ctxt.handle_input();
     int const ch = ctxt.get_raw_input().get_first_input();
     return process_input( action, ch );
@@ -3694,6 +3732,9 @@ void inventory_selector::on_input( const inventory_input &input )
             }
         }
     }
+    // The column handlers have completed navigation; announce new focus
+    // only if the highlighted entry actually changed.
+    announce_inventory_focus( false );
 }
 
 void inventory_selector::on_change( const inventory_entry &entry )
