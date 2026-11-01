@@ -76,10 +76,31 @@ jobs:
           if (-not $test) { throw "The test executable was not produced." }
           & $test.FullName "[accessibility]" --rng-seed 12345
 
-      - name: Upload Windows game executable
+      - name: Package Windows game and runtime DLLs
+        shell: pwsh
+        run: |
+          $buildRoot = Join-Path $PWD "out/build/windows-tiles-sounds-x64-msvc"
+          $installedRoot = Join-Path $buildRoot "vcpkg_installed/x64-windows-static"
+          $exe = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.exe -File -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "The game executable was not produced." }
+          $stage = Join-Path $PWD "out/package/cdda-nvda-test-build"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -LiteralPath $exe.FullName -Destination $stage
+          $dlls = Get-ChildItem -Path (Join-Path $installedRoot "bin") -Filter *.dll -File -ErrorAction SilentlyContinue
+          foreach ($dll in $dlls) {
+            Copy-Item -LiteralPath $dll.FullName -Destination $stage -Force
+          }
+          $mpg123 = Get-ChildItem -Path $installedRoot -Filter mpg123.dll -File -Recurse | Select-Object -First 1
+          if (-not $mpg123) { throw "mpg123.dll is required by the game but was not found under $installedRoot" }
+          Copy-Item -LiteralPath $mpg123.FullName -Destination $stage -Force
+          Write-Host "Packaged files:"
+          Get-ChildItem -Path $stage -File | ForEach-Object { Write-Host $_.Name }
+          if (-not (Test-Path (Join-Path $stage "mpg123.dll"))) { throw "mpg123.dll was not staged." }
+
+      - name: Upload Windows game and runtime package
         uses: actions/upload-artifact@v4
         with:
           name: cdda-nvda-test-build
-          path: out/build/windows-tiles-sounds-x64-msvc/**/cataclysm-tiles.exe
+          path: out/package/cdda-nvda-test-build/*
           if-no-files-found: error
           retention-days: 14
