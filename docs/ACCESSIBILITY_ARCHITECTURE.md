@@ -1,0 +1,100 @@
+# Accessibility Framework: Initial Architecture
+
+## Purpose
+
+Build a maintainable accessibility layer for Cataclysm-DDA, beginning with Windows screen-reader support and expanding to consistent keyboard navigation, braille where supported, and accessible presentation across the game's UI.
+
+The accessibility layer must not depend on screen readers scraping the pixels or text rendering of individual UI windows. Game systems and UI components should publish semantic events and structured content; accessibility services should present that information through the available output backends.
+
+## Baseline
+
+This branch is based on upstream commit `c337a0ca871cf0908deb41a0110f44482825a811`, selected to match the version identified by the accessible Windows build's VERSION.txt.
+
+The accessible build's original source repository is not available. Its executable and bundled DLLs are reference material, not the source of truth for this implementation.
+
+## Architectural principles
+
+1. **One semantic source, multiple presentations.** Keep game data and meaning separate from visual formatting, speech, and braille formatting.
+2. **Centralize output.** UI code must not call NVDA, SAPI, or vendor-specific APIs directly. It submits narration requests to one accessibility service.
+3. **Explicit UI events.** Opening a dialog, changing selection, updating a description, receiving a message, and moving through the world are distinct events.
+4. **Predictable focus.** Each accessible UI exposes its current focus/selection and an appropriate description. Focus changes should produce deliberate announcements, not accidental redraw narration.
+5. **User control.** Speech verbosity, interruption, repetition, automatic announcements, and backend choice must be configurable.
+6. **Graceful degradation.** If a screen reader or speech backend is unavailable, the game continues normally and can use another configured backend.
+7. **No visual regression.** Accessibility behavior should be additive and should not impose unwanted changes on players who do not enable it.
+8. **Testable boundaries.** Core narration decisions should be testable without launching the game or requiring a running screen reader.
+
+## Proposed components
+
+### Accessibility service
+
+A central service owns initialization, shutdown, backend selection, speech queue policy, interruption, repeat-last-announcement, and capability reporting.
+
+### Output backends
+
+Backends implement a small common interface for capabilities such as speaking text, cancelling speech, and displaying braille when supported. Initial Windows candidates are NVDA Controller Client, System Access, and SAPI. The implementation must verify the actual API contracts and licensing/deployment requirements before choosing dependencies. Screen-reader detection and speech synthesis should remain separate concepts.
+
+### Semantic narration
+
+UI and game code submit typed events rather than preformatted window text. Initial event families:
+
+- UI opened or closed
+- Focus or selection changed
+- Item description opened or changed
+- Status changed
+- Game message received
+- Player movement and surroundings changed
+- Contextual help requested
+
+Each event carries structured data and enough context to determine whether it should be spoken, queued, suppressed, or repeated.
+
+### Structured content
+
+Where the game already has structured data, reuse it. Item descriptions should be derived from item information entries, not scraped from ImGui or curses rendering. The visual, speech, and braille presenters should consume the same semantic content while applying their own formatting.
+
+### UI accessibility context
+
+An accessible UI should be able to report:
+- Its identity and role
+- Its current focus or selected entry
+- A concise label for that focus
+- A detailed description when requested
+- Available navigation actions
+- Whether it is modal and how it is dismissed
+
+This should be introduced incrementally rather than requiring a wholesale rewrite of every existing UI.
+
+## First target: item information
+
+The first end-to-end feature is the inventory item description.
+
+Expected behavior:
+1. Opening an item's description announces the item name and a useful summary.
+2. The full description is available without relying on OCR or visual text extraction.
+3. Scrolling produces sensible announcements without repeating the entire description unnecessarily.
+4. A repeat command repeats the last relevant narration.
+5. Closing the description returns focus to the inventory context.
+6. The feature works independently of whether the UI is rendered through ImGui or curses.
+
+## Implementation sequence
+
+1. Audit UI lifecycle, input contexts, item information structures, options, and build configuration on this pinned baseline.
+2. Define the backend-neutral accessibility service and event model.
+3. Add a minimal testable speech backend interface and a no-op/test backend.
+4. Integrate one Windows backend and verify initialization, speech, cancellation, and shutdown.
+5. Connect the item-information path end to end.
+6. Extend the same event model to inventory selection, menus, messages, status, and world navigation.
+7. Add settings, documentation, regression tests, and packaging checks.
+
+## Constraints and open questions
+
+- Do not assume that ImGui's rendered text is exposed to Windows UI Automation or NVDA. Verify actual behavior separately.
+- Do not assume the accessible reference executable statically or dynamically links Tolk until the binary evidence establishes that.
+- Determine the project's supported compiler, Windows toolchain, and dependency conventions before adding a third-party library.
+- Confirm which backend APIs are available in the target build and how their DLLs are packaged.
+- Keep the existing game UI operational if accessibility initialization fails.
+
+## Current evidence
+
+The inventory examination path constructs an `iteminfo_window`. That window renders the item name/type and delegates the description to `display_item_info()`, then waits for input in its execution loop. The UI adaptor documentation describes terminal cursor recording for screen readers as curses-only and notes that the current tiles implementation does not support screen readers through that mechanism.
+
+This supports an architecture in which narration is driven by semantic UI events and structured item data, rather than by terminal cursor placement or rendered-window scraping.
