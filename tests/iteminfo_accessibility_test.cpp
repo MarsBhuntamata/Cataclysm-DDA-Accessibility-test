@@ -33,3 +33,15 @@ TEST_CASE( "item narration omits visual separator entries", "[accessibility]" )
     CHECK( narration.find( "--" ) == std::string::npos );
     CHECK( narration.find( "A plain description." ) != std::string::npos );
 }
+
+TEST_CASE( "item narration respects hidden item information entries", "[accessibility]" )
+{
+    std::vector<iteminfo> info;
+    info.emplace_back( "DESCRIPTION", "Internal-only text", iteminfo::no_name );
+    info.emplace_back( "DESCRIPTION", "Player-facing description." );
+
+    const std::string narration = make_item_narration_text( "test item", "", info );
+
+    CHECK( narration.find( "Internal-only text" ) == std::string::npos );
+    CHECK( narration.find( "Player-facing description." ) != std::string::npos );
+}
