@@ -16,28 +16,31 @@
 namespace
 {
 
-std::ofstream &accessibility_diagnostic_file()
+std::ofstream *accessibility_diagnostic_file()
 {
-    static std::ofstream file = []() {
+    // Intentionally keep this stream alive until process termination.  This
+    // avoids running C++ stream destruction during the game's fragile shutdown.
+    static std::ofstream *file = []() {
         std::vector<wchar_t> executable_path( 32768, L'\0' );
         const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
                                     static_cast<DWORD>( executable_path.size() ) );
         if( path_length == 0 || path_length >= executable_path.size() ) {
             OutputDebugStringA( "[accessibility] Could not determine executable path for diagnostics.\n" );
-            return std::ofstream();
+            return static_cast<std::ofstream *>( nullptr );
         }
 
         const std::filesystem::path executable( std::wstring( executable_path.data(), path_length ) );
         const std::filesystem::path log_path = executable.parent_path() /
                                                L"nvda-accessibility-diagnostics.txt";
-        std::ofstream output( log_path, std::ios::out | std::ios::trunc );
-        if( output ) {
-            output << "CDDA NVDA accessibility diagnostics\n";
-            output << "Diagnostic file is beside cataclysm-tiles.exe.\n";
-            output.flush();
+        std::ofstream *output = new std::ofstream( log_path, std::ios::out | std::ios::trunc );
+        if( *output ) {
+            *output << "CDDA NVDA accessibility diagnostics\n";
+            *output << "Diagnostic file is beside cataclysm-tiles.exe.\n";
+            output->flush();
         } else {
-            OutputDebugStringW( ( L"[accessibility] Could not create diagnostic file: " +
-                                  log_path.wstring() + L"\n" ).c_str() );
+            delete output;
+            OutputDebugStringA( "[accessibility] Could not create diagnostic file.\n" );
+            return static_cast<std::ofstream *>( nullptr );
         }
         return output;
     }();
@@ -46,9 +49,9 @@ std::ofstream &accessibility_diagnostic_file()
 
 void log_accessibility_diagnostic( const std::string &message )
 {
-    std::ofstream &file = accessibility_diagnostic_file();
-    if( file ) {
-        file << message << std::endl;
+    std::ofstream *file = accessibility_diagnostic_file();
+    if( file != nullptr && *file ) {
+        *file << message << std::endl;
     } else {
         OutputDebugStringA( ( "[accessibility] " + message + "\n" ).c_str() );
     }
@@ -112,9 +115,9 @@ class nvda_controller_backend : public speech_backend
                 const std::wstring full_path = library_directory + library_name;
                 library = LoadLibraryW( full_path.c_str() );
                 if( library != nullptr ) {
-                    log_accessibility_diagnostic( "Loaded controller DLL: " +
-                                                  ( sizeof( void * ) == 8 ? "nvdaControllerClient.dll or nvdaControllerClient64.dll" :
-                                                    "nvdaControllerClient.dll or nvdaControllerClient32.dll" ) );
+                    log_accessibility_diagnostic( std::string( "Loaded controller DLL: " ) +
+                                                  ( sizeof( void * ) == 8 ? "64-bit controller library." :
+                                                    "32-bit controller library." ) );
                     break;
                 }
                 const DWORD load_error = GetLastError();
