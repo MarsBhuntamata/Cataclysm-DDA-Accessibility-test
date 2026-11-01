@@ -157,7 +157,9 @@ bool narration_service::repeat_last()
     }
 
     if( backend != nullptr ) {
-        backend->speak( last_request );
+        narration_request repeated = last_request;
+        repeated.interrupt = true;
+        backend->speak( repeated );
     }
     return true;
 }
