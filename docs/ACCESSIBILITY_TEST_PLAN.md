@@ -20,8 +20,8 @@
 3. Open the inventory and move to an item with a non-empty description.
 4. Use the inventory's Examine action.
 5. Confirm that NVDA announces the item name, type when distinct, inventory location, and available item information.
-6. Press Ctrl+Shift+R while the item-information window is open. Confirm that the last announcement is repeated and interrupts speech already in progress.
-7. Close the item-information window and press Ctrl+Shift+R again from the inventory. Confirm that the same last announcement can be repeated there too.
+6. Press F7 while the item-information window is open. Confirm that the last announcement is repeated and interrupts speech already in progress.
+7. Close the item-information window and press F7 again from the inventory. Confirm that the same last announcement can be repeated there too.
 8. Confirm that normal inventory interaction continues.
 
 ## Failure and regression checks
@@ -29,7 +29,9 @@
 - Launch without the NVDA DLL. The game should continue without crashing; narration is unavailable.
 - Launch with the DLL present but NVDA not running. The game should continue; speech requests should be safely ignored until NVDA is available.
 - Confirm that item-information visual rendering and scrolling remain unchanged.
-- Confirm that Ctrl+R retains its existing debug-dialogue binding. Repeat narration uses Ctrl+Shift+R to avoid that conflict.
+- Confirm that Ctrl+R retains its existing debug-dialogue binding. Repeat narration uses F7 to avoid that conflict.
+- In gameplay, press F6 to describe the terrain underfoot. F7 repeats the last announcement.
+- If the laptop uses media-key mode, try Fn+F6 and Fn+F7.
 
 ## Not covered by this prototype
 
