@@ -733,6 +733,11 @@ class inventory_selector
          */
         input_context ctxt;
 
+        // Last spoken inventory focus, kept separate from visual redraw state.
+        bool inventory_narration_started = false;
+        std::string last_inventory_focus;
+        void announce_inventory_focus( bool opening );
+
         const item_category *naturalize_category( const item_category &category,
                 const tripoint_bub_ms &pos );
 
