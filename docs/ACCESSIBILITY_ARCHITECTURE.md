@@ -98,3 +98,23 @@ Expected behavior:
 The inventory examination path constructs an `iteminfo_window`. That window renders the item name/type and delegates the description to `display_item_info()`, then waits for input in its execution loop. The UI adaptor documentation describes terminal cursor recording for screen readers as curses-only and notes that the current tiles implementation does not support screen readers through that mechanism.
 
 This supports an architecture in which narration is driven by semantic UI events and structured item data, rather than by terminal cursor placement or rendered-window scraping.
+
+## Implemented prototype on this branch
+
+The first prototype now contains:
+- A backend-neutral `narration_service` with semantic event identifiers, last-announcement storage, repeat, cancellation, and optional braille forwarding.
+- A Windows NVDA Controller Client backend loaded dynamically from the executable's own directory. It checks whether NVDA is running before sending speech or braille, and supports the legacy architecture-suffixed DLL names as well as the current unsuffixed name.
+- A plain-text item-information adapter that reads the existing `iteminfo` entries rather than scraping rendered UI text.
+- An integration point in the inventory selector's `EXAMINE` action, which submits an `item_description_opened` event.
+- Unit tests for service behavior and item-information text conversion.
+
+The NVDA backend uses the documented Controller Client functions for testing whether NVDA is running, speaking text, cancelling speech, and displaying a braille message. See the [NVDA Controller Client API documentation](https://github.com/nvaccess/nvda/blob/master/extras/controllerClient/readme.md).
+
+## Prototype limitations
+
+This is an early vertical slice, not a complete accessible game yet:
+- The NVDA DLL must be present beside the executable. The prototype does not download or install it.
+- NVDA is the only implemented output backend so far. System Access and SAPI fallback are not implemented yet.
+- Braille forwarding is available through the service but has not yet been connected to automatic UI events.
+- The inventory description is currently announced when opened. Scroll-position announcements, focus restoration, and repeat-key binding still need implementation.
+- The tests have been added to the project's Catch-based test suite, but a Windows build and live NVDA test have not yet been run from this environment.
