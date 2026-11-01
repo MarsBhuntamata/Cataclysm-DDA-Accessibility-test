@@ -35,6 +35,10 @@ class speech_backend
 
         virtual void speak( const narration_request &request ) = 0;
         virtual void cancel() = 0;
+        /// Optional braille output. Backends without braille support may ignore it.
+        virtual void braille( const std::string &text ) {
+            static_cast<void>( text );
+        }
 };
 
 /// Coordinates narration independently of any particular screen reader.
@@ -54,6 +58,7 @@ class narration_service
 
         /// Stop current backend speech, if a backend is connected.
         void cancel();
+        void braille( const std::string &text );
 
         bool has_last_announcement() const;
 
