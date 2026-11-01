@@ -121,11 +121,8 @@ jobs:
           Copy-Item -LiteralPath (Join-Path $PWD "gfx") -Destination $stage -Recurse -Force
           Copy-Item -LiteralPath (Join-Path $PWD "LICENSE.txt") -Destination $stage -Force
 
-          @'
-@echo off
-cd /d "%~dp0"
-"cataclysm-tiles.exe"
-'@ | Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
+          @('@echo off', 'cd /d "%~dp0"', '"cataclysm-tiles.exe"') |
+            Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
 
           foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
             if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing packaged dependency: $required" }
