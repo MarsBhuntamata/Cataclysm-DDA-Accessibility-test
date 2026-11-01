@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "accessibility.h"
 #include "color.h"
 #include "input_enums.h"
 #include "translations.h"
@@ -27,6 +28,7 @@ iteminfo_window::iteminfo_window( item_info_data &info, point pos, int width, in
         }
     }
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
     if( info.any_input ) {
@@ -84,6 +86,8 @@ void iteminfo_window::execute()
             s = cataimgui::scroll::begin;
         } else if( data.handle_scrolling && action == "END" ) {
             s = cataimgui::scroll::end;
+        } else if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
         } else if( action == "CONFIRM" || action == "QUIT" ||
                    ( data.any_input && action == "ANY_INPUT" && !ctxt.get_raw_input().sequence.empty() ) ) {
             break;
