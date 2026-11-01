@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "accessibility.h"
 #include "action.h"
 #include "activity_actor_definitions.h"
 #include "advanced_inv.h"
@@ -3281,6 +3282,21 @@ bool game::handle_action()
     } else {
         // No auto-move, ask player for input
         ctxt = get_player_input( action );
+    }
+
+    // Explicit, free map narration is preferable to an unsolicited speech
+    // avalanche on every movement. These commands don't consume a game turn.
+    if( action == "DESCRIBE_LOCATION" ) {
+        get_narration_service().announce( {
+            narration_event::movement,
+            string_format( _( "You are standing on %s." ), here.name( player_character.pos_bub() ) ),
+            true
+        } );
+        return false;
+    }
+    if( action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+        return false;
     }
 
     // Remove asynchronous animations if any action taken before the input timeout
