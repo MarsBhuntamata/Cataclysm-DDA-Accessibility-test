@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include "accessibility.h"
+#include "catacharset.h"
 #include "coordinates.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_stdlib.h"
@@ -18,6 +20,7 @@ input_popup::input_popup( int width, const std::string &title, const point &pos,
                           ImGuiWindowFlags flags ) :
     cataimgui::window( title, ImGuiWindowFlags_NoNavInputs | flags | ( title.empty() ?
                        ImGuiWindowFlags_NoTitleBar : 0 ) | ImGuiWindowFlags_AlwaysAutoResize ),
+    accessible_title( title ),
     pos( pos ),
     width( width )
 {
@@ -26,6 +29,7 @@ input_popup::input_popup( int width, const std::string &title, const point &pos,
     ctxt.register_action( "TEXT.QUIT" );
     ctxt.register_action( "TEXT.CLEAR" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.set_timeout( 10 );
 }
 
@@ -69,6 +73,34 @@ void input_popup::add_callback( const callback_input &input,
         register_input( ctxt, input );
     }
     callbacks.emplace_back( input, callback_func );
+}
+
+void input_popup::announce_accessible_prompt( const std::string &current_value )
+{
+    if( accessible_prompt_announced ) {
+        return;
+    }
+    accessible_prompt_announced = true;
+    std::string prompt = remove_color_tags( accessible_title );
+    if( !label.empty() ) {
+        if( !prompt.empty() ) {
+            prompt += ". ";
+        }
+        prompt += remove_color_tags( label );
+    }
+    if( !description.empty() ) {
+        if( !prompt.empty() ) {
+            prompt += ". ";
+        }
+        prompt += remove_color_tags( description );
+    }
+    if( prompt.empty() ) {
+        prompt = _( "Text input" );
+    }
+    if( !current_value.empty() ) {
+        prompt += ". " + std::string( _( "Current value" ) ) + ": " + current_value;
+    }
+    get_narration_service().announce( { narration_event::ui_opened, prompt, true } );
 }
 
 bool input_popup::cancelled() const
@@ -335,6 +367,7 @@ void string_input_popup_imgui::add_to_history( const std::string &value ) const
 std::string string_input_popup_imgui::query()
 {
     is_cancelled = false;
+    announce_accessible_prompt( text );
 
     while( true ) {
         ui_manager::redraw_invalidated();
@@ -344,7 +377,9 @@ std::string string_input_popup_imgui::query()
             continue;
         }
 
-        if( action == "TEXT.CONFIRM" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "TEXT.CONFIRM" ) {
             add_to_history( text );
             return text;
         } else if( action == "TEXT.QUIT" ) {
@@ -418,6 +453,7 @@ void number_input_popup<float>::draw_input_control()
 template<typename T>
 T number_input_popup<T>::query()
 {
+    announce_accessible_prompt( std::to_string( value ) );
 
     while( true ) {
         ui_manager::redraw_invalidated();
@@ -427,7 +463,9 @@ T number_input_popup<T>::query()
             continue;
         }
 
-        if( action == "TEXT.CONFIRM" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "TEXT.CONFIRM" ) {
             return value;
         } else if( action == "TEXT.QUIT" ) {
             break;
