@@ -42,9 +42,6 @@ class game;
 
 extern std::unique_ptr<game> g;
 
-// Route SDL window-close events through normal game cleanup instead of calling
-// exit(0) directly inside the SDL input loop.  See main.cpp.
-[[noreturn]] void exit_game_from_sdl();
 
 extern const int savegame_version;
 extern int savegame_loading_version;
