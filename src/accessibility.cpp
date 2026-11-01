@@ -326,6 +326,15 @@ bool initialize_accessibility()
 #endif
 }
 
+void record_accessibility_checkpoint( const std::string &stage )
+{
+#if defined(_WIN32)
+    log_accessibility_diagnostic( "LIFECYCLE: " + stage );
+#else
+    static_cast<void>( stage );
+#endif
+}
+
 void shutdown_accessibility()
 {
 #if defined(_WIN32)
