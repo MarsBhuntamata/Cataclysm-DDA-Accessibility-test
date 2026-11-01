@@ -500,6 +500,8 @@ void uilist::init()
     previewing = 0;           // current mouse highlight, for entries[index]
     entries.clear();       // uilist_entry(int returnval, bool enabled, int keycode, std::string text, ... TODO: submenu stuff)
     started = false;       // set to true when width and key calculations are done, and window is generated.
+    accessibility_announced_opening = false;
+    accessibility_announced_focus.clear();
     desc_enabled = false;  // don't show option description by default
     footer_text.clear();   // takes precedence over per-entry descriptions.
     border_color = c_magenta; // border color
@@ -949,8 +951,6 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
         return nullptr;
     }
     shared_ptr_fast<uilist_impl> ui = create_or_get_ui();
-    bool announced_opening = false;
-    std::string announced_focus;
     // A menu's selection can change either in query_once() or during ImGui
     // redraw (e.g. changing category tabs). Compare on both sides of input.
     auto focused_text = [this]() {
@@ -963,28 +963,28 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
     do {
         ui_manager::redraw();
         const std::string before_input = focused_text();
-        if( !announced_opening ) {
+        if( !accessibility_announced_opening ) {
             get_narration_service().announce( {
                 narration_event::ui_opened,
                 accessible_list_heading( *this ) + ". " + before_input, true
             } );
-            announced_focus = before_input;
-            announced_opening = true;
-        } else if( before_input != announced_focus ) {
+            accessibility_announced_focus = before_input;
+            accessibility_announced_opening = true;
+        } else if( before_input != accessibility_announced_focus ) {
             get_narration_service().announce( {
                 narration_event::selection_changed, before_input, true
             } );
-            announced_focus = before_input;
+            accessibility_announced_focus = before_input;
         }
 
         query_once( ctxt, timeout, allow_unfiltered_hotkeys );
 
         const std::string after_input = focused_text();
-        if( ret == UILIST_WAIT_INPUT && after_input != announced_focus ) {
+        if( ret == UILIST_WAIT_INPUT && after_input != accessibility_announced_focus ) {
             get_narration_service().announce( {
                 narration_event::selection_changed, after_input, true
             } );
-            announced_focus = after_input;
+            accessibility_announced_focus = after_input;
         }
     } while( loop && ret == UILIST_WAIT_INPUT );
     return ui;
@@ -1064,6 +1064,12 @@ bool uilist::query_setup()
     if( entries.empty() ) {
         ret = UILIST_ERROR;
         return false;
+    }
+    if( ret != UILIST_WAIT_INPUT ) {
+        // A previous query completed. The next query is a new opening, not
+        // another input poll of the same menu.
+        accessibility_announced_opening = false;
+        accessibility_announced_focus.clear();
     }
     ret = UILIST_WAIT_INPUT;
 
