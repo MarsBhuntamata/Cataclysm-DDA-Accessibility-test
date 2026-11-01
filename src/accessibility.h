@@ -77,4 +77,7 @@ bool initialize_accessibility();
 /// Detach and release the active platform speech backend.
 void shutdown_accessibility();
 
+/// Persist startup and shutdown checkpoints to help diagnose Windows crashes.
+void record_accessibility_checkpoint( const std::string &stage );
+
 #endif // CATA_SRC_ACCESSIBILITY_H
