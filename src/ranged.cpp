@@ -3468,6 +3468,35 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
     // Update UI controls & colors
     update_status();
 
+    // Announce the actual aiming-cursor destination as soon as it moves.
+    // This also covers NEXT_TARGET/PREV_TARGET and mouse targeting.
+    if( mode == TargetMode::Fire ) {
+        const tripoint_rel_ms offset = dst - src;
+        std::string report = dst_critter ? dst_critter->disp_name() :
+                             accessibility_describe_local_tile( dst );
+        report += string_format( _( ". Aim cursor %d east, %d south. Distance %d." ),
+                                 offset.x(), offset.y(), dist_fn( dst ) );
+        if( status == Status::OutOfAmmo ) {
+            report += " " + std::string( _( "Weapon unavailable or out of ammunition." ) );
+        } else if( status == Status::OutOfRange ) {
+            report += " " + std::string( _( "Out of range." ) );
+        } else if( status == Status::BadTarget ) {
+            report += " " + std::string( _( "Invalid target." ) );
+        }
+        const std::vector<weak_ptr_fast<Creature>> friendlies = list_friendlies_in_lof();
+        if( !friendlies.empty() ) {
+            report += " " + std::string( _( "Warning: friendly creature in line of fire." ) );
+            for( const weak_ptr_fast<Creature> &weak_creature : friendlies ) {
+                if( const shared_ptr_fast<Creature> creature = weak_creature.lock() ) {
+                    report += " " + creature->disp_name() + ".";
+                }
+            }
+        }
+        get_narration_service().announce( {
+            narration_event::selection_changed, report, true
+        } );
+    }
+
     return true;
 }
 
