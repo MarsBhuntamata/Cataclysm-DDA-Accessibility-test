@@ -12,6 +12,7 @@
 #include <tuple>
 #include <utility>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "avatar_action.h"
 #include "cata_utility.h"
@@ -1194,11 +1195,53 @@ void surroundings_menu::draw_examine_info()
 
 void surroundings_menu::execute()
 {
+    // Speak item/creature/terrain selections in the surroundings scanner.
+    // The ImGui list is otherwise visual-only when navigating with NVDA.
+    std::string last_spoken_selection;
+    auto announce_selection = [&]() {
+        std::string report;
+        switch( selected_tab ) {
+            case surroundings_menu_tab_enum::items:
+                report = _( "Items" );
+                if( item_data.selected_entry ) {
+                    report += ". " + remove_color_tags( item_data.selected_entry->get_selected_name() ) +
+                              ". " + remove_color_tags( item_data.selected_entry->get_selected_distance_string() );
+                } else {
+                    report += ". " + std::string( _( "No items found." ) );
+                }
+                break;
+            case surroundings_menu_tab_enum::monsters:
+                report = _( "Creatures" );
+                if( monster_data.selected_entry ) {
+                    report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_name() ) +
+                              ". " + remove_color_tags( monster_data.selected_entry->get_selected_distance_string() );
+                } else {
+                    report += ". " + std::string( _( "No creatures found." ) );
+                }
+                break;
+            case surroundings_menu_tab_enum::terfurn:
+                report = _( "Terrain and furniture" );
+                if( terfurn_data.selected_entry ) {
+                    report += ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_name() ) +
+                              ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_distance_string() );
+                } else {
+                    report += ". " + std::string( _( "No terrain or furniture found." ) );
+                }
+                break;
+            case surroundings_menu_tab_enum::num_tabs:
+                return;
+        }
+        if( report != last_spoken_selection ) {
+            last_spoken_selection = report;
+            get_narration_service().announce( { narration_event::selection_changed, report, true } );
+        }
+    };
     while( true ) {
         update_path_end();
         g->invalidate_main_ui_adaptor();
 
         ui_manager::redraw();
+        announce_selection();
 
         std::string action;
         if( has_button_action() ) {
