@@ -89,3 +89,10 @@ This milestone is a first accessible pass on these custom views; it does **not**
 
 - **Shift+3**: In the faction screen, move through tabs for camps, followers, other factions, and known creatures. Confirm selected names and faction descriptions are spoken. F7 repeats.
 - **Shift+0**: Open the diary. Navigate pages, change entries and page text. Confirm focused entries and explanatory text are spoken. F7 repeats.
+
+
+## Spoken text polish
+
+- In Look Around (X + arrows), moving one tile west onto a table should speak "1 west. table", with any observed item cue appended. Do not prepend "Look cursor".
+- In inventory focus and item descriptions, a name such as `<color_c_green>++</color> animal boxer shorts` should speak "green animal boxer shorts". The display remains unmodified.
+- Check light-green and red durability indicators, plain names, and names with regular color tags. F7 must repeat the cleaned-up wording.

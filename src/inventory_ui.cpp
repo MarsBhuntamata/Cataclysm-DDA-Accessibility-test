@@ -3536,7 +3536,7 @@ void inventory_selector::announce_inventory_focus( bool opening )
     const inventory_entry &entry = get_highlighted();
     std::string focus;
     if( entry.is_item() ) {
-        focus = entry.any_item()->tname();
+        focus = make_item_name_narration_text( entry.any_item()->tname() );
         if( !entry.enabled ) {
             focus += ". " + std::string( _( "Unavailable" ) );
         }

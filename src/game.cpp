@@ -6237,7 +6237,7 @@ look_around_result game::look_around(
             }
             get_narration_service().announce( {
                 narration_event::selection_changed,
-                string_format( _( "Look cursor: %s. %s" ), relative,
+                string_format( "%s. %s", relative,
                                accessibility_describe_local_tile( lp ) ),
                 true
             } );

@@ -5,6 +5,25 @@
 
 #include "cata_catch.h"
 
+TEST_CASE( "item durability colors become spoken words, without markup", "[accessibility]" )
+{
+    CHECK( make_item_name_narration_text( "<color_c_green>++</color> animal boxer shorts" ) ==
+           "green animal boxer shorts" );
+    CHECK( make_item_name_narration_text( "<color_c_light_green>++</color> jacket" ) ==
+           "light green jacket" );
+    CHECK( make_item_name_narration_text( "<color_c_red>--</color> damaged boots" ) ==
+           "red damaged boots" );
+    CHECK( make_item_name_narration_text( "plain backpack" ) == "plain backpack" );
+    CHECK( make_item_name_narration_text( "<color_c_red>dangerous</color> item" ) ==
+           "dangerous item" );
+    CHECK( make_item_name_narration_text( "<color_c_green>++</color>" ) == "green" );
+    CHECK( make_item_name_narration_text( "<color_unknown>++</color> object" ) == "++ object" );
+
+    const std::string info = make_item_narration_text(
+                                 "<color_c_green>++</color> animal boxer shorts", "", {} );
+    CHECK( info == "green animal boxer shorts" );
+}
+
 TEST_CASE( "item information is converted to plain narration text", "[accessibility]" )
 {
     std::vector<iteminfo> info;
