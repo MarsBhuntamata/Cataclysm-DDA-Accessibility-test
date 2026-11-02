@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "catacharset.h"
 #include "color.h"
 #include "cursesdef.h"
@@ -200,6 +201,7 @@ void diary::show_diary_ui( diary *c_diary )
     ctxt.register_action( "EXPORT_DIARY" );
     ctxt.register_action( "VIEW_SCORES" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
 
     ui_adaptor ui_diary;
     ui_diary.on_screen_resize( [&]( ui_adaptor & ui ) {
@@ -321,6 +323,8 @@ void diary::show_diary_ui( diary *c_diary )
         wnoutrefresh( w_info );
     } );
 
+    std::string last_spoken_diary_focus;
+    bool first_diary_narration = true;
     while( true ) {
 
         if( ( !c_diary->pages.empty() &&
@@ -334,7 +338,63 @@ void diary::show_diary_ui( diary *c_diary )
         ui_desc.invalidate_ui();
         ui_info.invalidate_ui();
         ui_manager::redraw_invalidated();
+
+        std::string focus = string_format( _( "%s's diary. " ), c_diary->owner );
+        if( currwin == window_mode::PAGE_WIN ) {
+            focus += _( "Pages. " );
+            const std::vector<std::string> pages = c_diary->get_pages_list();
+            const int index = selected[window_mode::PAGE_WIN];
+            if( index >= 0 && static_cast<size_t>( index ) < pages.size() ) {
+                focus += pages[index];
+            } else {
+                focus += _( "No pages." );
+            }
+        } else if( currwin == window_mode::CHANGE_WIN ) {
+            focus += _( "Changes. " );
+            const std::vector<std::string> &changes = c_diary->get_change_list();
+            const int index = selected[window_mode::CHANGE_WIN];
+            if( index >= 0 && static_cast<size_t>( index ) < changes.size() ) {
+                focus += changes[index];
+                const auto &descriptions = c_diary->get_desc_map();
+                const auto found = descriptions.find( index );
+                if( found != descriptions.end() && !found->second.empty() ) {
+                    focus += ". " + found->second;
+                }
+            } else {
+                focus += _( "No changes." );
+            }
+        } else if( currwin == window_mode::TEXT_WIN ) {
+            focus += _( "Page text. " );
+            if( !c_diary->pages.empty() ) {
+                const std::vector<std::string> lines =
+                    text_to_list_scrollable( w_text,
+                                             c_diary->get_desc_or_page_text( selected[window_mode::CHANGE_WIN] ),
+                                             false );
+                const int index = selected[window_mode::TEXT_WIN];
+                if( index >= 0 && static_cast<size_t>( index ) < lines.size() ) {
+                    focus += lines[index];
+                } else {
+                    focus += _( "No text." );
+                }
+            } else {
+                focus += _( "No pages." );
+            }
+        }
+        const std::string spoken_diary = remove_color_tags( focus );
+        if( first_diary_narration || spoken_diary != last_spoken_diary_focus ) {
+            get_narration_service().announce( {
+                first_diary_narration ? narration_event::ui_opened :
+                narration_event::selection_changed, spoken_diary, true
+            } );
+            first_diary_narration = false;
+            last_spoken_diary_focus = spoken_diary;
+        }
+
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
         if( action == "LEFT" || action == "PREV_TAB" || action == "RIGHT" || action == "NEXT_TAB" ) {
             // necessary to use inc_clamp_wrap()
             static_assert( static_cast<int>( window_mode::FIRST_WIN ) == 0 );

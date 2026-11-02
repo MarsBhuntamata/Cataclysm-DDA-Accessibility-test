@@ -86,3 +86,6 @@ If the function row controls hardware, use Fn plus the corresponding function ke
 - **Other Shift+number actions**: Shift+1 safe mode, Shift+3 factions, Shift+4 sleep, Shift+5 item-action menu, Shift+6 vehicle controls, Shift+8 construction, Shift+9 disassembly, and Shift+0 diary should retain their existing bindings. Some still use custom UIs that need further targeted speech coverage.
 
 This milestone is a first accessible pass on these custom views; it does **not** guarantee full text and requirement navigation within every secondary panel. Keep existing saves backed up before testing a new build.
+
+- **Shift+3**: In the faction screen, move through tabs for camps, followers, other factions, and known creatures. Confirm selected names and faction descriptions are spoken. F7 repeats.
+- **Shift+0**: Open the diary. Navigate pages, change entries and page text. Confirm focused entries and explanatory text are spoken. F7 repeats.

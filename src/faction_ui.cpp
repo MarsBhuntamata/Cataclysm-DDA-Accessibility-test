@@ -14,6 +14,7 @@
 
 #include <imgui/imgui_internal.h>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "basecamp.h"
 #include "calendar.h"
@@ -191,11 +192,58 @@ bool faction_ui::execute()
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.set_timeout( 16 );
 
+    std::string last_spoken_faction_focus;
+    bool first_faction_narration = true;
     while( true ) {
         ui_manager::redraw_invalidated();
+        std::string focus = _( "Factions" );
+        switch( selected_tab ) {
+            case tab_mode::TAB_MYFACTION:
+                focus += ". " + std::string( _( "Your faction" ) );
+                if( picked_camp != nullptr ) {
+                    focus += ". " + picked_camp->camp_name();
+                } else {
+                    focus += ". " + std::string( _( "No camp selected." ) );
+                }
+                break;
+            case tab_mode::TAB_FOLLOWERS:
+                focus += ". " + std::string( _( "Your followers" ) );
+                focus += picked_follower != nullptr ? ". " + picked_follower->get_name() :
+                         ". " + std::string( _( "No follower selected." ) );
+                break;
+            case tab_mode::TAB_OTHERFACTIONS:
+                focus += ". " + std::string( _( "Other factions" ) );
+                if( picked_faction != nullptr ) {
+                    focus += ". " + picked_faction->get_name() + ". " +
+                             picked_faction->desc.translated();
+                } else {
+                    focus += ". " + std::string( _( "No faction selected." ) );
+                }
+                break;
+            case tab_mode::TAB_CREATURES:
+                focus += ". " + std::string( _( "Known creatures" ) );
+                focus += picked_creature != nullptr ? ". " + picked_creature->obj().nname() :
+                         ". " + std::string( _( "No creature selected." ) );
+                break;
+            case tab_mode::NUM_TABS:
+                break;
+        }
+        if( first_faction_narration || focus != last_spoken_faction_focus ) {
+            get_narration_service().announce( {
+                first_faction_narration ? narration_event::ui_opened :
+                narration_event::selection_changed, focus, true
+            } );
+            last_spoken_faction_focus = focus;
+            first_faction_narration = false;
+        }
         last_action = ctxt.handle_input();
+        if( last_action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
         if( last_action == "QUIT" || !get_is_open() ) {
             break;
         }
