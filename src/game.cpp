@@ -5470,6 +5470,7 @@ bool game::npc_menu( npc &who )
 
 void game::examine( bool with_pickup )
 {
+    record_accessibility_checkpoint( "Examine: directional selection entered" );
     map &here = get_map();
 
     // if we are driving a vehicle, examine the
@@ -5522,8 +5523,10 @@ void game::examine( bool with_pickup )
     }
 
     if( !examp ) {
+        record_accessibility_checkpoint( "Examine: no tile selected" );
         return;
     }
+    record_accessibility_checkpoint( "Examine: tile selected" );
     u.manual_examine = true;
     examine( *examp, with_pickup );
     u.manual_examine = false;
