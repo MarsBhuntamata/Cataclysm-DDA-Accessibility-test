@@ -105,3 +105,10 @@ This milestone is a first accessible pass on these custom views; it does **not**
 - Starting Custom Character or Random Character should announce **Character creation ready**, the active section (Scenario or Summary), and its currently selected entry. Tab/Shift+Tab switches character-creation sections. Navigate a list with arrow keys and confirm the selected entry and changed tab are spoken.
 - F7 should repeat the most recent character-creation speech, including on the Summary page.
 - Verify loading tips are stripped of raw color tags; no repeated progress spam; failure/return-to-main-menu does not falsely announce ready.
+
+## Armor layering, zones and overmap navigation
+
+- **Shift+= / plus**: Open armor layering. NVDA should announce the body-part category, focused worn item, ordering selection, hidden sprite status, layering and available coverage/encumbrance/warmth properties. Use arrows to select items, left/right to switch body part, and F7 to repeat the focused announcement. Other actions must retain their original behavior.
+- **Shift+Y**: Open zones. For each focused zone, read its position in the list, name, type, enabled state, distance/direction, personal/vehicle status and custom options. Confirm empty-zone output, edits/reordering and F7 repeat.
+- **M**: Open overmap. Hear a brief position offset and terrain identification as the cursor moves. Unseen tiles must report "Unexplored", not underlying map terrain. Existing notes and danger markers should speak. Elevation changes must be reported. F7 repeats; no speech on blinking/timeouts or automated route playback.
+- Regression: game movement and world map interactions remain unchanged, no repeated narration on redraw, and no unearned visibility of uncharted terrain.

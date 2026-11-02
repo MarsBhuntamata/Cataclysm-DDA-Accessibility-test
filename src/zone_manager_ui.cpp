@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "cata_scope_helpers.h"
 #include "character.h"
@@ -232,6 +233,7 @@ void zone_manager_ui::display_zone_manager()
     ctxt.register_action( "DISABLE_VEHICLE_ZONES" );
     ctxt.register_action( "SHOW_ALL_ZONES" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     if( debug_mode ) {
         ctxt.register_action( "CHANGE_FACTION" );
     }
@@ -481,9 +483,12 @@ void zone_manager_ui::display_zone_manager()
     const int scroll_rate = zone_cnt > 20 ? 10 : 3;
     bool quit = false;
     bool save = false;
+    bool first_zone_announcement = true;
+    std::string last_spoken_zone;
     g->set_zones_manager_open( true );
     zone_manager::get_manager().save_zones( "zmgr-temp" );
     while( !quit ) {
+        active_index = std::clamp( active_index, 0, std::max( 0, zone_cnt - 1 ) );
         if( zone_cnt > 0 ) {
             blink = !blink;
             const zone_data &zone = zones[active_index].get();
@@ -504,8 +509,49 @@ void zone_manager_ui::display_zone_manager()
 
         ui_manager::redraw();
 
-        //Wait for input
+        // Zone names, states, positions and options belong to the selected
+        // zone, not the visual highlight. Avoid speaking on blink timeouts.
+        std::string zone_speech = _( "Zone manager" );
+        if( zone_cnt == 0 ) {
+            zone_speech += ". " + std::string( _( "No zones defined." ) );
+        } else {
+            const zone_data &focused_zone = zones[active_index].get();
+            zone_speech += ". " + string_format( _( "Zone %d of %d. %s" ),
+                                               active_index + 1, zone_cnt, focused_zone.get_name() );
+            zone_speech += ". " + mgr.get_name_from_type( focused_zone.get_type() );
+            zone_speech += focused_zone.get_enabled() ?
+                           ". " + std::string( _( "Enabled." ) ) :
+                           ". " + std::string( _( "Disabled." ) );
+            if( focused_zone.get_is_personal() ) {
+                zone_speech += ". " + std::string( _( "Personal zone." ) );
+            }
+            if( focused_zone.get_is_vehicle() ) {
+                zone_speech += ". " + std::string( _( "Vehicle zone." ) );
+            }
+            const tripoint_abs_ms center = focused_zone.get_center_point();
+            zone_speech += ". " + string_format( _( "Distance %d, direction %s." ),
+                                                static_cast<int>( trig_dist( u.pos_abs(), center ) ),
+                                                direction_name_short( direction_from( u.pos_abs(), center ) ) );
+            for( const auto &option : focused_zone.get_options().get_descriptions() ) {
+                zone_speech += ". " + option.first + ": " + option.second;
+            }
+        }
+        zone_speech = remove_color_tags( zone_speech );
+        if( first_zone_announcement || zone_speech != last_spoken_zone ) {
+            get_narration_service().announce( {
+                first_zone_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, zone_speech, true
+            } );
+            last_spoken_zone = zone_speech;
+            first_zone_announcement = false;
+        }
+
+        // Wait for input.
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
 
         if( action == "ADD_ZONE" ) {
             do { // not a loop, just for quick bailing out if canceled

@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "body_part_set.h"
 #include "bodypart.h"
 #include "catacharset.h"
@@ -29,6 +30,7 @@
 #include "inventory.h"
 #include "item.h"
 #include "item_location.h"
+#include "iteminfo_accessibility.h"
 #include "itype.h"
 #include "output.h"
 #include "pimpl.h"
@@ -687,6 +689,7 @@ void outfit::sort_armor( Character &guy )
     ctxt.register_action( "TOGGLE_FAVORITE" );
     ctxt.register_action( "USAGE_HELP" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "SCROLL_ITEM_INFO_UP" );
     ctxt.register_action( "SCROLL_ITEM_INFO_DOWN" );
 
@@ -925,6 +928,8 @@ void outfit::sort_armor( Character &guy )
     } );
 
     bool exit = false;
+    std::string last_spoken_armor_focus;
+    bool first_armor_announcement = true;
     while( !exit ) {
         if( guy.is_avatar() ) {
             // Totally hoisted this from advanced_inv
@@ -945,7 +950,58 @@ void outfit::sort_armor( Character &guy )
         }
 
         ui_manager::redraw();
+
+        // The armor screen renders its item list directly to curses windows.
+        // Announce the semantic focused item and its useful properties once
+        // when the selection, body part or selected reorder state changes.
+        const bodypart_id &speech_bp = armor_cat[tabindex];
+        std::string focus = _( "Armor layering" );
+        focus += ". ";
+        focus += speech_bp == bodypart_str_id::NULL_ID() ? std::string( _( "All body parts" ) ) :
+                 body_part_name_as_heading( speech_bp, 1 );
+        if( leftListSize > 0 && leftListIndex >= 0 && leftListIndex < leftListSize ) {
+            const item &worn_item = *tmp_worn[leftListIndex];
+            focus += ". " + string_format( _( "Item %d of %d. %s" ), leftListIndex + 1,
+                                          leftListSize, make_item_name_narration_text( worn_item.tname() ) );
+            if( selected == leftListIndex ) {
+                focus += ". " + std::string( _( "Selected for reordering." ) );
+            }
+            if( worn_item.has_flag( json_flag_HIDDEN ) ) {
+                focus += ". " + std::string( _( "Hidden on character sprite." ) );
+            }
+            focus += ". " + clothing_layer( worn_item );
+            const item_penalties penalty = get_item_penalties( tmp_worn[leftListIndex], guy, speech_bp );
+            if( !penalty.body_parts_with_stacking_penalty.empty() ) {
+                focus += ". " + string_format( _( "Stacking penalty on %s." ),
+                           body_part_names( penalty.body_parts_with_stacking_penalty ) );
+            }
+            if( !penalty.body_parts_with_out_of_order_penalty.empty() ) {
+                focus += ". " + string_format( _( "Wrong layer order on %s." ),
+                           body_part_names( penalty.body_parts_with_out_of_order_penalty ) );
+            }
+            const std::vector<std::string> properties =
+                clothing_properties( worn_item, 80, guy, speech_bp );
+            for( const std::string &property : properties ) {
+                focus += ". " + remove_color_tags( property );
+            }
+        } else {
+            focus += ". " + std::string( _( "No worn armor in this category." ) );
+        }
+        const std::string spoken_armor = remove_color_tags( focus );
+        if( first_armor_announcement || spoken_armor != last_spoken_armor_focus ) {
+            get_narration_service().announce( {
+                first_armor_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, spoken_armor, true
+            } );
+            last_spoken_armor_focus = spoken_armor;
+            first_armor_announcement = false;
+        }
+
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
         if( guy.is_npc() && action == "ASSIGN_INVLETS" ) {
             // It doesn't make sense to assign invlets to NPC items
             continue;

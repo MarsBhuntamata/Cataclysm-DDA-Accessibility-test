@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "all_enum_values.h"
 #include "avatar.h"
@@ -2123,6 +2124,7 @@ static tripoint_abs_omt display()
     ictxt.register_action( "zoom_in" );
     ictxt.register_action( "zoom_out" );
     ictxt.register_action( "HELP_KEYBINDINGS" );
+    ictxt.register_action( "REPEAT_NARRATION" );
     ictxt.register_action( "MOUSE_MOVE" );
     ictxt.register_action( "SELECT" );
     ictxt.register_action( "CHOOSE_DESTINATION" );
@@ -2175,6 +2177,8 @@ static tripoint_abs_omt display()
     auto display_path_iter = display_path.rbegin();
     std::chrono::milliseconds cursor_advance_time = std::chrono::milliseconds( 0 );
     bool keep_overmap_ui = false;
+    std::optional<tripoint_abs_omt> last_spoken_map_position;
+    std::string last_spoken_map_description;
 
     ui->on_redraw( [&]( ui_adaptor & ui ) {
         ( void )ui;
@@ -2184,6 +2188,56 @@ static tripoint_abs_omt display()
     do {
         ui->invalidate_ui();
         ui_manager::redraw();
+
+        // Cursor speech uses overmap vision, never unrestricted terrain lookup
+        // for unknown squares. As with Look Around, use short relative offsets.
+        if( display_path.empty() ) {
+            std::string report;
+            const int dx = curs.x() - orig.x();
+            const int dy = curs.y() - orig.y();
+            if( dx == 0 && dy == 0 ) {
+                report = _( "Your position" );
+            } else {
+                if( dy != 0 ) {
+                    report += string_format( dy < 0 ? _( "%d north" ) : _( "%d south" ), std::abs( dy ) );
+                }
+                if( dx != 0 ) {
+                    if( !report.empty() ) {
+                        report += ", ";
+                    }
+                    report += string_format( dx < 0 ? _( "%d west" ) : _( "%d east" ), std::abs( dx ) );
+                }
+            }
+            if( curs.z() != orig.z() ) {
+                report += string_format( _( ", level offset %d" ), curs.z() - orig.z() );
+            }
+            const om_vision_level vision = get_avatar().has_trait( trait_DEBUG_NIGHTVISION ) ?
+                                           om_vision_level::full : overmap_buffer.seen( curs );
+            if( vision == om_vision_level::unseen ) {
+                report += ". " + std::string( _( "Unexplored." ) );
+            } else {
+                report += ". " + overmap_buffer.ter( curs )->get_name( vision );
+                if( vision != om_vision_level::full ) {
+                    report += ". " + std::string( _( "Only partially visible." ) );
+                }
+            }
+            if( overmap_buffer.has_note( curs ) ) {
+                report += ". " + string_format( _( "Note: %s" ), overmap_buffer.note( curs ) );
+            }
+            if( overmap_buffer.is_marked_dangerous( curs ) ) {
+                report += ". " + std::string( _( "Marked dangerous." ) );
+            }
+            if( !last_spoken_map_position || curs != *last_spoken_map_position ||
+                report != last_spoken_map_description ) {
+                const bool opening = !last_spoken_map_position;
+                get_narration_service().announce( {
+                    opening ? narration_event::ui_opened : narration_event::selection_changed,
+                    opening ? std::string( _( "Overmap. " ) ) + report : report, true
+                } );
+                last_spoken_map_position = curs;
+                last_spoken_map_description = report;
+            }
+        }
 #if (defined TILES || defined _WIN32 || defined WINDOWS )
         int scroll_timeout = get_option<int>( "EDGE_SCROLL" );
         // If EDGE_SCROLL is disabled, it will have a value of -1.
@@ -2195,6 +2249,10 @@ static tripoint_abs_omt display()
 #else
         action = ictxt.handle_input( get_option<int>( "BLINK_SPEED" ) );
 #endif
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
         if( !display_path.empty() ) {
             std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
             // We go faster per-tile the more we have to go
