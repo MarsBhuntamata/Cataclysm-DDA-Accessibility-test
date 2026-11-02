@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "bonuses.h"
 #include "calendar.h"
 #include "cata_imgui.h"
@@ -263,6 +264,7 @@ static input_context make_crafting_context( bool highlight_unread_recipes )
     ctxt.register_action( "TOGGLE_FAVORITE" );
     ctxt.register_action( "HELP_RECIPE" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "CYCLE_BATCH" );
     ctxt.register_action( "BATCH_SIZE_UP" );
     ctxt.register_action( "BATCH_SIZE_DOWN" );
@@ -422,6 +424,7 @@ class crafting_ui_impl : public cataimgui::window
                           inventory *inventory_override );
 
         void process_action( const std::string &action_in, input_context &ctxt );
+        void announce_focused_recipe();
         void set_input_context( const input_context *ctxt ) {
             ctxt_ptr = ctxt;
         }
@@ -459,6 +462,8 @@ class crafting_ui_impl : public cataimgui::window
 
         // --- Recipe list ---
         std::vector<const recipe *> current;
+        std::string accessibility_last_focus;
+        bool accessibility_first_announcement = true;
         std::vector<int> indent_vec;
         std::vector<availability> available;
         int line = 0;
@@ -2509,12 +2514,64 @@ void crafting_ui_impl::invalidate_info_panels()
     }
 }
 
+void crafting_ui_impl::announce_focused_recipe()
+{
+    // Recipe list, category tabs and search state are not a uilist. Read
+    // the actual selected recipe after recalculation and keyboard navigation.
+    if( recalc ) {
+        recalculate_recipes();
+    }
+    std::string label = _( "Crafting" );
+    if( !tab.cur().empty() ) {
+        label += ". " + tab.cur();
+    }
+    if( !subtab.cur().empty() ) {
+        label += ". " + subtab.cur();
+    }
+    if( !filterstring.empty() ) {
+        label += ". " + string_format( _( "Filter: %s" ), filterstring );
+    }
+    if( current.empty() ) {
+        label += ". " + std::string( _( "No recipes." ) );
+    } else if( line >= 0 && static_cast<size_t>( line ) < current.size() ) {
+        const recipe *selected = current[line];
+        label += ". " + string_format( _( "Recipe %d of %d. %s" ),
+                                      line + 1, static_cast<int>( current.size() ),
+                                      selected->result_name( true ) );
+        if( selected->is_nested() ) {
+            label += ". " + std::string( _( "Recipe group. Enter to expand." ) );
+        } else if( static_cast<size_t>( line ) < available.size() ) {
+            label += available[line].can_craft ?
+                     ". " + std::string( _( "Craftable." ) ) :
+                     ". " + std::string( _( "Requirements not met." ) );
+        }
+    }
+    if( batch ) {
+        label += ". " + string_format( _( "Batch size %d." ), manual_batch );
+    }
+    const std::string identity = label;
+    if( !accessibility_first_announcement && identity == accessibility_last_focus ) {
+        return;
+    }
+    get_narration_service().announce( {
+        accessibility_first_announcement ? narration_event::ui_opened :
+        narration_event::selection_changed,
+        remove_color_tags( label ), true
+    } );
+    accessibility_first_announcement = false;
+    accessibility_last_focus = identity;
+}
+
 // --- process_action ---
 
 void crafting_ui_impl::process_action( const std::string &action_in,
                                        input_context &ctxt )
 {
     std::string action = action_in;
+    if( action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+        return;
+    }
 
     // Snapshot state before mutation
     int prev_line = line;
@@ -2984,6 +3041,7 @@ std::pair<Character *, const recipe *> select_crafter_and_crafting_recipe( int &
 
     while( !impl.is_done() ) {
         ui_manager::redraw_invalidated();
+        impl.announce_focused_recipe();
         std::string action = ctxt.handle_input();
         if( !impl.get_is_open() ) {
             return { nullptr, nullptr };

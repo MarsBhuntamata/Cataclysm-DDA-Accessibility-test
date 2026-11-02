@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "addiction.h"
 #include "bionics.h"
 #include "bodygraph.h"
@@ -1235,6 +1236,126 @@ static int get_line_count( player_display_tab curtab,
     return 0;
 }
 
+// Collect semantic character information independently of terminal drawing.
+static std::string accessible_player_info_row( Character &you, player_display_tab tab,
+        unsigned line, const std::vector<speedlist_entry> &speedlist,
+        const std::vector<trait_and_var> &traitslist,
+        const std::vector<bionic_grouping> &bionicslist,
+        const std::vector<std::pair<std::string, std::string>> &effectslist,
+        const std::vector<HeaderSkill> &skillslist )
+{
+    switch( tab ) {
+        case player_display_tab::stats: {
+            switch( line ) {
+                case 0:
+                    return string_format( _( "Strength %d, base %d" ), you.get_str(), you.get_str_base() );
+                case 1:
+                    return string_format( _( "Dexterity %d, base %d" ), you.get_dex(), you.get_dex_base() );
+                case 2:
+                    return string_format( _( "Intelligence %d, base %d" ), you.get_int(), you.get_int_base() );
+                case 3:
+                    return string_format( _( "Perception %d, base %d" ), you.get_per(), you.get_per_base() );
+                case 4:
+                    return std::string( _( "Weight: " ) ) + display::weight_string( you );
+                case 5:
+                    return std::string( _( "Lifestyle: " ) ) + display::health_string( you );
+                case 6:
+                    return std::string( _( "Height: " ) ) + you.height_string();
+                case 7:
+                    return std::string( _( "Age: " ) ) + you.age_string();
+                case 8:
+                    return std::string( _( "Blood type: " ) ) +
+                           io::enum_to_string( you.my_blood_type ) +
+                           ( you.blood_rh_factor ? "+" : "-" );
+            }
+            return {};
+        }
+        case player_display_tab::encumbrance: {
+            const auto bps = list_and_combine_bps( you, nullptr );
+            if( line >= bps.size() ) {
+                return _( "No body part selected." );
+            }
+            const bodypart_id &bp = bps[line].first;
+            std::string report = body_part_name_as_heading( bp, bps[line].second ? 2 : 1 );
+            report += string_format( _( ". Encumbrance %d, layering penalty %d." ),
+                                     you.get_part_encumbrance( bp ), you.get_part_layer_penalty( bp ) );
+            const std::vector<std::string> description = get_encumbrance_description( you, bp );
+            if( !description.empty() ) {
+                report += " " + string_join( description, " " );
+            }
+            return report;
+        }
+        case player_display_tab::speed:
+            if( line < speedlist.size() ) {
+                const speedlist_entry &entry = speedlist[line];
+                return string_format( _( "%s. %s %d%s" ), entry.description,
+                                      entry.is_speed ? _( "Speed" ) : _( "Move cost" ),
+                                      entry.val, entry.percent ? "%" : "" );
+            }
+            return _( "No speed modifier selected." );
+        case player_display_tab::skills:
+            if( line < skillslist.size() && skillslist[line].skill != nullptr ) {
+                const Skill *skill = skillslist[line].skill;
+                const SkillLevel &level = you.get_skill_level_object( skill->ident() );
+                if( skillslist[line].is_header ) {
+                    return skill->name();
+                }
+                return string_format( _( "%s. Practical level %d. Knowledge level %d. Progress %d percent. %s" ),
+                                      skill->name(), level.level(), level.knowledgeLevel(),
+                                      std::max( 0, level.knowledgeExperience() ), skill->description() );
+            }
+            return _( "No skill selected." );
+        case player_display_tab::traits:
+            if( line < traitslist.size() ) {
+                return traitslist[line].name() + ". " +
+                       you.mutation_desc( traitslist[line].trait );
+            }
+            return _( "No traits." );
+        case player_display_tab::bionics:
+            if( line < bionicslist.size() ) {
+                return bionicslist[line].name.translated( bionicslist[line].installed_count ) +
+                       ". " + bionicslist[line].description.translated();
+            }
+            return _( "No bionics." );
+        case player_display_tab::effects:
+            if( line < effectslist.size() ) {
+                return effectslist[line].first + ". " + effectslist[line].second;
+            }
+            return _( "No active effects." );
+        case player_display_tab::proficiencies: {
+            const std::vector<display_proficiency> profs = you.display_proficiencies();
+            if( line < profs.size() ) {
+                const display_proficiency &p = profs[line];
+                std::string report = p.id->name() + ". " + p.id->description();
+                if( !p.known ) {
+                    report += string_format( _( " Practice %.0f percent." ), p.practice * 100 );
+                }
+                return report;
+            }
+            return _( "No proficiencies." );
+        }
+        case player_display_tab::num_tabs:
+            return {};
+    }
+    return {};
+}
+
+static std::string accessible_player_info_tab_name( player_display_tab tab )
+{
+    switch( tab ) {
+        case player_display_tab::stats: return _( title_STATS );
+        case player_display_tab::encumbrance: return _( title_ENCUMB );
+        case player_display_tab::speed: return _( title_SPEED );
+        case player_display_tab::skills: return _( title_SKILLS );
+        case player_display_tab::traits: return _( title_TRAITS );
+        case player_display_tab::bionics: return _( title_BIONICS );
+        case player_display_tab::effects: return _( title_EFFECTS );
+        case player_display_tab::proficiencies: return _( title_PROFICIENCIES );
+        case player_display_tab::num_tabs: return _( "Character" );
+    }
+    return _( "Character" );
+}
+
 static bool handle_player_display_action( Character &you, unsigned int &line,
         unsigned int &info_line,
         player_display_tab &curtab, input_context &ctxt, const ui_adaptor &ui_tip,
@@ -1361,6 +1482,8 @@ static bool handle_player_display_action( Character &you, unsigned int &line,
         }
     } else if( action == "QUIT" ) {
         done = true;
+    } else if( action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
     } else if( action == "CONFIRM" || action == "SELECT" ) {
         bool header_clicked = false;
         if( action == "SELECT" ) {
@@ -1695,6 +1818,7 @@ void Character::disp_info( bool customize_character )
     ctxt.register_action( "SCROLL_INFOBOX_DOWN", to_translation( "Scroll information box down" ) );
     ctxt.register_action( "SELECT_TRAIT_VARIANT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "MEDICAL_MENU" );
     ctxt.register_action( "CHANGE_ARMOR_SPRITE" );
     ctxt.register_action( "SELECT_STATS_TAB" );
@@ -1968,8 +2092,24 @@ void Character::disp_info( bool customize_character )
     // needs to have the same windows in the same order as player_display_tab so that mouse scrolling can work
     std::vector<catacurses::window *> windows{ &w_stats, &w_encumb, &w_speed, &w_skills, &w_traits, &w_bionics, &w_effects, &w_proficiencies };
 
+    std::string last_spoken_focus;
+    bool first_narration = true;
     do {
         ui_manager::redraw_invalidated();
+
+        const std::string focus = std::to_string( static_cast<int>( curtab ) ) + ":" +
+                                  std::to_string( line );
+        if( first_narration || focus != last_spoken_focus ) {
+            const std::string speech = accessible_player_info_tab_name( curtab ) + ". " +
+                                       accessible_player_info_row( *this, curtab, line, speedlist,
+                                               traitslist, bionicslist, effect_name_and_text, skillslist );
+            get_narration_service().announce( {
+                first_narration ? narration_event::ui_opened : narration_event::selection_changed,
+                remove_color_tags( speech ), true
+            } );
+            first_narration = false;
+            last_spoken_focus = focus;
+        }
 
         done = handle_player_display_action( *this, line, info_line, curtab, ctxt, ui_tip, ui_info,
                                              ui_stats, ui_encumb, ui_speed, ui_traits, ui_bionics, ui_effects,

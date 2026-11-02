@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "avatar.h"
 #include "calendar.h"
@@ -313,6 +314,7 @@ veh_interact::veh_interact( map &here, vehicle &veh, const point_rel_ms &p )
     main_context.register_action( "PAGE_UP" );
     main_context.register_action( "CONFIRM" );
     main_context.register_action( "HELP_KEYBINDINGS" );
+    main_context.register_action( "REPEAT_NARRATION" );
     main_context.register_action( "FILTER" );
     main_context.register_action( "ANY_INPUT" );
 
@@ -524,14 +526,34 @@ void veh_interact::do_main_loop( map &here )
     }
 
     shared_ptr_fast<ui_adaptor> current_ui = create_or_get_ui_adaptor( here );
+    std::string last_spoken_part;
+    bool first_vehicle_announcement = true;
 
     while( !finish ) {
         calc_overview( here );
+        std::string focus = veh->name;
+        if( cpart >= 0 ) {
+            focus += ". " + veh->part( cpart ).name();
+        } else {
+            focus += ". " + std::string( _( "Empty vehicle mount." ) );
+        }
+        focus += string_format( _( " Mount position %d, %d." ),
+                                cursor_vp_mount.x(), cursor_vp_mount.y() );
+        if( first_vehicle_announcement || focus != last_spoken_part ) {
+            get_narration_service().announce( {
+                first_vehicle_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, focus, true
+            } );
+            last_spoken_part = focus;
+            first_vehicle_announcement = false;
+        }
         ui_manager::redraw();
         const int description_scroll_lines = catacurses::getmaxy( w_parts ) - 4;
         const std::string action = main_context.handle_input();
         msg.reset();
-        if( const std::optional<tripoint_rel_ms> vec = main_context.get_direction_rel_ms( action ) ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( const std::optional<tripoint_rel_ms> vec = main_context.get_direction_rel_ms( action ) ) {
             move_cursor( here, vec->xy() );
         } else if( action == "QUIT" ) {
             finish = true;
@@ -1672,6 +1694,7 @@ void veh_interact::overview( map &here,
     restore_on_out_of_scope prev_overview_pos( overview_pos );
 
     shared_ptr_fast<ui_adaptor> current_ui = create_or_get_ui_adaptor( here );
+    std::string last_overview_focus;
 
     while( true ) {
         calc_overview( here );
@@ -1706,11 +1729,24 @@ void veh_interact::overview( map &here,
             msg.reset();
         }
 
+        if( overview_pos >= 0 && static_cast<size_t>( overview_pos ) < overview_opts.size() ) {
+            const std::string focus = overview_opts[overview_pos].part->name();
+            const std::string identity = std::to_string( overview_pos ) + ":" + focus;
+            if( identity != last_overview_focus ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    std::string( _( "Vehicle part. " ) ) + focus, true
+                } );
+                last_overview_focus = identity;
+            }
+        }
         ui_manager::redraw();
 
         const std::string input = main_context.handle_input();
         msg.reset();
-        if( input == "CONFIRM" && overview_opts[overview_pos].selectable && overview_action ) {
+        if( input == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( input == "CONFIRM" && overview_opts[overview_pos].selectable && overview_action ) {
             overview_action( here, *overview_opts[overview_pos].part );
             break;
 

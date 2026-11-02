@@ -76,3 +76,13 @@ If the function row controls hardware, use Fn plus the corresponding function ke
 - Narration for item selection changes outside the Examine window.
 - Scroll-position announcements and focus restoration.
 - Managed speech queues, verbosity controls, and event-specific announcement policies.
+
+
+## Character, crafting and vehicle panels (Shift+number keys)
+
+- **Shift+2**: Open character information. Check arrow navigation through the Stats, Encumbrance, Speed, Skills, Traits, Bionics, Effects and Proficiencies tabs. NVDA should read the focused row with numbers and explanatory text. F7 repeats the current announcement.
+- **Shift+7**: Open crafting. Check that selecting recipes announces the recipe name, list position and craftability. Check switching categories, filtering, and batch mode. F7 repeats.
+- **Vehicle interaction**: Test the vehicle editor with a nearby vehicle, then move its part cursor and navigate its part overview lists. NVDA should identify the vehicle, selected part and mount location, and pronounce part names in the overview. F7 repeats.
+- **Other Shift+number actions**: Shift+1 safe mode, Shift+3 factions, Shift+4 sleep, Shift+5 item-action menu, Shift+6 vehicle controls, Shift+8 construction, Shift+9 disassembly, and Shift+0 diary should retain their existing bindings. Some still use custom UIs that need further targeted speech coverage.
+
+This milestone is a first accessible pass on these custom views; it does **not** guarantee full text and requirement navigation within every secondary panel. Keep existing saves backed up before testing a new build.
