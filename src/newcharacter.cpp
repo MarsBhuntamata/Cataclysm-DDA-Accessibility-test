@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "achievement.h"
 #include "addiction.h"
 #include "bionics.h"
@@ -2431,6 +2432,7 @@ void character_creator_ui::setup_input_context( input_context &cc_ictxt, bool qu
     cc_ictxt.register_action( "PREV_TAB" );
     cc_ictxt.register_action( "QUIT" );
     cc_ictxt.register_action( "HELP_KEYBINDINGS" );
+    cc_ictxt.register_action( "REPEAT_NARRATION" );
 
     cc_ictxt.register_action( "SAVE_TEMPLATE" );
     cc_ictxt.register_action( "RANDOMIZE_CHAR_NAME" );
@@ -2878,6 +2880,8 @@ bool character_creator_ui::display()
     cc_uistate.quit_to_main_menu = false;
     cc_uistate.finished_character_creator = false;
 
+    bool first_character_creator_announcement = true;
+    std::string last_spoken_character_creator_focus;
     while( !cc_uistate.finished_character_creator ) {
 
         input_context &current_tab_input = get_current_tab_input();
@@ -2885,6 +2889,61 @@ bool character_creator_ui::display()
 
         ui_manager::redraw();
         std::shared_ptr<uilist> current_tab_uilist = get_current_tab_uilist();
+
+        // The character creator drives an embedded uilist through query_once(),
+        // bypassing uilist::query()'s normal opening/focus announcements.
+        // Announce only when the active tab or its selected entry changes.
+        std::string focus;
+        switch( cc_uistate.selected_tab ) {
+            case CHARCREATOR_SCENARIO:
+                focus = _( "Scenario" );
+                break;
+            case CHARCREATOR_PROFESSION:
+                focus = _( "Profession" );
+                break;
+            case CHARCREATOR_BACKGROUND:
+                focus = _( "Background" );
+                break;
+            case CHARCREATOR_STATS:
+                focus = _( "Stats" );
+                break;
+            case CHARCREATOR_TRAITS:
+                focus = _( "Traits" );
+                break;
+            case CHARCREATOR_SKILLS:
+                focus = _( "Skills" );
+                break;
+            case CHARCREATOR_SUMMARY:
+                focus = _( "Summary. Review your character, then press Tab to finish." );
+                break;
+            case character_creator_tab_LAST:
+                break;
+        }
+        if( current_tab_uilist && current_tab_uilist->selected >= 0 &&
+            static_cast<size_t>( current_tab_uilist->selected ) < current_tab_uilist->entries.size() ) {
+            const uilist_entry &entry = current_tab_uilist->entries[current_tab_uilist->selected];
+            focus += ". " + remove_color_tags( entry.txt );
+            if( !entry.desc.empty() ) {
+                focus += ". " + remove_color_tags( entry.desc );
+            }
+            if( !entry.enabled ) {
+                focus += ". " + std::string( _( "Unavailable" ) );
+            }
+        }
+        if( first_character_creator_announcement || focus != last_spoken_character_creator_focus ) {
+            std::string speech = focus;
+            if( first_character_creator_announcement ) {
+                speech = std::string( _( "Character creation ready. " ) ) + speech +
+                         ". " + _( "Use Tab and Shift Tab to move between sections." );
+            }
+            get_narration_service().announce( {
+                first_character_creator_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, speech, true
+            } );
+            first_character_creator_announcement = false;
+            last_spoken_character_creator_focus = focus;
+        }
+
         if( current_tab_uilist ) {
             cc_uilist_current = current_tab_uilist->create_or_get_ui();
             if( current_tab_uilist->query_setup() ) {
@@ -3403,7 +3462,9 @@ bool character_creator_ui::handle_action( const std::string &action )
         you.mod_knowledge_level( selected_skill, mod_value );
     };
 
-    if( action == "QUIT" && query_yn( _( "Return to main menu?" ) ) ) {
+    if( action == "REPEAT_NARRATION" ) {
+        get_narration_service().repeat_last();
+    } else if( action == "QUIT" && query_yn( _( "Return to main menu?" ) ) ) {
         cc_uistate.quit_to_main_menu = true;
     } else if( action == "PREV_TAB" ) {
         if( cc_uistate.selected_tab == CHARCREATOR_SCENARIO ) {

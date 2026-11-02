@@ -887,6 +887,15 @@ int main( int argc, const char *argv[] )
 
         shared_ptr_fast<ui_adaptor> ui = g->create_or_get_main_ui_adaptor();
         get_event_bus().send<event_type::game_begin>( getVersionString() );
+
+        // A load or new-world setup has succeeded, and we are entering
+        // gameplay. Loading UI teardown itself is not a reliable ready signal:
+        // it also occurs before character creation and world generation.
+        get_narration_service().announce( {
+            narration_event::ui_opened,
+            _( "Game ready. Press F6 for the terrain underfoot, Control L for "
+               "surroundings, or Control S for character status." ), true
+        } );
         while( !g->do_turn() ) {}
     }
 

@@ -96,3 +96,12 @@ This milestone is a first accessible pass on these custom views; it does **not**
 - In Look Around (X + arrows), moving one tile west onto a table should speak "1 west. table", with any observed item cue appended. Do not prepend "Look cursor".
 - In inventory focus and item descriptions, a name such as `<color_c_green>++</color> animal boxer shorts` should speak "green animal boxer shorts". The display remains unmodified.
 - Check light-green and red durability indicators, plain names, and names with regular color tags. F7 must repeat the cleaned-up wording.
+
+
+## Loading screens and character creation readiness
+
+- Starting a save load should announce **Loading** and the displayed random loading **Tip**. Only one announcement is issued per loading session, not for each rapidly changing substep.
+- At the actual transition into gameplay, NVDA should announce **Game ready** after both an existing save and a new game. Do not announce ready on a failed load or during initial world setup.
+- Starting Custom Character or Random Character should announce **Character creation ready**, the active section (Scenario or Summary), and its currently selected entry. Tab/Shift+Tab switches character-creation sections. Navigate a list with arrow keys and confirm the selected entry and changed tab are spoken.
+- F7 should repeat the most recent character-creation speech, including on the Summary page.
+- Verify loading tips are stripped of raw color tags; no repeated progress spam; failure/return-to-main-menu does not falsely announce ready.

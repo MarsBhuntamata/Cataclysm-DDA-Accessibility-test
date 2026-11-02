@@ -1,5 +1,6 @@
 #include "loading_ui.h"
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "input.h"
 #include "options.h"
@@ -241,7 +242,22 @@ void loading_ui::show( const std::string &context, const std::string &step )
     if( test_mode ) {
         return;
     }
+    const bool first_step = gLUI == nullptr;
     update_state( context, step );
+
+    // Only speak on entry to a loading session. Progress steps can arrive
+    // rapidly and would otherwise interrupt each other and the random tip.
+    if( first_step ) {
+        std::string announcement = std::string( _( "Loading. " ) ) +
+                                   remove_color_tags( gLUI->context );
+        if( !gLUI->tip.empty() ) {
+            announcement += ". " + std::string( _( "Tip: " ) ) +
+                            remove_color_tags( gLUI->tip );
+        }
+        get_narration_service().announce( {
+            narration_event::ui_opened, announcement, true
+        } );
+    }
     drain_renderer_recovery();
     ui_manager::redraw();
     refresh_display();
