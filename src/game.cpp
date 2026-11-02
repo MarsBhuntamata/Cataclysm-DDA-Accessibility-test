@@ -5480,11 +5480,32 @@ void game::examine( bool with_pickup )
         return;
     }
 
+    // Directional examination is visually highlighted, but the highlight itself
+    // is not accessible to NVDA.  Give a concise survey before asking the
+    // player to choose a tile, including ordinary non-interactive terrain.
+    std::string examination_prompt =
+        with_pickup ? std::string( _( "Examine and pick up. Choose a tile with a direction key." ) ) :
+        std::string( _( "Examine. Choose a terrain or furniture tile with a direction key." ) );
+    struct examination_direction {
+        const char *name;
+        int dx;
+        int dy;
+    };
+    const std::array<examination_direction, 8> examination_directions = {{
+            { "north", 0, -1 }, { "northeast", 1, -1 },
+            { "east", 1, 0 }, { "southeast", 1, 1 },
+            { "south", 0, 1 }, { "southwest", -1, 1 },
+            { "west", -1, 0 }, { "northwest", -1, -1 }
+        }};
+    for( const examination_direction &direction : examination_directions ) {
+        tripoint_bub_ms tile = u.pos_bub();
+        tile.x() += direction.dx;
+        tile.y() += direction.dy;
+        examination_prompt += " " + std::string( direction.name ) + ": " +
+                              accessibility_describe_local_tile( tile ) + ".";
+    }
     get_narration_service().announce( {
-        narration_event::contextual_help,
-        with_pickup ? std::string( _( "Examine and pick up. Choose an adjacent tile with a direction key." ) ) :
-                      std::string( _( "Examine. Choose an adjacent terrain or furniture tile with a direction key." ) ),
-        true
+        narration_event::contextual_help, examination_prompt, true
     } );
 
     std::optional<tripoint_bub_ms> examp;
