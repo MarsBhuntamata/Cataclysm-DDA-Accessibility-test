@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "cached_options.h" // IWYU pragma: keep
 #include "cata_utility.h"
@@ -1314,5 +1315,16 @@ std::optional<tripoint_bub_ms> choose_adjacent_highlight( map &here, const tripo
         return chosen;
     }
 
+    // Selecting a tile without an applicable interaction previously failed
+    // silently. In particular, pickup (g) could appear to do nothing even
+    // when several nearby tiles contained items.
+    if( chosen ) {
+        const std::string chosen_name = here.inbounds( *chosen ) ?
+                                        here.name( *chosen ) : std::string( _( "out of bounds" ) );
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            string_format( _( "Cannot use that tile for this action: %s." ), chosen_name ), true
+        } );
+    }
     return std::nullopt;
 }

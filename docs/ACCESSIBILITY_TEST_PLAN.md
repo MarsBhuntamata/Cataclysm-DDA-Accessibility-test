@@ -127,3 +127,5 @@ This milestone is a first accessible pass on these custom views; it does **not**
 - Press g with visible items on ground in the current or adjacent tile. NVDA should explain that you must choose a tile with a direction key, and list directions with visible ground items. Once a tile is chosen, the pickup inventory should narrate its selection; verify choosing an item and confirming still works.
 - Press e to examine a visible furniture or terrain tile. The direction chooser should announce its purpose; the chosen terrain/furniture name and descriptions should speak before gameplay interaction. The same tile in X / Look Around -> extended description should speak its current tab; Up/Down traverse description lines; F8 reads all, F7 repeats.
 - Starting a new game with an introductory scenario description must play that text without the Game ready cue cancelling it. Game ready is now a noninterrupting speech request. Check both new game and loaded save.
+
+- Wrong adjacent tile selection during pickup or examine: NVDA should say that the selected tile cannot be used instead of failing silently. Cancel must still cancel normally.
