@@ -2943,6 +2943,12 @@ target_handler::trajectory target_ui::run()
         initial_dst = choose_initial_target();
     }
     set_cursor_pos( initial_dst );
+    if( mode == TargetMode::Fire ) {
+        get_narration_service().announce( {
+            narration_event::ui_opened,
+            _( "Aiming. Use direction keys to move the aim cursor or cycle targets." ), true
+        } );
+    }
     if( dst != initial_dst ) {
         // Our target moved out of range
         action.clear();
@@ -3438,8 +3444,10 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
         const tripoint_rel_ms offset = dst - src;
         std::string report = dst_critter ? dst_critter->disp_name() :
                              accessibility_describe_local_tile( dst );
-        report += string_format( _( ". Aim cursor %d east, %d south. Distance %d." ),
-                                 offset.x(), offset.y(), dist_fn( dst ) );
+        report += string_format( _( ". Aim cursor %d %s, %d %s. Distance %d." ),
+                                 std::abs( offset.x() ), offset.x() < 0 ? _( "west" ) : _( "east" ),
+                                 std::abs( offset.y() ), offset.y() < 0 ? _( "north" ) : _( "south" ),
+                                 dist_fn( dst ) );
         if( status == Status::OutOfAmmo ) {
             report += " " + std::string( _( "Weapon unavailable or out of ammunition." ) );
         } else if( status == Status::OutOfRange ) {
