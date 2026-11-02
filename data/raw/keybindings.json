@@ -5608,6 +5608,7 @@
     "name": "Describe the eight adjacent tiles (Ctrl+L or F8)",
     "category": "DEFAULTMODE",
     "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+L" },
       { "input_method": "keyboard_code", "key": "l", "mod": [ "ctrl" ] },
       { "input_method": "keyboard_any", "key": "F8" }
     ]
@@ -5618,6 +5619,7 @@
     "name": "Describe character status (Ctrl+S or F9)",
     "category": "DEFAULTMODE",
     "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+S" },
       { "input_method": "keyboard_code", "key": "s", "mod": [ "ctrl" ] },
       { "input_method": "keyboard_any", "key": "F9" }
     ]
@@ -5628,6 +5630,7 @@
     "name": "Read recent game messages (Ctrl+R or F10)",
     "category": "DEFAULTMODE",
     "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+R" },
       { "input_method": "keyboard_code", "key": "r", "mod": [ "ctrl" ] },
       { "input_method": "keyboard_any", "key": "F10" }
     ]
