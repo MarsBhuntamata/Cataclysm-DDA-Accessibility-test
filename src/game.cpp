@@ -5839,8 +5839,15 @@ void game::pickup()
                 _( "There is nothing to pick up nearby." ),
                 ACTION_PICKUP, false );
     if( !where_ ) {
+        record_accessibility_checkpoint( "Pickup: tile selection cancelled or unavailable" );
         return;
     }
+    const std::string selected_tile = accessibility_describe_local_tile( *where_ );
+    get_narration_service().announce( {
+        narration_event::selection_changed,
+        string_format( _( "Picking up from %s." ), selected_tile ), true
+    } );
+    record_accessibility_checkpoint( "Pickup: tile chosen; opening item selection" );
     // Pick up items only from the selected tile
     u.pick_up( game_menus::inv::pickup( {where_.value()} ) );
 }
