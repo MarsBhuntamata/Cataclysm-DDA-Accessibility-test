@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "activity_actor_definitions.h"
+#include "accessibility.h"
 #include "avatar.h"
 #include "ballistics.h"
 #include "bionics.h"
@@ -2970,12 +2971,48 @@ target_handler::trajectory target_ui::run()
     ExitCode loop_exit_code;
     std::string timed_out_action;
     bool skip_redraw = false;
+    std::string last_spoken_aim;
     for( ;; action.clear() ) {
         if( !skip_redraw ) {
             g->invalidate_main_ui_adaptor();
             ui_manager::redraw();
         }
         skip_redraw = false;
+
+        // Announce the current firearm target and any allies intersecting the
+        // game's actual shot trajectory. Do not repeat identical reports after
+        // animations or unrelated input events.
+        if( mode == TargetMode::Fire ) {
+            std::string aim_report;
+            if( dst_critter ) {
+                aim_report = dst_critter->disp_name();
+            } else {
+                aim_report = _( "Empty tile" );
+            }
+            aim_report += ". " + string_format( _( "Distance %d." ), dist_fn( dst ) );
+            if( status == Status::OutOfAmmo ) {
+                aim_report += " " + std::string( _( "Cannot fire: weapon not ready or out of ammunition." ) );
+            } else if( status == Status::OutOfRange ) {
+                aim_report += " " + std::string( _( "Out of range." ) );
+            } else if( status == Status::BadTarget ) {
+                aim_report += " " + std::string( _( "Invalid target." ) );
+            }
+            const std::vector<weak_ptr_fast<Creature>> friendlies = list_friendlies_in_lof();
+            if( !friendlies.empty() ) {
+                aim_report += " " + std::string( _( "Warning: friendly creature in line of fire." ) );
+                for( const weak_ptr_fast<Creature> &weak_creature : friendlies ) {
+                    if( const shared_ptr_fast<Creature> creature = weak_creature.lock() ) {
+                        aim_report += " " + creature->disp_name() + ".";
+                    }
+                }
+            }
+            if( aim_report != last_spoken_aim ) {
+                last_spoken_aim = aim_report;
+                get_narration_service().announce( {
+                    narration_event::selection_changed, aim_report, true
+                } );
+            }
+        }
 
         // Wait for user input (or use value retrieved from activity)
         if( action.empty() ) {
