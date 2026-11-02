@@ -329,8 +329,7 @@ void extended_description_window::show()
             if( !readable_lines.empty() ) {
                 get_narration_service().announce( {
                     narration_event::selection_changed,
-                    string_format( _( "Line %d of %d. %s" ), static_cast<int>( spoken_line + 1 ),
-                                   static_cast<int>( readable_lines.size() ), readable_lines[spoken_line] ), true
+                    readable_lines[spoken_line], true
                 } );
             }
         }  else if( action == "DOWN" ) {
@@ -339,8 +338,7 @@ void extended_description_window::show()
                 spoken_line = std::min( spoken_line + 1, readable_lines.size() - 1 );
                 get_narration_service().announce( {
                     narration_event::selection_changed,
-                    string_format( _( "Line %d of %d. %s" ), static_cast<int>( spoken_line + 1 ),
-                                   static_cast<int>( readable_lines.size() ), readable_lines[spoken_line] ), true
+                    readable_lines[spoken_line], true
                 } );
             }
         }  else if( action == "PAGE_UP" ) {
