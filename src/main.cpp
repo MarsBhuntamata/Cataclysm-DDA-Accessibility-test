@@ -894,7 +894,7 @@ int main( int argc, const char *argv[] )
         get_narration_service().announce( {
             narration_event::ui_opened,
             _( "Game ready. Press F6 for the terrain underfoot, Control L for "
-               "surroundings, or Control S for character status." ), true
+               "surroundings, or Control S for character status." ), false
         } );
         while( !g->do_turn() ) {}
     }

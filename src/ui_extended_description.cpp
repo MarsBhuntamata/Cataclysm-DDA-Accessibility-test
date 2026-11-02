@@ -2,6 +2,7 @@
 
 #include <imgui/imgui.h>
 
+#include "accessibility.h"
 #include "cata_utility.h"
 #include "character.h"
 #include "color.h"
@@ -106,6 +107,8 @@ extended_description_window::extended_description_window( tripoint_bub_ms &p ) :
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
+    ctxt.register_action( "READ_EXTENDED_DESCRIPTION" );
     ctxt.register_action( "UP" );
     ctxt.register_action( "DOWN" );
     ctxt.register_action( "PAGE_UP" );
@@ -237,9 +240,81 @@ cataimgui::bounds extended_description_window::get_bounds()
 
 void extended_description_window::show()
 {
+    description_target spoken_tab = description_target::num_targets;
+    size_t spoken_line = 0;
     while( true ) {
         ui_manager::redraw_invalidated();
+
+        const std::vector<std::string> *description = nullptr;
+        std::string heading;
+        switch( cur_target ) {
+            case description_target::creature:
+                heading = _( "Creature" );
+                description = &creature_description;
+                break;
+            case description_target::furniture:
+                heading = _( "Furniture" );
+                description = &furniture_description;
+                break;
+            case description_target::terrain:
+                heading = _( "Terrain" );
+                description = &terrain_description;
+                break;
+            case description_target::vehicle:
+                heading = _( "Vehicle or appliance" );
+                description = &veh_app_description;
+                break;
+            case description_target::num_targets:
+                break;
+        }
+        std::vector<std::string> readable_lines;
+        if( description != nullptr ) {
+            for( const std::string &paragraph : *description ) {
+                if( paragraph == "--" ) {
+                    continue;
+                }
+                for( const std::string &raw_line : string_split( paragraph, '\n' ) ) {
+                    const std::string plain = remove_color_tags( raw_line );
+                    if( !plain.empty() ) {
+                        readable_lines.push_back( plain );
+                    }
+                }
+            }
+        }
+        if( spoken_tab != cur_target ) {
+            spoken_tab = cur_target;
+            spoken_line = 0;
+            std::string report = heading + ". ";
+            if( readable_lines.empty() ) {
+                report += _( "No visible description." );
+            } else {
+                report += readable_lines.front();
+                if( readable_lines.size() > 1 ) {
+                    report += ". " + std::string( _( "Use Down and Up for additional description lines, or F8 for all." ) );
+                }
+            }
+            get_narration_service().announce( { narration_event::ui_opened, report, true } );
+        }
+
         std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
+        if( action == "READ_EXTENDED_DESCRIPTION" ) {
+            std::string report = heading + ". ";
+            if( readable_lines.empty() ) {
+                report += _( "No visible description." );
+            } else {
+                for( const std::string &line : readable_lines ) {
+                    report += line + ". ";
+                }
+            }
+            get_narration_service().announce( {
+                narration_event::contextual_help, report, true
+            } );
+            continue;
+        }
         if( action == "NEXT_TAB" ) {
             switch_target = cur_target;
             ++switch_target;
@@ -248,8 +323,26 @@ void extended_description_window::show()
             --switch_target;
         }  else if( action == "UP" ) {
             info_scroll = cataimgui::scroll::line_up;
+            if( spoken_line > 0 ) {
+                --spoken_line;
+            }
+            if( !readable_lines.empty() ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    string_format( _( "Line %d of %d. %s" ), static_cast<int>( spoken_line + 1 ),
+                                   static_cast<int>( readable_lines.size() ), readable_lines[spoken_line] ), true
+                } );
+            }
         }  else if( action == "DOWN" ) {
             info_scroll = cataimgui::scroll::line_down;
+            if( !readable_lines.empty() ) {
+                spoken_line = std::min( spoken_line + 1, readable_lines.size() - 1 );
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    string_format( _( "Line %d of %d. %s" ), static_cast<int>( spoken_line + 1 ),
+                                   static_cast<int>( readable_lines.size() ), readable_lines[spoken_line] ), true
+                } );
+            }
         }  else if( action == "PAGE_UP" ) {
             info_scroll = cataimgui::scroll::page_up;
         }  else if( action == "PAGE_DOWN" ) {

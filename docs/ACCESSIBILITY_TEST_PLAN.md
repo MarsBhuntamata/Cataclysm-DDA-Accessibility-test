@@ -120,3 +120,10 @@ This milestone is a first accessible pass on these custom views; it does **not**
 - Overmap (M): cursor speech remains brief. **F8** reads sidebar details: visible terrain and vision level, coordinates, explored state, notes/danger, available weather, active mission or point of interest, and known vehicles. F7 repeats it. Confirm unseen terrain is *never* revealed.
 - Zones (Shift+Y): **F8** reviews exact area corners, enabled state, type and options. Selecting a zone and pressing Enter exposes labeled, described edit actions. During area selection and movement, the look cursor now speaks "First zone corner", "Second zone corner" or "Move zone" with relative direction and visible tile type. F7 repeats.
 - Regression checks: no accidental modifications from review keys; entering Zone Manager, Armor Layering or Overmap still uses original keys; other Ctrl review bindings work in gameplay.
+
+## Follow-up accessibility regressions (Ctrl+R, pickup, examine, scenario narration)
+
+- In normal gameplay, Ctrl+R and F10 must both read recent messages. Also check Ctrl+S and Ctrl+L, which now accept the legacy CTRL+letter keyboard-char event as well as keycodes.
+- Press g with visible items on ground in the current or adjacent tile. NVDA should explain that you must choose a tile with a direction key, and list directions with visible ground items. Once a tile is chosen, the pickup inventory should narrate its selection; verify choosing an item and confirming still works.
+- Press e to examine a visible furniture or terrain tile. The direction chooser should announce its purpose; the chosen terrain/furniture name and descriptions should speak before gameplay interaction. The same tile in X / Look Around -> extended description should speak its current tab; Up/Down traverse description lines; F8 reads all, F7 repeats.
+- Starting a new game with an introductory scenario description must play that text without the Game ready cue cancelling it. Game ready is now a noninterrupting speech request. Check both new game and loaded save.

@@ -5480,6 +5480,13 @@ void game::examine( bool with_pickup )
         return;
     }
 
+    get_narration_service().announce( {
+        narration_event::contextual_help,
+        with_pickup ? std::string( _( "Examine and pick up. Choose an adjacent tile with a direction key." ) ) :
+                      std::string( _( "Examine. Choose an adjacent terrain or furniture tile with a direction key." ) ),
+        true
+    } );
+
     std::optional<tripoint_bub_ms> examp;
     if( with_pickup ) {
         // Examine and/or pick up items
@@ -5571,6 +5578,26 @@ std::string game::get_fire_fuel_string( const tripoint_bub_ms &examp ) const
 void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
 {
     map &here = get_map();
+
+    // Examine actions used to provide no spoken terrain result when the
+    // terrain had no special interactive action. Describe known terrain and
+    // furniture before any in-game interaction or confirmation prompt.
+    if( here.inbounds( examp ) && ( examp == u.pos_bub() || u.sees( here, examp ) ) ) {
+        std::string description = string_format( _( "Examining %s." ), here.name( examp ) );
+        const std::string terrain_text = here.ter( examp ).obj().description.translated();
+        if( !terrain_text.empty() ) {
+            description += " " + terrain_text;
+        }
+        if( here.has_furn( examp ) ) {
+            const std::string furniture_text = here.furn( examp ).obj().description.translated();
+            if( !furniture_text.empty() ) {
+                description += " " + furniture_text;
+            }
+        }
+        get_narration_service().announce( {
+            narration_event::contextual_help, remove_color_tags( description ), true
+        } );
+    }
 
     if( disable_robot( examp ) ) {
         return;
@@ -5751,6 +5778,36 @@ bool game::warn_player_maybe_anger_local_faction( bool really_bad_offense,
 void game::pickup()
 {
     map &here = get_map();
+
+    // Ground items can be visible around the character but pressing g first
+    // enters a target tile selector. Explain that silent intermediate step.
+    const tripoint_bub_ms center = u.pos_bub();
+    std::string pickup_prompt = _( "Pick up. Choose an adjacent or current tile with a direction key." );
+    static constexpr std::array<std::pair<const char *, point>, 9> nearby = {{
+            { "here", point( 0, 0 ) },
+            { "north", point( 0, -1 ) },
+            { "northeast", point( 1, -1 ) },
+            { "east", point( 1, 0 ) },
+            { "southeast", point( 1, 1 ) },
+            { "south", point( 0, 1 ) },
+            { "southwest", point( -1, 1 ) },
+            { "west", point( -1, 0 ) },
+            { "northwest", point( -1, -1 ) }
+        }};
+    bool found_ground_items = false;
+    for( const auto &dir : nearby ) {
+        const tripoint_bub_ms p( center + dir.second );
+        if( here.inbounds( p ) && here.sees_some_items( p, u ) ) {
+            pickup_prompt += ". " + string_format( _( "%s: items on the ground" ), dir.first );
+            found_ground_items = true;
+        }
+    }
+    if( !found_ground_items ) {
+        pickup_prompt += ". " + std::string( _( "No visible ground items nearby. Vehicle cargo may still be available." ) );
+    }
+    get_narration_service().announce( {
+        narration_event::contextual_help, pickup_prompt, true
+    } );
 
     // Prompt for which adjacent/current tile to pick up items from
     const std::optional<tripoint_bub_ms> where_ = choose_adjacent_highlight(
