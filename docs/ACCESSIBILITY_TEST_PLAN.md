@@ -1,5 +1,18 @@
 # Accessibility Prototype Test Plan
 
+
+## Keyboard-first gameplay review shortcuts
+
+These are bound only in DEFAULTMODE, to avoid hijacking text-entry and NPC dialogue shortcuts:
+
+- **Ctrl+L**: Survey the eight neighboring tiles. Also F8.
+- **Ctrl+S**: Read current character condition (stamina, pain, hunger, thirst, and hit points). Also F9.
+- **Ctrl+R**: Read the last five game messages. Also F10.
+
+**F6** still describes terrain underfoot, **F7** repeats the last announcement, and **F11** toggles automatic terrain-change speech. Existing Ctrl+R in dialogue and Ctrl+S in the string editor are retained in their respective contexts. Ctrl+Shift combinations are deliberately not used.
+
+Test all three Ctrl shortcuts while standing in the game world, then check that NPC dialogue and text input still behave normally. If custom user keybindings override the defaults, the new bindings may need to be restored in the keybindings menu.
+
 ## Expanded map and gameplay narration milestone
 
 These keys are available in the regular game world, without spending a turn:

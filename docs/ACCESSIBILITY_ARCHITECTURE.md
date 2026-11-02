@@ -119,3 +119,7 @@ This is an early vertical slice, not a complete accessible game yet:
 - The inventory description is currently announced when opened. Scroll-position announcements and focus restoration still need implementation. A repeat command is available in the inventory and item-information window on F7; F6 describes the current terrain underfoot during gameplay. Ctrl+R is already assigned to a debug-dialogue action in the upstream default keybindings.
 - The tests have been added to the project's Catch-based test suite, but a Windows build and live NVDA test have not yet been run from this environment.
 - Narration requests are forwarded immediately. A managed queue, verbosity controls, and event-specific announcement policies remain future work.
+
+### Gameplay keyboard bindings
+
+In DEFAULTMODE, Ctrl+L surveys adjacent tiles (F8 alternative), Ctrl+S reads character status (F9 alternative), and Ctrl+R reads the five most recent messages (F10 alternative). These controls are deliberately scoped to gameplay: Ctrl+R continues to belong to the dialogue debug action when that interface is active, and Ctrl+S keeps its string-editor confirmation behavior. F6 describes terrain underfoot; F7 repeats the most recent narration; F11 toggles optional terrain change cues.
