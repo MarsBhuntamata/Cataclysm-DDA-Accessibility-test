@@ -3448,7 +3448,6 @@
     "id": "DEBUG_DIALOGUE_SHOW_ALL_RESPONSE",
     "name": "Toggle debug dialogue show hidden responses",
     "bindings": [
-      { "input_method": "keyboard_char", "key": "CTRL+R" },
       { "input_method": "keyboard_code", "mod": [ "ctrl" ], "key": "r" }
     ]
   },
@@ -5530,7 +5529,6 @@
     "//": "RETURN is treated as text input, so use a different keybinding",
     "//2": "CTRL+S is not available on curses, so add CTRL+Y as an alternative",
     "bindings": [
-      { "input_method": "keyboard_char", "key": "CTRL+S" },
       { "input_method": "keyboard_char", "key": "CTRL+Y" },
       { "input_method": "keyboard_code", "mod": [ "ctrl" ], "key": "s" },
       { "input_method": "keyboard_code", "mod": [ "ctrl" ], "key": "y" }
@@ -5610,7 +5608,6 @@
     "name": "Describe the eight adjacent tiles (Ctrl+L or F8)",
     "category": "DEFAULTMODE",
     "bindings": [
-      { "input_method": "keyboard_char", "key": "CTRL+L" },
       { "input_method": "keyboard_code", "key": "l", "mod": [ "ctrl" ] },
       { "input_method": "keyboard_any", "key": "F8" }
     ]
