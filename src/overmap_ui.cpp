@@ -2125,6 +2125,7 @@ static tripoint_abs_omt display()
     ictxt.register_action( "zoom_out" );
     ictxt.register_action( "HELP_KEYBINDINGS" );
     ictxt.register_action( "REPEAT_NARRATION" );
+    ictxt.register_action( "READ_OVERMAP_DETAILS" );
     ictxt.register_action( "MOUSE_MOVE" );
     ictxt.register_action( "SELECT" );
     ictxt.register_action( "CHOOSE_DESTINATION" );
@@ -2251,6 +2252,63 @@ static tripoint_abs_omt display()
 #endif
         if( action == "REPEAT_NARRATION" ) {
             get_narration_service().repeat_last();
+            continue;
+        }
+        if( action == "READ_OVERMAP_DETAILS" ) {
+            avatar &viewer = get_avatar();
+            const bool debug_vision = viewer.has_trait( trait_DEBUG_NIGHTVISION );
+            const om_vision_level vision = debug_vision ?
+                                           om_vision_level::full : overmap_buffer.seen( curs );
+            std::string description = string_format( _( "Overmap details. Coordinates %s." ),
+                                      display::overmap_position_text( curs ) );
+            if( vision == om_vision_level::unseen ) {
+                description += ". " + std::string( _( "Unexplored terrain." ) );
+            } else {
+                description += ". " + overmap_buffer.ter( curs )->get_name( vision );
+                if( vision != om_vision_level::full ) {
+                    description += ". " + std::string( _( "Terrain only partially visible." ) );
+                }
+            }
+            description += overmap_buffer.is_explored( curs ) ?
+                           ". " + std::string( _( "Marked explored." ) ) :
+                           ". " + std::string( _( "Not marked explored." ) );
+            if( overmap_buffer.has_note( curs ) ) {
+                description += ". " + string_format( _( "Note: %s" ), overmap_buffer.note( curs ) );
+            }
+            if( overmap_buffer.is_marked_dangerous( curs ) ) {
+                description += ". " + std::string( _( "Danger marker present." ) );
+            }
+            if( ( uistate.overmap_visible_weather || uistate.overmap_debug_weather ) &&
+                ( uistate.overmap_debug_weather ||
+                  viewer.overmap_los( curs, viewer.overmap_modified_sight_range(
+                                          g->light_level( viewer.posz() ) ) * 2 ) ) ) {
+                description += ". " + string_format( _( "Weather: %s" ),
+                               overmap_ui::get_weather_at_point( curs )->name.translated() );
+            }
+            const tripoint_abs_omt target = viewer.get_active_mission_target();
+            if( !target.is_invalid() ) {
+                const mission *objective = viewer.get_active_mission();
+                const std::string name = objective != nullptr ? objective->name() :
+                                         viewer.get_active_point_of_interest().text;
+                description += ". " + string_format( _( "Objective: %s. %d map tiles away." ),
+                                                    name, rl_dist( curs, target ) );
+                const int dz = target.z() - curs.z();
+                if( dz > 0 ) {
+                    description += ". " + std::string( _( "Objective above current level." ) );
+                } else if( dz < 0 ) {
+                    description += ". " + std::string( _( "Objective below current level." ) );
+                }
+            } else {
+                description += ". " + std::string( _( "No active mission or point of interest." ) );
+            }
+            if( vision != om_vision_level::unseen ) {
+                for( const om_vehicle &vehicle : overmap_buffer.get_vehicle( curs ) ) {
+                    description += ". " + string_format( _( "Vehicle: %s" ), vehicle.name );
+                }
+            }
+            get_narration_service().announce( {
+                narration_event::contextual_help, remove_color_tags( description ), true
+            } );
             continue;
         }
         if( !display_path.empty() ) {

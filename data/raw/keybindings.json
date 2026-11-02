@@ -5640,5 +5640,40 @@
     "name": "Toggle terrain-change speech (F11)",
     "category": "DEFAULTMODE",
     "bindings": [ { "input_method": "keyboard_any", "key": "F11" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_ARMOR_DETAILS",
+    "name": "Read complete armor protection and properties",
+    "category": "SORT_ARMOR",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "NEXT_ARMOR_DETAIL",
+    "name": "Next armor detail line",
+    "category": "SORT_ARMOR",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F9" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "PREV_ARMOR_DETAIL",
+    "name": "Previous armor detail line",
+    "category": "SORT_ARMOR",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F10" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_OVERMAP_DETAILS",
+    "name": "Review complete overmap sidebar details",
+    "category": "OVERMAP",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_ZONE_DETAILS",
+    "name": "Review selected zone bounds and options",
+    "category": "ZONES_MANAGER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
   }
 ]

@@ -112,3 +112,11 @@ This milestone is a first accessible pass on these custom views; it does **not**
 - **Shift+Y**: Open zones. For each focused zone, read its position in the list, name, type, enabled state, distance/direction, personal/vehicle status and custom options. Confirm empty-zone output, edits/reordering and F7 repeat.
 - **M**: Open overmap. Hear a brief position offset and terrain identification as the cursor moves. Unseen tiles must report "Unexplored", not underlying map terrain. Existing notes and danger markers should speak. Elevation changes must be reported. F7 repeats; no speech on blinking/timeouts or automated route playback.
 - Regression: game movement and world map interactions remain unchanged, no repeated narration on redraw, and no unearned visibility of uncharted terrain.
+
+
+## Advanced armor, zone editing and overmap reviews
+
+- Armor layering (Shift+=): **F8** reads the selected armor's complete properties, flags and protection rows. **F9** speaks the next detail line and **F10** the previous. Switching clothing or body part resets the detail line. F7 repeats the last announcement.
+- Overmap (M): cursor speech remains brief. **F8** reads sidebar details: visible terrain and vision level, coordinates, explored state, notes/danger, available weather, active mission or point of interest, and known vehicles. F7 repeats it. Confirm unseen terrain is *never* revealed.
+- Zones (Shift+Y): **F8** reviews exact area corners, enabled state, type and options. Selecting a zone and pressing Enter exposes labeled, described edit actions. During area selection and movement, the look cursor now speaks "First zone corner", "Second zone corner" or "Move zone" with relative direction and visible tile type. F7 repeats.
+- Regression checks: no accidental modifications from review keys; entering Zone Manager, Armor Layering or Overmap still uses original keys; other Ctrl review bindings work in gameplay.

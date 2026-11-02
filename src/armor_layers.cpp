@@ -690,6 +690,9 @@ void outfit::sort_armor( Character &guy )
     ctxt.register_action( "USAGE_HELP" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "REPEAT_NARRATION" );
+    ctxt.register_action( "READ_ARMOR_DETAILS" );
+    ctxt.register_action( "NEXT_ARMOR_DETAIL" );
+    ctxt.register_action( "PREV_ARMOR_DETAIL" );
     ctxt.register_action( "SCROLL_ITEM_INFO_UP" );
     ctxt.register_action( "SCROLL_ITEM_INFO_DOWN" );
 
@@ -930,6 +933,7 @@ void outfit::sort_armor( Character &guy )
     bool exit = false;
     std::string last_spoken_armor_focus;
     bool first_armor_announcement = true;
+    size_t armor_detail_line = 0;
     while( !exit ) {
         if( guy.is_avatar() ) {
             // Totally hoisted this from advanced_inv
@@ -989,6 +993,7 @@ void outfit::sort_armor( Character &guy )
         }
         const std::string spoken_armor = remove_color_tags( focus );
         if( first_armor_announcement || spoken_armor != last_spoken_armor_focus ) {
+            armor_detail_line = 0;
             get_narration_service().announce( {
                 first_armor_announcement ? narration_event::ui_opened :
                 narration_event::selection_changed, spoken_armor, true
@@ -1000,6 +1005,48 @@ void outfit::sort_armor( Character &guy )
         const std::string action = ctxt.handle_input();
         if( action == "REPEAT_NARRATION" ) {
             get_narration_service().repeat_last();
+            continue;
+        }
+        if( action == "READ_ARMOR_DETAILS" || action == "NEXT_ARMOR_DETAIL" ||
+            action == "PREV_ARMOR_DETAIL" ) {
+            std::vector<std::string> lines;
+            if( leftListSize > 0 && leftListIndex >= 0 && leftListIndex < leftListSize ) {
+                const item &worn_item = *tmp_worn[leftListIndex];
+                lines.push_back( make_item_name_narration_text( worn_item.tname() ) );
+                lines.push_back( clothing_layer( worn_item ) );
+                const std::vector<std::string> flags = clothing_flags_description( worn_item, 100 );
+                lines.insert( lines.end(), flags.begin(), flags.end() );
+                const std::vector<std::string> properties = clothing_properties( worn_item, 100, guy, speech_bp );
+                lines.insert( lines.end(), properties.begin(), properties.end() );
+                const std::vector<std::string> protection = clothing_protection( worn_item, 100, speech_bp );
+                lines.insert( lines.end(), protection.begin(), protection.end() );
+            }
+            if( lines.empty() ) {
+                get_narration_service().announce( {
+                    narration_event::contextual_help, _( "No armor details for this selection." ), true
+                } );
+            } else if( action == "READ_ARMOR_DETAILS" ) {
+                std::string full_report = string_format( _( "Armor details. %d entries." ),
+                                                        static_cast<int>( lines.size() ) );
+                for( const std::string &line : lines ) {
+                    full_report += ". " + remove_color_tags( line );
+                }
+                get_narration_service().announce( {
+                    narration_event::item_description_opened, full_report, true
+                } );
+            } else {
+                if( action == "NEXT_ARMOR_DETAIL" ) {
+                    armor_detail_line = std::min( armor_detail_line + 1, lines.size() - 1 );
+                } else if( armor_detail_line > 0 ) {
+                    --armor_detail_line;
+                }
+                get_narration_service().announce( {
+                    narration_event::item_description_changed,
+                    string_format( _( "Armor detail %d of %d. %s" ),
+                                   static_cast<int>( armor_detail_line + 1 ), static_cast<int>( lines.size() ),
+                                   remove_color_tags( lines[armor_detail_line] ) ), true
+                } );
+            }
             continue;
         }
         if( guy.is_npc() && action == "ASSIGN_INVLETS" ) {

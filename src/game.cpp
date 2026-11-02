@@ -6213,7 +6213,8 @@ look_around_result game::look_around(
         invalidate_main_ui_adaptor();
         ui_manager::redraw();
 
-        if( show_window && !select_zone && !peeking && !is_moving_zone &&
+        if( ( ( show_window && !select_zone && !peeking && !is_moving_zone ) ||
+              select_zone || is_moving_zone ) &&
             ( !last_spoken_look_position || *last_spoken_look_position != lp ) ) {
             const tripoint_bub_ms home = u.pos_bub();
             const int dx = lp.x() - home.x();
@@ -6235,11 +6236,16 @@ look_around_result game::look_around(
             if( lp.z() != home.z() ) {
                 relative += string_format( _( ", level offset %d" ), lp.z() - home.z() );
             }
+            std::string speech = string_format( "%s. %s", relative,
+                                                 accessibility_describe_local_tile( lp ) );
+            if( select_zone ) {
+                speech = ( has_first_point ? std::string( _( "Second zone corner. " ) ) :
+                           std::string( _( "First zone corner. " ) ) ) + speech;
+            } else if( is_moving_zone ) {
+                speech = std::string( _( "Move zone. " ) ) + speech;
+            }
             get_narration_service().announce( {
-                narration_event::selection_changed,
-                string_format( "%s. %s", relative,
-                               accessibility_describe_local_tile( lp ) ),
-                true
+                narration_event::selection_changed, speech, true
             } );
             last_spoken_look_position = lp;
         }

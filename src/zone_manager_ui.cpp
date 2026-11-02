@@ -234,6 +234,7 @@ void zone_manager_ui::display_zone_manager()
     ctxt.register_action( "SHOW_ALL_ZONES" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "REPEAT_NARRATION" );
+    ctxt.register_action( "READ_ZONE_DETAILS" );
     if( debug_mode ) {
         ctxt.register_action( "CHANGE_FACTION" );
     }
@@ -552,6 +553,32 @@ void zone_manager_ui::display_zone_manager()
             get_narration_service().repeat_last();
             continue;
         }
+        if( action == "READ_ZONE_DETAILS" ) {
+            std::string description = _( "Zone details" );
+            if( zone_cnt == 0 ) {
+                description += ". " + std::string( _( "No zones defined." ) );
+            } else {
+                const zone_data &zone = zones[active_index].get();
+                description += ". " + zone.get_name() + ". " +
+                               mgr.get_name_from_type( zone.get_type() );
+                description += zone.get_enabled() ?
+                               ". " + std::string( _( "Enabled." ) ) :
+                               ". " + std::string( _( "Disabled." ) );
+                const tripoint_abs_ms start = zone.get_start_point();
+                const tripoint_abs_ms end = zone.get_end_point();
+                description += ". " + string_format( _( "Start: x %d, y %d, z %d." ),
+                                                    start.x(), start.y(), start.z() );
+                description += ". " + string_format( _( "End: x %d, y %d, z %d." ),
+                                                    end.x(), end.y(), end.z() );
+                for( const auto &option : zone.get_options().get_descriptions() ) {
+                    description += ". " + option.first + ": " + option.second;
+                }
+            }
+            get_narration_service().announce( {
+                narration_event::contextual_help, remove_color_tags( description ), true
+            } );
+            continue;
+        }
 
         if( action == "ADD_ZONE" ) {
             do { // not a loop, just for quick bailing out if canceled
@@ -712,13 +739,20 @@ void zone_manager_ui::display_zone_manager()
                 zone_data &zone = zones[active_index].get();
 
                 uilist as_m;
+                as_m.title = string_format( _( "Edit zone: %s" ), zone.get_name() );
                 as_m.text = _( "What do you want to change:" );
-                as_m.entries.emplace_back( 1, true, '1', _( "Edit name" ) );
-                as_m.entries.emplace_back( 2, true, '2', _( "Edit type" ) );
+                as_m.desc_enabled = true;
+                as_m.entries.emplace_back( 1, true, '1', _( "Edit name" ),
+                                           _( "Rename the selected zone." ) );
+                as_m.entries.emplace_back( 2, true, '2', _( "Edit type" ),
+                                           _( "Choose a different zone function." ) );
                 as_m.entries.emplace_back( 3, zone.get_options().has_options(), '3',
-                                           zone.get_type() == zone_type_LOOT_CUSTOM ? _( "Edit filter" ) : _( "Edit options" ) );
-                as_m.entries.emplace_back( 4, !zone.get_is_vehicle(), '4', _( "Edit position" ) );
-                as_m.entries.emplace_back( 5, !zone.get_is_vehicle(), '5', _( "Move position" ) );
+                                           zone.get_type() == zone_type_LOOT_CUSTOM ? _( "Edit filter" ) : _( "Edit options" ),
+                                           _( "Change the special settings for this zone." ) );
+                as_m.entries.emplace_back( 4, !zone.get_is_vehicle(), '4', _( "Edit position" ),
+                                           _( "Pick new first and second zone corners." ) );
+                as_m.entries.emplace_back( 5, !zone.get_is_vehicle(), '5', _( "Move position" ),
+                                           _( "Move the existing zone area while keeping its size." ) );
                 as_m.query();
 
                 switch( as_m.ret ) {
