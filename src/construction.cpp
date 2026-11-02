@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "accessibility.h"
 #include "action.h"
 #include "activity_actor_definitions.h"
 #include "avatar.h"
@@ -578,6 +579,7 @@ construction_id construction_menu( const bool blueprint )
     ctxt.register_action( "TOGGLE_UNAVAILABLE_CONSTRUCTIONS" );
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "FILTER" );
     ctxt.register_action( "RESET_FILTER" );
     ctxt.set_timeout( get_option<int>( "BLINK_SPEED" ) );
@@ -966,6 +968,8 @@ construction_id construction_menu( const bool blueprint )
     std::map<tripoint_bub_ms, const construction *> con_preview;
     const std::optional<tripoint_bub_ms> mouse_pos; // dummy
     bool blink = true;
+    std::string last_spoken_construction;
+    bool first_construction_announcement = true;
     shared_ptr_fast<game::draw_callback_t> draw_preview = construction_preview_callback(
                 con_preview, mouse_pos, blink );
     g->add_draw_callback( draw_preview );
@@ -1062,6 +1066,38 @@ construction_id construction_menu( const bool blueprint )
         g->invalidate_main_ui_adaptor();
         ui_manager::redraw();
 
+        // The construction interface is hand-drawn, with its own tab, selected
+        // group and stage buffer. Narrate those semantics instead of scraping
+        // curses pixels or speaking on every blink redraw.
+        std::string focus = _( "Construction" );
+        focus += ". " + category_id.str();
+        if( constructs.empty() ) {
+            focus += ". " + std::string( _( "No construction projects." ) );
+        } else if( select >= 0 && static_cast<size_t>( select ) < constructs.size() ) {
+            focus += ". " + string_format( _( "Project %d of %d. %s" ), select + 1,
+                                          static_cast<int>( constructs.size() ), constructs[select]->name() );
+            if( current_construct_breakpoint >= 0 &&
+                static_cast<size_t>( current_construct_breakpoint ) < construct_buffer_breakpoints.size() ) {
+                const size_t first = static_cast<size_t>( construct_buffer_breakpoints[current_construct_breakpoint] );
+                const size_t end = std::min( full_construct_buffer.size(), first + 12 );
+                for( size_t i = first; i < end; ++i ) {
+                    focus += ". " + full_construct_buffer[i];
+                }
+                if( end < full_construct_buffer.size() ) {
+                    focus += ". " + std::string( _( "More requirements available by scrolling stages." ) );
+                }
+            }
+        }
+        const std::string spoken = remove_color_tags( focus );
+        if( first_construction_announcement || spoken != last_spoken_construction ) {
+            get_narration_service().announce( {
+                first_construction_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, spoken, true
+            } );
+            first_construction_announcement = false;
+            last_spoken_construction = spoken;
+        }
+
         const std::string action = ctxt.handle_input();
         const int recmax = static_cast<int>( constructs.size() );
         const int scroll_rate = recmax > 20 ? 10 : 3;
@@ -1070,7 +1106,9 @@ construction_id construction_menu( const bool blueprint )
         } else {
             blink = true;
         }
-        if( action == "FILTER" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "FILTER" ) {
             string_input_popup_imgui popup( 50 );
             popup.set_label( _( "Search" ) );
             popup.set_description( _( "Filter" ) );
