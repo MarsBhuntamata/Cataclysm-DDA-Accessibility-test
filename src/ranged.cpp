@@ -2847,6 +2847,9 @@ double Character::gun_value( const item &weap, int ammo ) const
 
 target_handler::trajectory target_ui::run()
 {
+    if( mode == TargetMode::Fire ) {
+        record_accessibility_checkpoint( "Aiming: firearm targeting interface entered" );
+    }
     if( mode == TargetMode::Spell && !no_mana && !casting->can_cast( *you ) ) {
         you->add_msg_if_player( m_bad, _( "You don't have enough %s to cast this spell" ),
                                 casting->energy_string() );
@@ -3270,7 +3273,11 @@ bool target_ui::handle_cursor_movement( const std::string &action, bool &skip_re
         }
     } else if( const std::optional<tripoint_rel_ms> delta = ctxt.get_direction_rel_ms( action ) ) {
         // Shift view/cursor with directional keys
+        const tripoint_bub_ms previous_target = dst;
         shift_view_or_cursor( delta.value() );
+        if( mode == TargetMode::Fire && !shifting_view && dst != previous_target ) {
+            record_accessibility_checkpoint( "Aiming: directional target cursor moved" );
+        }
     } else if( action == "SELECT" &&
                ( mouse_pos = ctxt.get_coordinates( g->w_terrain, g->ter_view_p.raw().xy() ) ) ) {
         // Set pos by clicking with mouse
