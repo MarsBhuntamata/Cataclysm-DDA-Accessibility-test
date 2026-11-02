@@ -5067,6 +5067,10 @@ drop_locations pickup_selector::execute()
 {
     shared_ptr_fast<ui_adaptor> ui = create_or_get_ui_adaptor();
     debug_print_timer( tp_start );
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        _( "Pickup items. Use arrow keys to navigate, select items, then confirm." ), true
+    } );
 
     while( true ) {
         ui_manager::redraw();
@@ -5091,7 +5095,15 @@ drop_locations pickup_selector::execute()
         } else if( input.action == "QUIT" ) {
             return drop_locations();
         } else {
+            const size_t previously_selected = to_use.size();
             on_input( input );
+            if( to_use.size() != previously_selected ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    string_format( _( "%d item stacks selected." ),
+                                   static_cast<int>( to_use.size() ) ), true
+                } );
+            }
         }
     }
     drop_locations dropped_pos_and_qty;
