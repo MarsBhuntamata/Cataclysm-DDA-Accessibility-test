@@ -3358,14 +3358,17 @@ bool game::handle_action()
     if( action == "DESCRIBE_STATUS" ) {
         const int stamina_max = std::max( 1, player_character.get_stamina_max() );
         const int stamina_percent = player_character.get_stamina() * 100 / stamina_max;
+        std::string status_report = string_format(
+            _( "Status. Stamina %d percent. Pain %d. Hunger %d. Thirst %d. "
+               "Lowest body-part hit points %d, highest %d." ),
+            stamina_percent, player_character.get_pain(),
+            player_character.get_hunger(), player_character.get_thirst(),
+            player_character.get_lowest_hp(), player_character.get_highest_hp() );
+        if( player_character.has_effect( efftype_id( "bleed" ) ) ) {
+            status_report = std::string( _( "Warning: you are bleeding. " ) ) + status_report;
+        }
         get_narration_service().announce( {
-            narration_event::status_changed,
-            string_format( _( "Status. Stamina %d percent. Pain %d. Hunger %d. Thirst %d. "
-                              "Lowest body-part hit points %d, highest %d." ),
-                           stamina_percent, player_character.get_pain(),
-                           player_character.get_hunger(), player_character.get_thirst(),
-                           player_character.get_lowest_hp(), player_character.get_highest_hp() ),
-            true
+            narration_event::status_changed, status_report, true
         } );
         return false;
     }
