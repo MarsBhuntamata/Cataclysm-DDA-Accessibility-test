@@ -2938,7 +2938,7 @@ bool character_creator_ui::display()
                 const scenario *scen = cc_uistate.sorted_scenarios[selected_index];
                 focus += scen == get_scenario() ? ". " + std::string( _( "Selected scenario" ) ) :
                          ". " + std::string( _( "Not selected" ) );
-                focus += ". " + scen->description();
+                focus += ". " + scen->description( creator.male );
             } else if( cc_uistate.selected_tab == CHARCREATOR_PROFESSION &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_professions.size() ) {
                 const profession_id prof = cc_uistate.sorted_professions[selected_index];
