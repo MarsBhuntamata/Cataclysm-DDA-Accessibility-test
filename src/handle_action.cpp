@@ -2539,9 +2539,9 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
                         spoken_direction = _( "south" );
                     }
                     if( moved.x() < 0 ) {
-                        spoken_direction += spoken_direction.empty() ? _( "west" ) : _( "west" );
+                        spoken_direction += _( "west" );
                     } else if( moved.x() > 0 ) {
-                        spoken_direction += spoken_direction.empty() ? _( "east" ) : _( "east" );
+                        spoken_direction += _( "east" );
                     }
                     if( !spoken_direction.empty() ) {
                         get_narration_service().announce( {
