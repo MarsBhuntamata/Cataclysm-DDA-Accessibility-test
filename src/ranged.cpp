@@ -2943,10 +2943,13 @@ target_handler::trajectory target_ui::run()
         initial_dst = choose_initial_target();
     }
     set_cursor_pos( initial_dst );
-    if( mode == TargetMode::Fire ) {
+    if( mode == TargetMode::Fire || mode == TargetMode::Throw ||
+        mode == TargetMode::ThrowBlind ) {
         get_narration_service().announce( {
             narration_event::ui_opened,
-            _( "Aiming. Use direction keys to move the aim cursor or cycle targets." ), true
+            mode == TargetMode::Fire ?
+            std::string( _( "Aiming firearm. Use direction keys to move the cursor or cycle targets." ) ) :
+            std::string( _( "Aiming throw. Use direction keys to move the cursor or cycle targets." ) ), true
         } );
     }
     if( dst != initial_dst ) {
@@ -3440,7 +3443,8 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
 
     // Announce the actual aiming-cursor destination as soon as it moves.
     // This also covers NEXT_TARGET/PREV_TARGET and mouse targeting.
-    if( mode == TargetMode::Fire ) {
+    if( mode == TargetMode::Fire || mode == TargetMode::Throw ||
+        mode == TargetMode::ThrowBlind ) {
         const tripoint_rel_ms offset = dst - src;
         std::string report = dst_critter ? dst_critter->disp_name() :
                              accessibility_describe_local_tile( dst );
@@ -3455,7 +3459,12 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
         } else if( status == Status::BadTarget ) {
             report += " " + std::string( _( "Invalid target." ) );
         }
-        const std::vector<weak_ptr_fast<Creature>> friendlies = list_friendlies_in_lof();
+        // The existing friendly-in-line-of-fire check is specific to guns.
+        // Throw targeting must not invoke it or suggest that it guarantees
+        // the safety of a thrown projectile.
+        const std::vector<weak_ptr_fast<Creature>> friendlies =
+            mode == TargetMode::Fire ? list_friendlies_in_lof() :
+            std::vector<weak_ptr_fast<Creature>>();
         if( !friendlies.empty() ) {
             report += " " + std::string( _( "Warning: friendly creature in line of fire." ) );
             for( const weak_ptr_fast<Creature> &weak_creature : friendlies ) {
