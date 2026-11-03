@@ -2929,6 +2929,23 @@ bool character_creator_ui::display()
             if( !entry.enabled ) {
                 focus += ". " + std::string( _( "Unavailable" ) );
             }
+            // Selection is conveyed visually with colors in these lists.
+            // Speak the state explicitly, without requiring a second menu.
+            const int selected_index = current_tab_uilist->selected;
+            if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
+                selected_index >= 0 &&
+                static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
+                const trait_id trait = cc_uistate.sorted_traits[selected_index];
+                focus += get_avatar().has_trait( trait ) ? ". " + std::string( _( "Selected" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+            } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
+                       selected_index >= 0 &&
+                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
+                const profession_id background = cc_uistate.sorted_hobbies[selected_index];
+                focus += get_avatar().hobbies.count( &*background ) ?
+                         ". " + std::string( _( "Selected" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+            }
         }
         if( first_character_creator_announcement || focus != last_spoken_character_creator_focus ) {
             std::string speech = focus;
