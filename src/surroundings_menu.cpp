@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <tuple>
 #include <utility>
 
@@ -1270,6 +1271,10 @@ void surroundings_menu::execute()
                 break;
             case surroundings_menu_tab_enum::num_tabs:
                 return;
+        }
+        // Avoid a leading punctuation mark when the unchanged tab heading is omitted.
+        if( report.rfind( ". ", 0 ) == 0 ) {
+            report.erase( 0, 2 );
         }
         if( report != last_spoken_selection ) {
             last_spoken_selection = report;
