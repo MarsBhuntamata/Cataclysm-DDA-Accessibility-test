@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "calendar.h"
 #include "cata_imgui.h"
@@ -94,6 +95,8 @@ class mission_ui_impl : public cataimgui::window
 
         mission_ui_tab_enum selected_tab = mission_ui_tab_enum::ACTIVE;
         mission_ui_tab_enum switch_tab = mission_ui_tab_enum::num_tabs;
+        std::string last_spoken_mission;
+        bool mission_screen_announced = false;
 
         float window_width = std::clamp( float( str_width_to_pixels( EVEN_MINIMUM_TERM_WIDTH ) ),
                                          ImGui::GetMainViewport()->Size.x / 2,
@@ -256,6 +259,53 @@ void mission_ui_impl::draw_controls()
     if( last_action == "DELETE_POINT_OF_INTEREST" &&
         selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST && !upoints_of_interest.empty() ) {
         get_avatar().delete_point_of_interest( upoints_of_interest[selected_mission].pos );
+    }
+
+    // ImGui mission lists are not exposed to NVDA by ordinary keyboard focus.
+    // Report the selected entry and description, but only on a meaningful change.
+    std::string mission_report;
+    switch( selected_tab ) {
+        case mission_ui_tab_enum::ACTIVE:
+            mission_report = _( "Active missions" );
+            break;
+        case mission_ui_tab_enum::COMPLETED:
+            mission_report = _( "Completed missions" );
+            break;
+        case mission_ui_tab_enum::FAILED:
+            mission_report = _( "Failed missions" );
+            break;
+        case mission_ui_tab_enum::POINTS_OF_INTEREST:
+            mission_report = _( "Points of interest" );
+            break;
+        default:
+            break;
+    }
+    if( num_entries == 0 ) {
+        mission_report += ". " + std::string( _( "No entries." ) );
+    } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+        const point_of_interest &poi = upoints_of_interest[selected_mission];
+        mission_report += ". " + poi.text;
+        if( get_avatar().get_active_point_of_interest().pos == poi.pos ) {
+            mission_report += ". " + std::string( _( "Current destination." ) );
+        }
+    } else {
+        const mission &miss = *umissions[selected_mission];
+        mission_report += ". " + miss.name();
+        if( get_avatar().get_active_mission() == &miss ) {
+            mission_report += ". " + std::string( _( "Current objective." ) );
+        }
+        if( !miss.get_description().empty() ) {
+            mission_report += ". " + remove_color_tags( miss.get_description() );
+        }
+    }
+    if( mission_report != last_spoken_mission || !mission_screen_announced ) {
+        get_narration_service().announce( {
+            mission_screen_announced ? narration_event::selection_changed : narration_event::ui_opened,
+            mission_screen_announced ? mission_report :
+            std::string( _( "Your missions. " ) ) + mission_report, true
+        } );
+        last_spoken_mission = mission_report;
+        mission_screen_announced = true;
     }
 
     if( ( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST && umissions.empty() ) ||
