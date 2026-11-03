@@ -1729,8 +1729,34 @@ int worldfactory::show_worldgen_basic( WORLD *world )
         wnoutrefresh( w_confirmation );
     } );
 
+    std::string last_spoken_worldgen_focus;
     do {
         ui_manager::redraw();
+
+        // World-generation sliders and buttons are custom-drawn, so describe
+        // the focused setting and its value when the cursor changes.
+        std::string worldgen_focus;
+        if( sel_opt == 0 ) {
+            worldgen_focus = string_format( _( "World name: %s" ), worldname );
+        } else if( sel_opt <= static_cast<int>( wg_sliders.size() ) ) {
+            const int index = sel_opt - 1;
+            worldgen_focus = wg_sliders[index]->name().translated() + ". " +
+                             ( custom_opts ? std::string( _( "Custom" ) ) :
+                               wg_sliders[index]->level_name( wg_slevels[index] ).translated() );
+        } else if( sel_opt == static_cast<int>( wg_sliders.size() + 1 ) ) {
+            worldgen_focus = _( "Finish world creation" );
+        } else if( sel_opt == static_cast<int>( wg_sliders.size() + 2 ) ) {
+            worldgen_focus = _( "Reset world settings" );
+        } else if( sel_opt == static_cast<int>( wg_sliders.size() + 3 ) ) {
+            worldgen_focus = _( "Randomize world settings" );
+        }
+        if( !worldgen_focus.empty() && worldgen_focus != last_spoken_worldgen_focus ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed,
+                std::string( _( "Create world. " ) ) + worldgen_focus, true
+            } );
+            last_spoken_worldgen_focus = worldgen_focus;
+        }
 
         recalc_startpos = false;
         std::string action = ctxt.handle_input();
