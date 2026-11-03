@@ -953,10 +953,17 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
     shared_ptr_fast<uilist_impl> ui = create_or_get_ui();
     // A menu's selection can change either in query_once() or during ImGui
     // redraw (e.g. changing category tabs). Compare on both sides of input.
-    auto focused_text = [this]() {
+    // Category context is useful when it changes, but repeating "Menu" or
+    // the category name on every arrow press obscures the actual option.
+    std::string last_spoken_category;
+    auto focused_text = [this, &last_spoken_category]() {
         std::string label;
         if( current_category < categories.size() ) {
-            label = remove_color_tags( categories[current_category].second ) + ". ";
+            const std::string category = remove_color_tags( categories[current_category].second );
+            if( category != last_spoken_category ) {
+                label = category + ". ";
+                last_spoken_category = category;
+            }
         }
         return label + accessible_list_entry( *this );
     };
