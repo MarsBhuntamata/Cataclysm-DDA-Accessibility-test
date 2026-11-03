@@ -7,6 +7,7 @@
 #include <limits>
 #include <stdexcept>
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "calendar.h"
 #include "cata_utility.h"
@@ -3705,6 +3706,8 @@ std::string options_manager::show( bool ingame, const bool world_options_only, b
         wnoutrefresh( w_options );
     } );
 
+    std::string last_spoken_option_focus;
+    bool announced_options_opening = false;
     while( true ) {
         ui_manager::redraw();
 
@@ -3715,6 +3718,43 @@ std::string options_manager::show( bool ingame, const bool world_options_only, b
         options_manager::options_container &cOPTIONS = ( ingame || world_options_only ) &&
                 iCurrentPage == iWorldOptPage ?
                 ACTIVE_WORLD_OPTIONS : OPTIONS;
+
+        // Options has its own custom list, so it bypasses uilist narration.
+        // Read the option name AND live value; a keypress may modify a value
+        // without moving the cursor. Group headers announce expanded state.
+        if( iCurrentLine >= 0 && static_cast<size_t>( iCurrentLine ) < page_items.size() ) {
+            const PageItem &focused = page_items[iCurrentLine];
+            std::string focus = page.name_.translated() + ". ";
+            switch( focused.type ) {
+                case ItemType::GroupHeader:
+                    focus += find_group( focused.group ).name_.translated();
+                    focus += groups_state[focused.group] ?
+                             ". " + std::string( _( "Expanded" ) ) :
+                             ". " + std::string( _( "Collapsed" ) );
+                    break;
+                case ItemType::Option: {
+                    const cOpt &opt = cOPTIONS.find( focused.data )->second;
+                    focus += opt.getMenuText() + ". " + opt.getValueName();
+                    if( opt.hasPrerequisite() && !opt.checkPrerequisite() ) {
+                        focus += ". " + std::string( _( "Unavailable; prerequisite not met." ) );
+                    }
+                    break;
+                }
+                case ItemType::BlankLine:
+                    focus += _( "Blank line" );
+                    break;
+            }
+            if( !announced_options_opening || focus != last_spoken_option_focus ) {
+                get_narration_service().announce( {
+                    announced_options_opening ? narration_event::selection_changed :
+                    narration_event::ui_opened,
+                    announced_options_opening ? focus :
+                    std::string( _( "Options. " ) ) + focus, true
+                } );
+                announced_options_opening = true;
+                last_spoken_option_focus = focus;
+            }
+        }
 
         std::string action = ctxt.handle_input();
 
