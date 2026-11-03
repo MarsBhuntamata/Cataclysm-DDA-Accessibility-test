@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "avatar_action.h"
 #include "bodypart.h"
@@ -124,6 +125,8 @@ class medical_ui : public cataimgui::window
         input_context ctxt;
         cataimgui::scroll s = cataimgui::scroll::none;
         medical_tab_mode selected_tab = medical_tab_mode::TAB_LIMBS;
+        std::string last_spoken_medical_report;
+        bool medical_opening_announced = false;
 
         float get_table_column_width() const {
             return ImGui::GetWindowSize().x / 2;
@@ -692,7 +695,59 @@ void medical_ui::draw_controls()
         selected_limb = 0;
     };
 
-    bp = bodyparts[selected_limb];
+    if( !bodyparts.empty() ) {
+        bp = bodyparts[selected_limb];
+    }
+
+    std::string medical_report;
+    if( selected_tab == medical_tab_mode::TAB_SUMMARY ) {
+        medical_report = _( "Summary." );
+        medical_report += " " + remove_color_tags( draw_speed_summary( *you ) );
+        medical_report += " " + remove_color_tags( draw_stats_summary( *you ) );
+    } else if( bodyparts.empty() ) {
+        medical_report = _( "Limbs. No body parts." );
+    } else {
+        medical_report = _( "Limbs." );
+        medical_report += " " + uppercase_first_letter( body_part_name( bp, 1 ) );
+        const int hp_max = you->get_part_hp_max( bp );
+        const int hp_cur = you->get_part_hp_cur( bp );
+        if( you->has_flag( json_flag_PAIN_IMMUNE ) ) {
+            medical_report += ". " + remove_color_tags( hp_feeling(
+                                  hp_max > 0 ? hp_cur / static_cast<float>( hp_max ) : 0.0f ) );
+        } else {
+            medical_report += ". " + string_format( _( "Health %d of %d." ), hp_cur, hp_max );
+        }
+        if( you->is_limb_broken( bp ) ) {
+            medical_report += " " + std::string( _( "Broken." ) );
+        }
+        if( you->worn_with_flag( flag_SPLINT, bp ) ) {
+            medical_report += " " + std::string( _( "Splinted." ) );
+        }
+        const std::string effects = remove_color_tags( get_limb_effects( bp ) );
+        const std::string wounds = remove_color_tags( get_limb_wounds( bp ) );
+        const std::string scores = remove_color_tags( get_limb_scores_and_modifiers( bp ) );
+        if( !effects.empty() ) {
+            medical_report += " " + effects;
+        }
+        if( !wounds.empty() ) {
+            medical_report += " " + wounds;
+        }
+        if( !scores.empty() ) {
+            medical_report += " " + scores;
+        }
+        if( effects.empty() && wounds.empty() ) {
+            medical_report += " " + std::string( _( "No wounds or medical effects." ) );
+        }
+    }
+    if( !medical_opening_announced || medical_report != last_spoken_medical_report ) {
+        get_narration_service().announce( {
+            medical_opening_announced ? narration_event::selection_changed : narration_event::ui_opened,
+            medical_opening_announced ? medical_report :
+            std::string( _( "Medical. " ) ) + medical_report, true
+        } );
+        medical_opening_announced = true;
+        last_spoken_medical_report = medical_report;
+    }
 
     draw_hint_section();
 
