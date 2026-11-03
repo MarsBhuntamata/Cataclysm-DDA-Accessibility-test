@@ -2199,14 +2199,20 @@ static tripoint_abs_omt display()
             if( dx == 0 && dy == 0 ) {
                 report = _( "Your position" );
             } else {
+                // Overmap tiles are regions, not single walking squares.
+                // One overmap tile spans two 12x12 submaps on each axis.
                 if( dy != 0 ) {
-                    report += string_format( dy < 0 ? _( "%d north" ) : _( "%d south" ), std::abs( dy ) );
+                    report += string_format( _( "%d %s %s" ), std::abs( dy ),
+                                             std::abs( dy ) == 1 ? _( "overmap tile" ) : _( "overmap tiles" ),
+                                             dy < 0 ? _( "north" ) : _( "south" ) );
                 }
                 if( dx != 0 ) {
                     if( !report.empty() ) {
                         report += ", ";
                     }
-                    report += string_format( dx < 0 ? _( "%d west" ) : _( "%d east" ), std::abs( dx ) );
+                    report += string_format( _( "%d %s %s" ), std::abs( dx ),
+                                             std::abs( dx ) == 1 ? _( "overmap tile" ) : _( "overmap tiles" ),
+                                             dx < 0 ? _( "west" ) : _( "east" ) );
                 }
             }
             if( curs.z() != orig.z() ) {
@@ -2233,7 +2239,7 @@ static tripoint_abs_omt display()
                 const bool opening = !last_spoken_map_position;
                 get_narration_service().announce( {
                     opening ? narration_event::ui_opened : narration_event::selection_changed,
-                    opening ? std::string( _( "Overmap. " ) ) + report : report, true
+                    opening ? std::string( _( "Overmap. One overmap tile is 24 by 24 local walking tiles. Distances are grid offsets, not exact walking routes. " ) ) + report : report, true
                 } );
                 last_spoken_map_position = curs;
                 last_spoken_map_description = report;
