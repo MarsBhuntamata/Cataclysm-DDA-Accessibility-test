@@ -255,6 +255,11 @@ int worldfactory::show_worldgen_advanced( WORLD *world )
     bool done = false;
     while( !done ) {
         while( static_cast<size_t>( curtab ) < numtabs ) {
+            get_narration_service().announce( {
+                narration_event::ui_opened,
+                curtab == 0 ? std::string( _( "World generation. Mod selection." ) ) :
+                std::string( _( "World generation. World options." ) ), true
+            } );
             ui_manager::redraw();
             curtab += tabs[curtab]( wf_win, world, true );
         }
