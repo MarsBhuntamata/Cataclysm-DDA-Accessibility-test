@@ -13,6 +13,7 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "accessibility.h"
 #include "ammo_effect.h"
 #include "anatomy.h"
 #include "body_part_set.h"
@@ -1323,6 +1324,20 @@ void Creature::messaging_projectile_attack( const Creature *source,
                     //~ %1$s: creature name, %2$s: weakpoint hit, %3$d: damage value
                     add_msg( m_good, _( "You hit %1$s in %2$s for %3$d damage." ),
                              disp_name(), hit_selection.wp_hit, total_damage );
+                }
+                if( get_hp_max() > 0 ) {
+                    const int remaining = std::max( 0, get_hp() ) * 100 / get_hp_max();
+                    const std::string condition = remaining <= 0 ? _( "defeated" ) :
+                                                  remaining < 10 ? _( "nearly dead" ) :
+                                                  remaining < 30 ? _( "severely injured" ) :
+                                                  remaining < 60 ? _( "heavily injured" ) :
+                                                  remaining < 80 ? _( "moderately injured" ) :
+                                                  remaining < 100 ? _( "lightly injured" ) :
+                                                  _( "uninjured" );
+                    get_narration_service().announce( {
+                        narration_event::status_changed,
+                        string_format( _( "%s: %s." ), disp_name(), condition ), false
+                    } );
                 }
             } else if( source != this ) {
                 if( hit_selection.wp_hit.empty() ) {
