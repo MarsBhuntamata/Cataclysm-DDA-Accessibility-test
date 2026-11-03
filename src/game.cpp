@@ -2561,6 +2561,20 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
         const Creature *critter = get_creature_tracker().creature_at( tile, true );
         if( critter != nullptr && observer.sees( here, *critter ) ) {
             description += ". " + string_format( _( "Creature: %s" ), critter->disp_name() );
+            // Describe visible injury in look-cursor and map survey narration,
+            // consistent with firearm and throwing target narration.
+            if( critter->get_hp_max() > 0 ) {
+                const int remaining = std::max( 0, critter->get_hp() ) * 100 /
+                                      critter->get_hp_max();
+                const std::string condition = remaining <= 0 ? _( "defeated" ) :
+                                              remaining < 10 ? _( "nearly dead" ) :
+                                              remaining < 30 ? _( "severely injured" ) :
+                                              remaining < 60 ? _( "heavily injured" ) :
+                                              remaining < 80 ? _( "moderately injured" ) :
+                                              remaining < 100 ? _( "lightly injured" ) :
+                                              _( "uninjured" );
+                description += ". " + condition;
+            }
         }
     }
     if( here.sees_some_items( tile, observer ) ) {
