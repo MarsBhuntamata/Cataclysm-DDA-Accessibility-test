@@ -3448,6 +3448,18 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
         const tripoint_rel_ms offset = dst - src;
         std::string report = dst_critter ? dst_critter->disp_name() :
                              accessibility_describe_local_tile( dst );
+        if( dst_critter && dst_critter->get_hp_max() > 0 ) {
+            const int remaining = std::max( 0, dst_critter->get_hp() ) * 100 /
+                                  dst_critter->get_hp_max();
+            const std::string condition = remaining <= 0 ? _( "defeated" ) :
+                                          remaining < 10 ? _( "nearly dead" ) :
+                                          remaining < 30 ? _( "severely injured" ) :
+                                          remaining < 60 ? _( "heavily injured" ) :
+                                          remaining < 80 ? _( "moderately injured" ) :
+                                          remaining < 100 ? _( "lightly injured" ) :
+                                          _( "uninjured" );
+            report += ". " + condition;
+        }
         report += string_format( _( ". Aim cursor %d %s, %d %s. Distance %d." ),
                                  std::abs( offset.x() ), offset.x() < 0 ? _( "west" ) : _( "east" ),
                                  std::abs( offset.y() ), offset.y() < 0 ? _( "north" ) : _( "south" ),
