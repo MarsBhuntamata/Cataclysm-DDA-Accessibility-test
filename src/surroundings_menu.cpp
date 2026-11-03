@@ -1276,8 +1276,12 @@ void surroundings_menu::execute()
         if( report.rfind( ". ", 0 ) == 0 ) {
             report.erase( 0, 2 );
         }
-        if( report != last_spoken_selection ) {
-            last_spoken_selection = report;
+        // Compare the selection independently of the optional tab heading, so
+        // the first entry is not spoken twice on the next frame.
+        const std::string detail_key = tab_changed && report.find( ". " ) != std::string::npos ?
+                                       report.substr( report.find( ". " ) + 2 ) : report;
+        if( tab_changed || detail_key != last_spoken_selection ) {
+            last_spoken_selection = detail_key;
             get_narration_service().announce( { narration_event::selection_changed, report, true } );
         }
     };
