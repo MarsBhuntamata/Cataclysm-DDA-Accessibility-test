@@ -209,8 +209,10 @@ static std::string get_skill_entry_text( const skill_id selected_skill, const av
 
 static uilist_entry get_uilist_entry( const std::string &name )
 {
-    const bool screen_reader_mode = get_option<bool>( "SCREEN_READER_MODE" );
-    uilist_entry cc_entry( screen_reader_mode ? std::string() : name );
+    // Keep entry text available in screen reader mode.  The character creator
+    // narrates embedded uilist entries, so blanking their names silences the
+    // very choices keyboard users need to identify.
+    uilist_entry cc_entry( name );
     cc_entry.hotkey = input_event();
 
     return cc_entry;
@@ -2929,9 +2931,26 @@ bool character_creator_ui::display()
             if( !entry.enabled ) {
                 focus += ". " + std::string( _( "Unavailable" ) );
             }
+            const int selected_index = current_tab_uilist->selected;
+            const avatar &creator = get_avatar();
+            if( cc_uistate.selected_tab == CHARCREATOR_SCENARIO &&
+                static_cast<size_t>( selected_index ) < cc_uistate.sorted_scenarios.size() ) {
+                const scenario *scen = cc_uistate.sorted_scenarios[selected_index];
+                focus += scen == get_scenario() ? ". " + std::string( _( "Selected scenario" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+                focus += ". " + scen->description();
+            } else if( cc_uistate.selected_tab == CHARCREATOR_PROFESSION &&
+                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_professions.size() ) {
+                const profession_id prof = cc_uistate.sorted_professions[selected_index];
+                focus += creator.prof->ident() == prof ? ". " + std::string( _( "Selected profession" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+                focus += ". " + prof->description( creator.male );
+            } else if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
+                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
+                focus += ". " + cc_uistate.sorted_traits[selected_index]->desc();
+            }
             // Selection is conveyed visually with colors in these lists.
             // Speak the state explicitly, without requiring a second menu.
-            const int selected_index = current_tab_uilist->selected;
             if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
                 selected_index >= 0 &&
                 static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
