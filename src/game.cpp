@@ -2561,6 +2561,27 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
         const Creature *critter = get_creature_tracker().creature_at( tile, true );
         if( critter != nullptr && observer.sees( here, *critter ) ) {
             description += ". " + string_format( _( "Creature: %s" ), critter->disp_name() );
+            // Match the creature scanner's unknown-attitude handling for
+            // inattentive characters, and use the creature's disposition
+            // toward the player rather than the player's toward the creature.
+            std::string attitude;
+            if( observer.has_trait( trait_id( "INATTENTIVE" ) ) ) {
+                attitude = _( "Attitude unknown" );
+            } else {
+                switch( critter->attitude_to( observer ) ) {
+                    case Creature::Attitude::HOSTILE:
+                        attitude = _( "Hostile" );
+                        break;
+                    case Creature::Attitude::FRIENDLY:
+                        attitude = _( "Friendly" );
+                        break;
+                    case Creature::Attitude::NEUTRAL:
+                    case Creature::Attitude::ANY:
+                        attitude = _( "Neutral" );
+                        break;
+                }
+            }
+            description += ". " + attitude;
             // Describe visible injury in look-cursor and map survey narration,
             // consistent with firearm and throwing target narration.
             if( critter->get_hp_max() > 0 ) {
