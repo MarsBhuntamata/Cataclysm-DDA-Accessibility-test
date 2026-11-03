@@ -2945,6 +2945,9 @@ bool character_creator_ui::display()
                 focus += creator.prof->ident() == prof ? ". " + std::string( _( "Selected profession" ) ) :
                          ". " + std::string( _( "Not selected" ) );
                 focus += ". " + prof->description( creator.male );
+            } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
+                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
+                focus += ". " + cc_uistate.sorted_hobbies[selected_index]->description( creator.male );
             } else if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
                 focus += ". " + cc_uistate.sorted_traits[selected_index]->desc();
