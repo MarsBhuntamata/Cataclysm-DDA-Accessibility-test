@@ -2012,6 +2012,9 @@ static bool try_travel_to_destination( avatar &player_character, const tripoint_
         } else {
             popupmsg = _( "Auto travel requires source and destination on same Z level:" );
         }
+        get_narration_service().announce( {
+            narration_event::contextual_help, popupmsg, true
+        } );
         string_input_popup pop;
         const std::string ok = _( "OK" );
         pop
@@ -2049,6 +2052,12 @@ static bool try_travel_to_destination( avatar &player_character, const tripoint_
             confirm_msg = _( "Travel to your destination?" );
         }
     }
+    get_narration_service().announce( {
+        narration_event::contextual_help,
+        string_format( _( "%s Route includes %d overmap tiles. Confirm to begin %s." ),
+                       confirm_msg, static_cast<int>( path.size() ),
+                       driving ? _( "driving" ) : _( "walking" ) ), true
+    } );
     if( query_yn( confirm_msg ) ) {
         if( !path_changed ) {
             player_character.omt_path.swap( path );
@@ -2059,6 +2068,11 @@ static bool try_travel_to_destination( avatar &player_character, const tripoint_
             player_character.reset_move_mode();
             player_character.assign_activity( ACT_TRAVELLING );
         }
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            driving ? std::string( _( "Auto travel started: driving." ) ) :
+            std::string( _( "Auto travel started: walking." ) ), true
+        } );
         return true;
     }
     if( path_changed ) {
@@ -2436,6 +2450,19 @@ static tripoint_abs_omt display()
                 same_path_selected = true;
             } else {
                 player_character.omt_path.swap( path );
+            }
+            if( player_character.omt_path.empty() ) {
+                get_narration_service().announce( {
+                    narration_event::contextual_help,
+                    _( "No overmap route found. Destination unchanged." ), true
+                } );
+            } else if( !same_path_selected ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    string_format( _( "%s route preview ready. %d overmap tiles. Press the same route key again to confirm travel." ),
+                                   driving ? _( "Driving" ) : _( "Walking" ),
+                                   static_cast<int>( player_character.omt_path.size() ) ), true
+                } );
             }
             if( same_path_selected && !player_character.omt_path.empty() ) {
                 if( try_travel_to_destination( player_character, curs, curs, driving ) ) {
