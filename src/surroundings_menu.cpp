@@ -1213,8 +1213,25 @@ void surroundings_menu::execute()
             case surroundings_menu_tab_enum::monsters:
                 report = _( "Creatures" );
                 if( monster_data.selected_entry ) {
+                    const Creature *critter = monster_data.selected_entry->get_selected_entity();
                     report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_name() ) +
                               ". " + remove_color_tags( monster_data.selected_entry->get_selected_distance_string() );
+                    if( get_player_character().has_trait( trait_INATTENTIVE ) ) {
+                        report += ". " + std::string( _( "Attitude unknown" ) );
+                    } else {
+                        switch( critter->attitude_to( get_player_character() ) ) {
+                            case Creature::Attitude::HOSTILE:
+                                report += ". " + std::string( _( "Hostile" ) );
+                                break;
+                            case Creature::Attitude::FRIENDLY:
+                                report += ". " + std::string( _( "Friendly" ) );
+                                break;
+                            case Creature::Attitude::NEUTRAL:
+                            case Creature::Attitude::ANY:
+                                report += ". " + std::string( _( "Neutral" ) );
+                                break;
+                        }
+                    }
                 } else {
                     report += ". " + std::string( _( "No creatures found." ) );
                 }
