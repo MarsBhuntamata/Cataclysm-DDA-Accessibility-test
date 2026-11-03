@@ -1479,6 +1479,10 @@ static bool cancel_auto_move( Character &you, const std::string &text )
     g->invalidate_main_ui_adaptor();
     if( query_yn( _( "%s Cancel auto move?" ), text ) )  {
         add_msg( m_warning, _( "%s Auto move canceled." ), text );
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            string_format( _( "Auto travel stopped. %s" ), text ), true
+        } );
         you.abort_automove();
         return true;
     }
