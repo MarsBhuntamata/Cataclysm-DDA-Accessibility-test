@@ -7,6 +7,7 @@
 #include <imgui/imgui_internal.h>
 #include <iterator>
 #include <list>
+#include <map>
 #include <memory>
 #include <set>
 #include <tuple>
@@ -1198,24 +1199,46 @@ void surroundings_menu::execute()
     // Speak item/creature/terrain selections in the surroundings scanner.
     // The ImGui list is otherwise visual-only when navigating with NVDA.
     std::string last_spoken_selection;
+    surroundings_menu_tab_enum last_spoken_tab = surroundings_menu_tab_enum::num_tabs;
     auto announce_selection = [&]() {
+        const bool tab_changed = selected_tab != last_spoken_tab;
+        last_spoken_tab = selected_tab;
+        const auto spoken_distance = []( const std::string &short_distance ) {
+            std::istringstream stream( short_distance );
+            int steps = 0;
+            std::string direction;
+            if( !( stream >> steps >> direction ) ) {
+                return short_distance;
+            }
+            const std::map<std::string, std::string> directions = {
+                { "N", _( "north" ) }, { "NE", _( "northeast" ) },
+                { "E", _( "east" ) }, { "SE", _( "southeast" ) },
+                { "S", _( "south" ) }, { "SW", _( "southwest" ) },
+                { "W", _( "west" ) }, { "NW", _( "northwest" ) }
+            };
+            const auto found = directions.find( direction );
+            if( found == directions.end() ) {
+                return short_distance;
+            }
+            return string_format( _( "%d %s" ), steps, found->second );
+        };
         std::string report;
         switch( selected_tab ) {
             case surroundings_menu_tab_enum::items:
-                report = _( "Items" );
+                if( tab_changed ) { report = _( "Items" ); }
                 if( item_data.selected_entry ) {
-                    report += ". " + remove_color_tags( item_data.selected_entry->get_selected_name() ) +
-                              ". " + remove_color_tags( item_data.selected_entry->get_selected_distance_string() );
+                    report += ". " + remove_color_tags( item_data.selected_entry->get_selected_entity()->display_name() ) +
+                              ". " + spoken_distance( remove_color_tags( item_data.selected_entry->get_selected_distance_string() ) );
                 } else {
                     report += ". " + std::string( _( "No items found." ) );
                 }
                 break;
             case surroundings_menu_tab_enum::monsters:
-                report = _( "Creatures" );
+                if( tab_changed ) { report = _( "Creatures" ); }
                 if( monster_data.selected_entry ) {
                     const Creature *critter = monster_data.selected_entry->get_selected_entity();
-                    report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_name() ) +
-                              ". " + remove_color_tags( monster_data.selected_entry->get_selected_distance_string() );
+                    report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_entity()->disp_name() ) +
+                              ". " + spoken_distance( remove_color_tags( monster_data.selected_entry->get_selected_distance_string() ) );
                     if( get_player_character().has_trait( trait_INATTENTIVE ) ) {
                         report += ". " + std::string( _( "Attitude unknown" ) );
                     } else {
@@ -1237,10 +1260,10 @@ void surroundings_menu::execute()
                 }
                 break;
             case surroundings_menu_tab_enum::terfurn:
-                report = _( "Terrain and furniture" );
+                if( tab_changed ) { report = _( "Terrain and furniture" ); }
                 if( terfurn_data.selected_entry ) {
-                    report += ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_name() ) +
-                              ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_distance_string() );
+                    report += ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_entity()->name() ) +
+                              ". " + spoken_distance( remove_color_tags( terfurn_data.selected_entry->get_selected_distance_string() ) );
                 } else {
                     report += ". " + std::string( _( "No terrain or furniture found." ) );
                 }
