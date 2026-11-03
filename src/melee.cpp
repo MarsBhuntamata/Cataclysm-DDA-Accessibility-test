@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "anatomy.h"
 #include "avatar.h"
 #include "bionics.h"
@@ -2728,6 +2729,20 @@ void player_hit_message( Character *attacker, const std::string &message,
     // same message is used for player and npc,
     // just using this for the <npcname> substitution.
     attacker->add_msg_player_or_npc( msgtype, msg, msg, t.disp_name() );
+    if( dam > 0 && attacker->is_avatar() && t.get_hp_max() > 0 ) {
+        const int hp_percent = std::max( 0, t.get_hp() ) * 100 / t.get_hp_max();
+        const std::string condition = hp_percent <= 0 ? _( "defeated" ) :
+                                      hp_percent < 10 ? _( "nearly dead" ) :
+                                      hp_percent < 30 ? _( "severely injured" ) :
+                                      hp_percent < 60 ? _( "heavily injured" ) :
+                                      hp_percent < 80 ? _( "moderately injured" ) :
+                                      hp_percent < 100 ? _( "lightly injured" ) :
+                                      _( "uninjured" );
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            string_format( _( "%s: %s." ), t.disp_name(), condition ), false
+        } );
+    }
 }
 
 int Character::attack_speed( const item &weap ) const
