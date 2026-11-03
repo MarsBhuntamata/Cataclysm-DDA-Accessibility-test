@@ -635,8 +635,25 @@ WORLD *worldfactory::pick_world( bool show_prompt, bool empty_only )
     ctxt.register_action( "SELECT" );
     ctxt.register_action( "MOUSE_MOVE" );
 
+    std::string last_spoken_world_selection;
     while( true ) {
         ui_manager::redraw();
+
+        std::string world_selection;
+        if( selpage < world_pages.size() && sel >= 0 &&
+            static_cast<size_t>( sel ) < world_pages[selpage].size() ) {
+            const std::string &world_name = world_pages[selpage][sel];
+            world_selection = string_format( _( "World selection. %s. %d saved characters. Page %d." ),
+                                             world_name,
+                                             static_cast<int>( get_world( world_name )->world_saves.size() ),
+                                             static_cast<int>( selpage + 1 ) );
+        }
+        if( !world_selection.empty() && world_selection != last_spoken_world_selection ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, world_selection, true
+            } );
+            last_spoken_world_selection = world_selection;
+        }
 
         std::string action = ctxt.handle_input();
         const size_t recmax = world_pages[selpage].size();
