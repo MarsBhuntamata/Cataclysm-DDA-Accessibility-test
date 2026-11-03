@@ -2527,6 +2527,29 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
                     }
                 }
 
+                // Speak the direction actually traveled, not the key pressed.
+                // An attempted move that only opened a door or hit an obstacle
+                // must not be described as a successful step.
+                if( player_character.pos_bub() != pos_before ) {
+                    const tripoint_rel_ms moved = player_character.pos_bub() - pos_before;
+                    std::string spoken_direction;
+                    if( moved.y() < 0 ) {
+                        spoken_direction = _( "north" );
+                    } else if( moved.y() > 0 ) {
+                        spoken_direction = _( "south" );
+                    }
+                    if( moved.x() < 0 ) {
+                        spoken_direction += spoken_direction.empty() ? _( "west" ) : _( "west" );
+                    } else if( moved.x() > 0 ) {
+                        spoken_direction += spoken_direction.empty() ? _( "east" ) : _( "east" );
+                    }
+                    if( !spoken_direction.empty() ) {
+                        get_narration_service().announce( {
+                            narration_event::movement, spoken_direction, true
+                        } );
+                    }
+                }
+
                 // if we changed move modes this action, refund half the cost of changing move mode
                 // if their move action was an easy movement to represent combining the two actions
                 if( desired_move_mode_cost > 0 ) {
