@@ -966,6 +966,10 @@ static void smash( const std::optional<tripoint_bub_ms> &p = std::nullopt )
     const bool allow_floor_bash = debug_mode; // Should later become "true"
     std::optional<tripoint_bub_ms> smashp_ = p;
     if( !smashp_ ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            _( "Smash where? Choose an adjacent tile with a direction key." ), true
+        } );
         smashp_ = choose_adjacent( _( "Smash where?" ),
                                    allow_floor_bash );
     }
