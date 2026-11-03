@@ -953,45 +953,43 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
     shared_ptr_fast<uilist_impl> ui = create_or_get_ui();
     // A menu's selection can change either in query_once() or during ImGui
     // redraw (e.g. changing category tabs). Compare on both sides of input.
-    // Category context is useful when it changes, but repeating "Menu" or
-    // the category name on every arrow press obscures the actual option.
+    // Track the option separately from its category. A category heading is
+    // context, not part of every option's spoken name.
     std::string last_spoken_category;
-    auto focused_text = [this, &last_spoken_category]() {
-        std::string label;
-        if( current_category < categories.size() ) {
-            const std::string category = remove_color_tags( categories[current_category].second );
-            if( category != last_spoken_category ) {
-                label = category + ". ";
-                last_spoken_category = category;
-            }
+    auto current_category_text = [this]() {
+        return current_category < categories.size() ?
+               remove_color_tags( categories[current_category].second ) : std::string();
+    };
+    auto speak_current_focus = [&]( bool opening ) {
+        const std::string option = accessible_list_entry( *this );
+        const std::string category = current_category_text();
+        if( !opening && option == accessibility_announced_focus &&
+            category == last_spoken_category ) {
+            return;
         }
-        return label + accessible_list_entry( *this );
+        std::string spoken = option;
+        if( category != last_spoken_category && !category.empty() ) {
+            spoken = category + ". " + spoken;
+        }
+        if( opening ) {
+            spoken = accessible_list_heading( *this ) + ". " + spoken;
+        }
+        get_narration_service().announce( {
+            opening ? narration_event::ui_opened : narration_event::selection_changed,
+            spoken, true
+        } );
+        accessibility_announced_focus = option;
+        last_spoken_category = category;
+        accessibility_announced_opening = true;
     };
     do {
         ui_manager::redraw();
-        const std::string before_input = focused_text();
-        if( !accessibility_announced_opening ) {
-            get_narration_service().announce( {
-                narration_event::ui_opened,
-                accessible_list_heading( *this ) + ". " + before_input, true
-            } );
-            accessibility_announced_focus = before_input;
-            accessibility_announced_opening = true;
-        } else if( before_input != accessibility_announced_focus ) {
-            get_narration_service().announce( {
-                narration_event::selection_changed, before_input, true
-            } );
-            accessibility_announced_focus = before_input;
-        }
+        speak_current_focus( !accessibility_announced_opening );
 
         query_once( ctxt, timeout, allow_unfiltered_hotkeys );
 
-        const std::string after_input = focused_text();
-        if( ret == UILIST_WAIT_INPUT && after_input != accessibility_announced_focus ) {
-            get_narration_service().announce( {
-                narration_event::selection_changed, after_input, true
-            } );
-            accessibility_announced_focus = after_input;
+        if( ret == UILIST_WAIT_INPUT ) {
+            speak_current_focus( false );
         }
     } while( loop && ret == UILIST_WAIT_INPUT );
     return ui;
