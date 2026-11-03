@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "accessibility.h"
 #include "cata_utility.h"
 #include "catacharset.h"
 #include "char_validity_check.h"
@@ -1298,8 +1299,32 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
     };
 
     int tab_output = 0;
+    std::string last_spoken_mod_focus;
     while( tab_output == 0 ) {
         ui_manager::redraw();
+
+        // Both columns are custom-drawn lists and bypass ordinary uilist
+        // narration. Read the focused mod, its category and activation state.
+        std::string mod_focus = active_header == 0 ? _( "Available mods" ) :
+                                _( "Active mods" );
+        if( active_header == 0 && iCurrentTab < get_mod_list_tabs().size() ) {
+            mod_focus += ". " + get_mod_list_tabs()[iCurrentTab].second.translated();
+        }
+        const std::vector<mod_id> &shown_mods = active_header == 0 ?
+                all_tabs[iCurrentTab].mods : active_mod_order;
+        if( cursel[active_header] < shown_mods.size() ) {
+            mod_focus += ". " + shown_mods[cursel[active_header]]->name();
+            mod_focus += active_header == 0 ? ". " + std::string( _( "Not active" ) ) :
+                         ". " + std::string( _( "Active" ) );
+        } else {
+            mod_focus += ". " + std::string( _( "No mods in this list." ) );
+        }
+        if( mod_focus != last_spoken_mod_focus ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, mod_focus, true
+            } );
+            last_spoken_mod_focus = mod_focus;
+        }
 
         recalc_start = false;
 
