@@ -958,6 +958,8 @@ void worldfactory::show_active_world_mods( const std::vector<mod_id> &world_mods
     int start = 0;
     int cursor = 0;
     const size_t num_mods = world_mods.size();
+    std::string last_spoken_active_mod;
+    bool first_active_mod_announcement = true;
 
     input_context ctxt( "DEFAULT" );
     ctxt.register_navigate_ui_list();
@@ -981,6 +983,31 @@ void worldfactory::show_active_world_mods( const std::vector<mod_id> &world_mods
 
     while( true ) {
         ui_manager::redraw();
+
+        std::string active_mod_report = _( "Active world mods." );
+        if( world_mods.empty() ) {
+            active_mod_report += " " + std::string( _( "No active mods." ) );
+        } else if( cursor >= 0 && static_cast<size_t>( cursor ) < num_mods ) {
+            const mod_id &selected_mod = world_mods[cursor];
+            active_mod_report += " " + string_format( _( "%d of %d." ),
+                                 cursor + 1, static_cast<int>( num_mods ) );
+            if( selected_mod.is_valid() ) {
+                active_mod_report += " " + selected_mod->name();
+                active_mod_report += ". " + remove_color_tags(
+                                         mman_ui->get_information( &selected_mod.obj() ) );
+            } else {
+                active_mod_report += " " + std::string( _( "Missing mod:" ) ) +
+                                     " " + selected_mod.str();
+            }
+        }
+        if( first_active_mod_announcement || active_mod_report != last_spoken_active_mod ) {
+            get_narration_service().announce( {
+                first_active_mod_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, active_mod_report, true
+            } );
+            first_active_mod_announcement = false;
+            last_spoken_active_mod = active_mod_report;
+        }
 
         const std::string action = ctxt.handle_input();
         const int recmax = static_cast<int>( num_mods );
