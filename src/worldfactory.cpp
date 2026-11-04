@@ -1787,6 +1787,8 @@ int worldfactory::show_worldgen_basic( WORLD *world )
         std::string worldgen_focus;
         if( sel_opt == 0 ) {
             worldgen_focus = string_format( _( "World name: %s" ), worldname );
+            worldgen_focus += ". " + string_format( _( "Open mod manager: %s. Advanced settings: %s." ),
+                              ctxt.get_desc( "PICK_MODS", 1U ), ctxt.get_desc( "ADVANCED_SETTINGS", 1U ) );
         } else if( sel_opt <= static_cast<int>( wg_sliders.size() ) ) {
             const int index = sel_opt - 1;
             worldgen_focus = wg_sliders[index]->name().translated() + ". " +
@@ -1798,6 +1800,10 @@ int worldfactory::show_worldgen_basic( WORLD *world )
             worldgen_focus = _( "Reset world settings" );
         } else if( sel_opt == static_cast<int>( wg_sliders.size() + 3 ) ) {
             worldgen_focus = _( "Randomize world settings" );
+        } else if( sel_opt == static_cast<int>( wg_sliders.size() + 4 ) ) {
+            worldgen_focus = _( "Advanced world settings. Press Enter to open." );
+        } else if( sel_opt == static_cast<int>( wg_sliders.size() + 5 ) ) {
+            worldgen_focus = _( "Open mod manager. Press Enter to choose world mods." );
         }
         if( !worldgen_focus.empty() && worldgen_focus != last_spoken_worldgen_focus ) {
             get_narration_service().announce( {
@@ -1853,6 +1859,13 @@ int worldfactory::show_worldgen_basic( WORLD *world )
         }
 
         // Handle other inputs
+        if( action == "CONFIRM" && sel_opt == static_cast<int>( wg_sliders.size() + 4 ) ) {
+            action = "ADVANCED_SETTINGS";
+        } else if( action == "CONFIRM" &&
+                   sel_opt == static_cast<int>( wg_sliders.size() + 5 ) ) {
+            action = "PICK_MODS";
+        }
+
         if( action == "CONFIRM" ) {
             if( sel_opt == 0 ) {
                 // rename
@@ -1894,7 +1907,7 @@ int worldfactory::show_worldgen_basic( WORLD *world )
                     wg_slevels[i] = wg_sliders[i]->random_level();
                 }
             }
-        } else if( navigate_ui_list( action, sel_opt, 1, wg_sliders.size() + 2, true ) ) {
+        } else if( navigate_ui_list( action, sel_opt, 1, wg_sliders.size() + 6, true ) ) {
             recalc_startpos = true;
         } else if( action == "LEFT" || action == "RIGHT" ) {
             if( sel_opt > 0 && sel_opt <= static_cast<int>( wg_sliders.size() ) ) {
