@@ -2665,6 +2665,7 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "look" );
         ctxt.register_action( "DESCRIBE_LOCATION", to_translation( "Describe current terrain" ) );
         ctxt.register_action( "REPEAT_NARRATION", to_translation( "Repeat last narration" ) );
+        ctxt.register_action( "ACCESSIBILITY_GUIDE", to_translation( "NVDA accessibility controls guide" ) );
         ctxt.register_action( "SURVEY_SURROUNDINGS", to_translation( "Describe eight nearby tiles" ) );
         ctxt.register_action( "DESCRIBE_STATUS", to_translation( "Describe player status" ) );
         ctxt.register_action( "READ_RECENT_MESSAGES", to_translation( "Read recent game messages" ) );
