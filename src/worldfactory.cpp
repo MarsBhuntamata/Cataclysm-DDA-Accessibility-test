@@ -634,6 +634,7 @@ WORLD *worldfactory::pick_world( bool show_prompt, bool empty_only )
     ctxt.register_navigate_ui_list();
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "QUIT" );
+    ctxt.register_action( "RANDOM_WORLD_SELECTION", to_translation( "Choose random existing world" ) );
     ctxt.register_action( "NEXT_TAB" );
     ctxt.register_action( "PREV_TAB" );
     ctxt.register_action( "CONFIRM" );
@@ -687,6 +688,13 @@ WORLD *worldfactory::pick_world( bool show_prompt, bool empty_only )
 
         if( action == "QUIT" ) {
             break;
+        } else if( action == "RANDOM_WORLD_SELECTION" ) {
+            const std::string &chosen = world_names[rng( 0, static_cast<int>( world_names.size() - 1 ) )];
+            get_narration_service().announce( {
+                narration_event::selection_changed,
+                string_format( _( "Randomly selected world: %s." ), chosen ), true
+            } );
+            return get_world( chosen );
         } else if( !world_pages[selpage].empty() &&
                    navigate_ui_list( action, sel, scroll_rate, recmax, true ) ) {
             on_move( recmax < 2 );
