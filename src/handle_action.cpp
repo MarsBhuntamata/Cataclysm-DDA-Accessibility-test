@@ -3328,6 +3328,27 @@ bool game::handle_action()
         get_narration_service().repeat_last();
         return false;
     }
+    if( action == "ACCESSIBILITY_GUIDE" ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            _( "NVDA accessibility guide. F12 reads this guide again. "
+               "Shift plus V opens the surroundings list, showing nearby monsters, "
+               "items, terrain, and furniture. "
+               "Lowercase x opens the look cursor; use direction keys to inspect tiles. "
+               "Shift plus X peeks around a corner; choose a direction, then use the look cursor. "
+               "Peeking costs moves and its spoken feedback is still being improved. "
+               "Control plus L or F8 describes the eight adjacent tiles. "
+               "F6 describes your current tile. Control plus S or F9 reads character status. "
+               "Control plus R or F10 reads the last five game messages. "
+               "F7 repeats the previous narration. "
+               "F11 toggles automatic terrain change announcements. "
+               "Question mark opens standard game help or keybindings. "
+               "The written guide is also in doc/NVDA_ACCESSIBILITY_GUIDE.md. "
+               "These commands provide information, not automatic gameplay decisions." ),
+            true
+        } );
+        return false;
+    }
     if( action == "SURVEY_SURROUNDINGS" ) {
         struct direction_info {
             std::string name;
