@@ -30,6 +30,7 @@
 #include "path_info.h"
 #include "point.h"
 #include "popup.h"
+#include "rng.h"
 #include "sounds.h"
 #include "string_formatter.h"
 #include "string_input_popup.h"
@@ -1064,6 +1065,7 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
     ctxt.register_action( "MOVE_MOD_UP" );
     ctxt.register_action( "MOVE_MOD_DOWN" );
     ctxt.register_action( "SAVE_DEFAULT_MODS" );
+    ctxt.register_action( "RANDOMIZE_MODS", to_translation( "Randomize optional world mods" ) );
     ctxt.register_action( "VIEW_MOD_DESCRIPTION" );
     ctxt.register_action( "FILTER" );
     // for mouse selection
@@ -1524,6 +1526,99 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
             tab_output = 1;
         } else if( action == "PREV_TAB" ) {
             tab_output = -1;
+        } else if( action == "RANDOMIZE_MODS" ) {
+            // Leave the chosen core intact and reroll optional mods only.
+            // A preview is built separately so declining never modifies the world.
+            std::vector<mod_id> preview;
+            for( const mod_id &id : active_mod_order ) {
+                if( id.is_valid() && id->core ) {
+                    preview.push_back( id );
+                }
+            }
+            if( preview.empty() ) {
+                for( const mod_id &id : active_mod_order ) {
+                    if( id.is_valid() && id.str() == "dda" ) {
+                        preview.push_back( id );
+                        break;
+                    }
+                }
+            }
+            std::vector<mod_id> candidates;
+            for( const mod_id &id : mman->get_usable_mods() ) {
+                if( id.is_valid() && !id->core && !id->obsolete ) {
+                    candidates.push_back( id );
+                }
+            }
+            // Draw without replacement, using the game's own RNG.
+            for( size_t i = candidates.size(); i > 1; --i ) {
+                const size_t j = static_cast<size_t>( rng( 0, static_cast<int>( i - 1 ) ) );
+                std::swap( candidates[i - 1], candidates[j] );
+            }
+            const int target = rng( 2, 5 );
+            int selected = 0;
+            for( const mod_id &id : candidates ) {
+                if( selected >= target ) {
+                    break;
+                }
+                if( mman_ui->find_mod_conflict( id, preview ) ) {
+                    continue;
+                }
+                std::vector<mod_id> attempted = preview;
+                mman_ui->try_add( id, attempted );
+                if( std::find( attempted.begin(), attempted.end(), id ) == attempted.end() ) {
+                    continue;
+                }
+                // Dependencies can pull in other mods. Verify the entire
+                // resulting list rather than trusting only the requested mod.
+                bool valid = true;
+                for( size_t i = 0; i < attempted.size() && valid; ++i ) {
+                    if( !attempted[i].is_valid() ) {
+                        valid = false;
+                        break;
+                    }
+                    for( size_t j = i + 1; j < attempted.size(); ++j ) {
+                        if( mman_ui->find_mod_conflict( attempted[i], { attempted[j] } ) ) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                }
+                if( valid && !preview.empty() && !attempted.empty() &&
+                    attempted.front() != preview.front() ) {
+                    valid = false; // never switch the world's core mod
+                }
+                if( !valid ) {
+                    continue;
+                }
+                preview.swap( attempted );
+                ++selected;
+            }
+            if( selected == 0 ) {
+                get_narration_service().announce( {
+                    narration_event::contextual_help,
+                    _( "No compatible optional mods could be selected for this core." ), true
+                } );
+            } else {
+                std::string summary = string_format(
+                                          _( "Random selection: %d optional mods, plus required dependencies. " ),
+                                          selected );
+                for( const mod_id &id : preview ) {
+                    if( id.is_valid() ) {
+                        summary += id->name() + ". ";
+                    }
+                }
+                summary += _( "Accept this mod list? The existing selection will be replaced." );
+                get_narration_service().announce( {
+                    narration_event::contextual_help, summary, true
+                } );
+                if( query_yn( "%s", summary ) ) {
+                    active_mod_order.swap( preview );
+                    active_header = 1;
+                    cursel[1] = 0;
+                    recalc_start = true;
+                    last_spoken_mod_focus.clear();
+                }
+            }
         } else if( action == "SAVE_DEFAULT_MODS" ) {
             if( mman->set_default_mods( active_mod_order ) ) {
                 popup( _( "Saved list of active mods as default" ) );
