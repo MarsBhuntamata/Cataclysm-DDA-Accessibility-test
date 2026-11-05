@@ -1056,6 +1056,26 @@
   },
   {
     "type": "keybinding",
+    "id": "RANDOM_WORLD_SELECTION",
+    "category": "PICK_WORLD_DIALOG",
+    "name": "Choose a random existing world (Shift+R)",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "R" },
+      { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] }
+    ]
+  },
+  {
+    "type": "keybinding",
+    "id": "RANDOM_LOAD_CHARACTER",
+    "category": "MAIN_MENU",
+    "name": "Load a random saved character from any world (Shift+R)",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "R" },
+      { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] }
+    ]
+  },
+  {
+    "type": "keybinding",
     "id": "SAVE_DEFAULT_MODS",
     "category": "MODMANAGER_DIALOG",
     "name": "Save mods as default",
