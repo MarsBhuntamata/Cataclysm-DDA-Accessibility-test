@@ -1049,6 +1049,13 @@
   },
   {
     "type": "keybinding",
+    "id": "RANDOMIZE_MODS",
+    "category": "MODMANAGER_DIALOG",
+    "name": "Randomize optional world mods (R)",
+    "bindings": [ { "input_method": "keyboard_char", "key": "R" }, { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] } ]
+  },
+  {
+    "type": "keybinding",
     "id": "SAVE_DEFAULT_MODS",
     "category": "MODMANAGER_DIALOG",
     "name": "Save mods as default",
