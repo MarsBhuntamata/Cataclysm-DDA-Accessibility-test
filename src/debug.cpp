@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "cached_options.h"
 #include "cata_assert.h"
 #include "cata_scope_helpers.h"
@@ -379,6 +380,16 @@ static void debug_error_prompt(
                                      );
     std::string message = error_message + instructions;
 
+    // Debug prompts bypass ordinary UI narration.  Without an explicit
+    // announcement, a screen reader user may mistake this blocking dialog for
+    // a frozen game.  Announce once, before waiting for the player's response.
+    const std::string spoken_error = std::string( _( "Game error dialog. Press R to repeat. " ) ) +
+                                     formatted_report + " " +
+                                     remove_color_tags( instructions );
+    get_narration_service().announce( {
+        narration_event::contextual_help, spoken_error, true
+    } );
+
     // Create a special debug message UI that does various things to ensure
     // the graphics are correct when the debug message is displayed during a
     // redraw callback.
@@ -415,6 +426,14 @@ static void debug_error_prompt(
             case 'I':
                 ignored_messages.insert( msg_key );
                 [[fallthrough]];
+            case 'r':
+            case 'R':
+                // Read the same information again if the initial speech was
+                // interrupted or the report is lengthy.
+                get_narration_service().announce( {
+                    narration_event::contextual_help, spoken_error, true
+                } );
+                break;
             case ' ':
                 stop = true;
                 message = error_message;
