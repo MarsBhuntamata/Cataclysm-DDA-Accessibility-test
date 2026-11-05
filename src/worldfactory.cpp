@@ -1362,9 +1362,29 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
         const std::vector<mod_id> &shown_mods = active_header == 0 ?
                 all_tabs[iCurrentTab].mods : active_mod_order;
         if( cursel[active_header] < shown_mods.size() ) {
-            mod_focus += ". " + shown_mods[cursel[active_header]]->name();
+            const MOD_INFORMATION &selected_mod = *shown_mods[cursel[active_header]];
+            mod_focus += ". " + selected_mod.name();
             mod_focus += active_header == 0 ? ". " + std::string( _( "Not active" ) ) :
                          ". " + std::string( _( "Active" ) );
+            // The visual mod manager already presents this information, but
+            // the speech layer used to announce only the name.  Players need
+            // the actual description and requirements to choose world mods.
+            const std::string details = remove_color_tags( mman_ui->get_information( &selected_mod ) );
+            if( !details.empty() ) {
+                mod_focus += ". " + details;
+            }
+            if( !selected_mod.conflicts.empty() ) {
+                mod_focus += ". " + std::string( _( "Incompatible with" ) ) + ": ";
+                bool first = true;
+                for( const mod_id &conflict : selected_mod.conflicts ) {
+                    if( !first ) {
+                        mod_focus += ", ";
+                    }
+                    mod_focus += conflict.is_valid() ? conflict->name() : conflict.str();
+                    first = false;
+                }
+                mod_focus += ".";
+            }
         } else {
             mod_focus += ". " + std::string( _( "No mods in this list." ) );
         }
