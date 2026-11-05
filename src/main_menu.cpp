@@ -48,6 +48,7 @@
 #include "overmapbuffer.h"
 #include "path_info.h"
 #include "popup.h"
+#include "rng.h"
 #include "safemode_ui.h"
 #include "scenario.h"
 #include "sdlsound.h"
@@ -605,6 +606,7 @@ bool main_menu::opening_screen()
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "REPEAT_NARRATION" );
+    ctxt.register_action( "RANDOM_LOAD_CHARACTER", to_translation( "Load a random saved character" ) );
 
     // for mouse selection
     ctxt.register_action( "SELECT" );
@@ -807,6 +809,35 @@ bool main_menu::opening_screen()
         // also check special keys
         if( action == "REPEAT_NARRATION" ) {
             get_narration_service().repeat_last();
+        } else if( action == "RANDOM_LOAD_CHARACTER" ) {
+            if( sel1 == getopt( main_menu_opts::LOADCHAR ) ) {
+                std::vector<std::pair<std::string, save_t>> candidates;
+                for( const auto &world_pair : world_generator->get_all_worlds() ) {
+                    if( world_pair.first == "TUTORIAL" || world_pair.first == "DEFENSE" ) {
+                        continue;
+                    }
+                    for( const save_t &save : world_pair.second->world_saves ) {
+                        candidates.emplace_back( world_pair.first, save );
+                    }
+                }
+                if( candidates.empty() ) {
+                    popup( _( "No saved characters are available for random loading." ) );
+                } else {
+                    const auto &chosen = candidates[rng( 0, static_cast<int>( candidates.size() - 1 ) )];
+                    const std::string announcement = string_format(
+                        _( "Random character: %s, in world %s. Load this character?" ),
+                        chosen.second.decoded_name(), chosen.first );
+                    get_narration_service().announce( {
+                        narration_event::contextual_help, announcement, true
+                    } );
+                    if( query_yn( "%s", announcement ) ) {
+                        start = main_menu::load_game( chosen.first, chosen.second );
+                        if( start ) {
+                            load_game = true;
+                        }
+                    }
+                }
+            }
         } else if( action == "QUIT" ) {
 #if !defined(EMSCRIPTEN)
             if( query_yn( _( "Really quit?" ) ) ) {
@@ -1200,9 +1231,21 @@ bool main_menu::load_character_tab( const std::string &worldname )
         // TODO: Replace this API to allow adding context without an empty description.
         mmenu.entries.emplace_back( opt_val++, true, MENU_AUTOASSIGN, save_str, "", playtime_str );
     }
+    const int random_option = opt_val;
+    mmenu.entries.emplace_back( opt_val++, true, 'r', _( "Choose a random saved character in this world" ) );
     mmenu.entries.emplace_back( opt_val, true, 'q', _( "<- Back to Main Menu" ), c_yellow, c_yellow );
     mmenu.query();
     opt_val = mmenu.ret;
+    if( opt_val == random_option ) {
+        const save_t &chosen = savegames[rng( 0, static_cast<int>( savegames.size() - 1 ) )];
+        const std::string announcement = string_format(
+            _( "Randomly selected %s in world %s. Load this character?" ),
+            chosen.decoded_name(), worldname );
+        get_narration_service().announce( {
+            narration_event::contextual_help, announcement, true
+        } );
+        return query_yn( "%s", announcement ) && main_menu::load_game( worldname, chosen );
+    }
     if( opt_val < 0 || static_cast<size_t>( opt_val ) >= savegames.size() ) {
         return false;
     }
