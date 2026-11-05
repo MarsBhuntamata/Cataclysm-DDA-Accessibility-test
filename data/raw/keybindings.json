@@ -5587,6 +5587,13 @@
 ,
   {
     "type": "keybinding",
+    "id": "ACCESSIBILITY_GUIDE",
+    "name": "Read NVDA accessibility controls guide (F12)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F12" } ]
+  },
+  {
+    "type": "keybinding",
     "id": "REPEAT_NARRATION",
     "name": "Repeat last narration (F7)",
     "bindings": [
