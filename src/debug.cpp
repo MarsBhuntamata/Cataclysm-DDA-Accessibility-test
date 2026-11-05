@@ -422,10 +422,6 @@ static void debug_error_prompt(
                 SetClipboardText( formatted_report );
                 break;
 #endif // TILES
-            case 'i':
-            case 'I':
-                ignored_messages.insert( msg_key );
-                [[fallthrough]];
             case 'r':
             case 'R':
                 // Read the same information again if the initial speech was
@@ -434,6 +430,10 @@ static void debug_error_prompt(
                     narration_event::contextual_help, spoken_error, true
                 } );
                 break;
+            case 'i':
+            case 'I':
+                ignored_messages.insert( msg_key );
+                [[fallthrough]];
             case ' ':
                 stop = true;
                 message = error_message;
