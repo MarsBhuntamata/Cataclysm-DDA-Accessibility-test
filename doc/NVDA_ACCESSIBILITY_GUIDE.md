@@ -16,6 +16,13 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **F6**: Describe the tile underfoot.
 - **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
 
+## World mod selection
+
+- **Shift+R** in the world mod manager: Propose a random selection of two to five optional mods. The selected core mod is preserved; the game attempts to resolve dependencies and avoid declared conflicts.
+- NVDA announces the proposed mod list and asks for confirmation **before** replacing your existing selection. Declining leaves it unchanged.
+- The mod manager now reads each mod's description, dependencies and declared conflicts when browsing. Authors may not declare every incompatibility. For major total conversions, consider separate worlds.
+- This feature changes only the world's mod selection during setup. It does not explore or play the game automatically.
+
 ## Status and messages
 
 - **Ctrl+S** or **F9**: Speak character status.
