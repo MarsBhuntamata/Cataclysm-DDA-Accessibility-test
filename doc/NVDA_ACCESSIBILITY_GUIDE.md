@@ -16,6 +16,13 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **F6**: Describe the tile underfoot.
 - **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
 
+## Random world and character selection
+
+- **Shift+R in the world picker during character creation**: Choose one existing, eligible world randomly. Tutorial and defense worlds are excluded by the ordinary picker. If there is only one eligible world, CDDA selects it automatically; with none, the ordinary create-world flow applies.
+- **Shift+R on the main menu under Load Game**: Pick a random saved character from any normal world, announce the chosen character and world, and ask for confirmation before loading.
+- **Random saved character** is also a selectable entry at the bottom of an individual world's Load Character list. This chooses only among that world's saved characters, and asks before loading.
+- These commands select existing worlds or characters. They do not create new random worlds, delete saves, or change a character's progress.
+
 ## World mod selection
 
 - **Shift+R** in the world mod manager: Propose a random selection of two to five optional mods. The selected core mod is preserved; the game attempts to resolve dependencies and avoid declared conflicts.
