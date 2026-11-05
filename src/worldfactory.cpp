@@ -650,10 +650,13 @@ WORLD *worldfactory::pick_world( bool show_prompt, bool empty_only )
         if( selpage < world_pages.size() && sel >= 0 &&
             static_cast<size_t>( sel ) < world_pages[selpage].size() ) {
             const std::string &world_name = world_pages[selpage][sel];
-            world_selection = string_format( _( "World selection. %s. %d saved characters. Page %d. Shift plus R selects a random existing world." ),
+            world_selection = string_format( _( "World selection. %s. %d saved characters. Page %d." ),
                                              world_name,
                                              static_cast<int>( get_world( world_name )->world_saves.size() ),
                                              static_cast<int>( selpage + 1 ) );
+            if( last_spoken_world_selection.empty() ) {
+                world_selection += " " + std::string( _( "Shift plus R selects a random existing world." ) );
+            }
         }
         if( !world_selection.empty() && world_selection != last_spoken_world_selection ) {
             get_narration_service().announce( {
