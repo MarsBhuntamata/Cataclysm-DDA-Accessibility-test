@@ -706,7 +706,7 @@ bool main_menu::opening_screen()
         }
         if( initial ) {
             label = std::string( _( "Cataclysm: Dark Days Ahead. Main menu." ) ) + " " + label +
-                    ". " + _( "Use left and right arrows for categories, up and down for choices. Control Shift R repeats speech." );
+                    ". " + _( "Use left and right arrows for categories, up and down for choices. Control Shift R repeats speech. In Load Game, Shift plus R chooses a random saved character from any normal world." );
         }
         get_narration_service().announce( {
             initial ? narration_event::ui_opened : narration_event::selection_changed,
