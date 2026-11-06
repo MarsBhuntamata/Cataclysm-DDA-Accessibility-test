@@ -7,11 +7,13 @@
 #include <set>
 #include <tuple>
 
+#include "accessibility.h"
 #include "bodypart.h"
 #include "cata_utility.h"
 #include "catacharset.h"
 #include "character.h"
 #include "character_attire.h"
+#include "color.h"
 #include "creature.h"
 #include "cursesdef.h"
 #include "damage.h"
@@ -615,8 +617,30 @@ void bodygraph_display::display()
     prepare_infolist();
 
     bool done = false;
+    int last_announced_part = -1;
     while( !done ) {
         ui_manager::redraw();
+        if( !partlist.empty() && sel_part != last_announced_part ) {
+            last_announced_part = sel_part;
+            const part_tuple &selected = partlist[sel_part];
+            const sub_body_part_type *subpart = std::get<1>( selected );
+            std::string report = subpart != nullptr ? subpart->name.translated() :
+                                 std::get<0>( selected )->name.translated();
+            if( !std::get<3>( selected ) ) {
+                report += ". " + std::string( _( "Body part absent." ) );
+            } else {
+                for( const std::string &line : info_txt ) {
+                    if( line != "--" ) {
+                        report += ". " + remove_color_tags( line );
+                    }
+                }
+            }
+            get_narration_service().announce( {
+                last_announced_part == 0 ? narration_event::ui_opened :
+                narration_event::selection_changed,
+                std::string( _( "Body status. " ) ) + report, true
+            } );
+        }
         std::string action = ctxt.handle_input();
         if( action == "QUIT" || ( action == "LEFT" && id != bodygraph_full_body ) ) {
             done = true;
