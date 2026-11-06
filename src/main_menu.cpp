@@ -1252,44 +1252,7 @@ bool main_menu::load_character_tab( const std::string &worldname )
         return false;
     }
 
-    const save_t chosen = savegames[opt_val];
-    // Keep deletion behind a deliberate action and two confirmations.
-    // Shared map/world data is never deleted with an individual character.
-    const std::string response = query_popup()
-                                 .context( "LOAD_DELETE_CANCEL" ).default_color( c_white )
-                                 .message( _( "What to do with character %s in world %s?" ),
-                                           chosen.decoded_name(), worldname )
-                                 .option( "LOAD" ).option( "DELETE" ).option( "CANCEL" ).cursor( 0 )
-                                 .query().action;
-    if( response == "LOAD" ) {
-        return main_menu::load_game( worldname, chosen );
-    }
-    if( response == "DELETE" &&
-        query_yn( _( "Remove %s from world %s? This will archive the character save, not delete the world. Continue?" ),
-                  chosen.decoded_name(), worldname ) ) {
-        const std::filesystem::path save_path =
-            cur_world->folder_path().get_unrelative_path() /
-            std::filesystem::u8path( chosen.base_path() + SAVE_EXTENSION );
-        std::filesystem::path archive_path = save_path;
-        archive_path += ".deleted";
-        // Never overwrite a previously archived save.
-        for( int suffix = 1; std::filesystem::exists( archive_path ); ++suffix ) {
-            archive_path = save_path;
-            archive_path += ".deleted." + std::to_string( suffix );
-        }
-        std::error_code error;
-        std::filesystem::rename( save_path, archive_path, error );
-        if( error ) {
-            popup( _( "Unable to archive character save: %s" ), error.message() );
-            return false;
-        }
-        auto &world_saves = cur_world->world_saves;
-        world_saves.erase( std::remove( world_saves.begin(), world_saves.end(), chosen ),
-                           world_saves.end() );
-        popup( _( "Character removed from the load list. The original save was archived with a .deleted suffix." ) );
-        return load_character_tab( worldname );
-    }
-    return false;
+    return main_menu::load_game( worldname, savegames[opt_val] );
 }
 
 void main_menu::world_tab( const std::string &worldname )
