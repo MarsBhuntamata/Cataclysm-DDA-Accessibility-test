@@ -11,6 +11,7 @@
 #include <tuple>
 #include <utility>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "cached_options.h"
 #include "cata_imgui.h"  // IWYU pragma: keep
@@ -785,6 +786,7 @@ void panel_manager::show_adm()
                          current_col == 0 );
     } );
 
+    std::string last_spoken_sidebar;
     while( !exit ) {
         auto &panels = get_current_layout().panels();
 
@@ -810,6 +812,35 @@ void panel_manager::show_adm()
         }
 
         ui_manager::redraw();
+
+        std::string focus = _( "Sidebar options. " );
+        if( current_col == 0 && !row_indices.empty() ) {
+            const window_panel &panel = panels[row_indices.at( current_row )];
+            focus += _( "Panel: " );
+            focus += panel.get_name();
+            focus += panel.toggle ? ". " + std::string( _( "Enabled." ) ) :
+                     ". " + std::string( _( "Disabled." ) );
+            if( swapping ) {
+                focus += " " + std::string( _( "Moving panel. Select destination and press move again." ) );
+            } else {
+                focus += " " + std::string( _( "Toggle or move the selected panel." ) );
+            }
+        } else if( current_col == 2 && !layouts.empty() ) {
+            auto layout = layouts.begin();
+            std::advance( layout, current_row );
+            focus += _( "Layout: " );
+            focus += layout->second.name();
+            focus += layout->first == current_layout_id ? ". " + std::string( _( "Selected." ) ) :
+                     ". " + std::string( _( "Press move to select this layout." ) );
+        } else {
+            focus += _( "No entries in this column." );
+        }
+        if( focus != last_spoken_sidebar ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, focus, true
+            } );
+            last_spoken_sidebar = focus;
+        }
 
         const std::string action = ctxt.handle_input();
         if( action == "UP" ) {
