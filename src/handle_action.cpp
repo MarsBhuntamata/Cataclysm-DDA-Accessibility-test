@@ -756,6 +756,14 @@ static void grab( const std::optional<tripoint_bub_ms> &p = std::nullopt )
 
     std::optional<tripoint_bub_ms> grabp_ = p;
     if( !grabp_ ) {
+        // The direction prompt is rendered visually, but does not reliably
+        // reach NVDA. Announce it before the blocking direction picker.
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            _( "Grab where? Press a direction key to choose adjacent furniture "
+               "or a vehicle, or Escape to cancel. Press Grab again to release." ),
+            true
+        } );
         grabp_ = choose_adjacent( _( "Grab where?" ) );
     }
     if( !grabp_ ) {
