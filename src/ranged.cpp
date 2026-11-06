@@ -2944,12 +2944,15 @@ target_handler::trajectory target_ui::run()
     }
     set_cursor_pos( initial_dst );
     if( mode == TargetMode::Fire || mode == TargetMode::Throw ||
-        mode == TargetMode::ThrowBlind ) {
+        mode == TargetMode::ThrowBlind || mode == TargetMode::Spell ) {
+        const std::string prompt = mode == TargetMode::Spell ?
+                                   _( "Targeting spell. Use direction keys to move the cursor "
+                                      "or cycle targets, confirm to select, or Escape to cancel." ) :
+                                   mode == TargetMode::Fire ?
+                                   _( "Aiming firearm. Use direction keys to move the cursor or cycle targets." ) :
+                                   _( "Aiming throw. Use direction keys to move the cursor or cycle targets." );
         get_narration_service().announce( {
-            narration_event::ui_opened,
-            mode == TargetMode::Fire ?
-            std::string( _( "Aiming firearm. Use direction keys to move the cursor or cycle targets." ) ) :
-            std::string( _( "Aiming throw. Use direction keys to move the cursor or cycle targets." ) ), true
+            narration_event::ui_opened, prompt, true
         } );
     }
     if( dst != initial_dst ) {
@@ -3444,7 +3447,7 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
     // Announce the actual aiming-cursor destination as soon as it moves.
     // This also covers NEXT_TARGET/PREV_TARGET and mouse targeting.
     if( mode == TargetMode::Fire || mode == TargetMode::Throw ||
-        mode == TargetMode::ThrowBlind ) {
+        mode == TargetMode::ThrowBlind || mode == TargetMode::Spell ) {
         const tripoint_rel_ms offset = dst - src;
         std::string report = dst_critter ? dst_critter->disp_name() :
                              accessibility_describe_local_tile( dst );
@@ -3471,9 +3474,9 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
         } else if( status == Status::BadTarget ) {
             report += " " + std::string( _( "Invalid target." ) );
         }
-        // The existing friendly-in-line-of-fire check is specific to guns.
-        // Throw targeting must not invoke it or suggest that it guarantees
-        // the safety of a thrown projectile.
+        // Only gun aiming should warn about friendlies in a gun's line of fire.
+        // Spell and thrown-weapon targeting must not imply this gun-specific
+        // warning guarantees safety.
         const std::vector<weak_ptr_fast<Creature>> friendlies =
             mode == TargetMode::Fire ? list_friendlies_in_lof() :
             std::vector<weak_ptr_fast<Creature>>();
