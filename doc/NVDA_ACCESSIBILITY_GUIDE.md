@@ -16,6 +16,13 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **F6**: Describe the tile underfoot.
 - **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
 
+## Putting items into cupboards and other furniture
+
+- **Shift+D** (capital D): Drop items onto a neighboring tile. Stand beside a cupboard, shelf, locker, or other suitable storage furniture; press Shift+D, choose the furniture's direction, then select the items to place there and confirm.
+- **/** (slash): Open Advanced Inventory Management. This lets you transfer items between your inventory and nearby tiles, including storage furniture.
+- Most CDDA cupboards and shelves are furniture tiles with storage capacity, not containers you need to open first. Placing items on their tile stores them there. Ordinary **d** drops items at your position instead; **Shift+D** selects an adjacent destination.
+- The usual keybindings can be changed. Open **?** to inspect or remap controls if these keys behave differently.
+
 ## Death and game-over narration
 
 - The final tombstone screen announces itself and explains that Enter continues. If a last-words input is present, it can be edited before continuing.
