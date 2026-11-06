@@ -31,6 +31,12 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **]**: When casting a targeted spell, the spell-targeting interface announces its instructions and the selected creature or tile, cursor offset, and distance. The narrator reports the game's known target, not hidden creatures or unexplored terrain.
 - These are source changes and require an NVDA build test to verify speech timing and that all relevant targeting modes work.
 
+## Body status and unloading containers
+
+- **{** (left curly brace, usually Shift+[ on US keyboards): Open Body Status. NVDA announces the selected body part, health, temperature, effects, worn items, coverage, encumbrance, and protective statistics as you change the selected part.
+- **Backspace** (and potentially Shift+Backspace, depending on the input system): Unload a container onto the ground. NVDA announces the destination-direction prompt before the regular item-selection window opens. This differs from **U**, which unloads into inventory.
+- These are the current default bindings; use **?** to check remapped controls.
+
 ## Death and game-over narration
 
 - The final tombstone screen announces itself and explains that Enter continues. If a last-words input is present, it can be edited before continuing.
