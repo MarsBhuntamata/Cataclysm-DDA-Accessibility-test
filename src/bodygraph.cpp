@@ -621,6 +621,7 @@ void bodygraph_display::display()
     while( !done ) {
         ui_manager::redraw();
         if( !partlist.empty() && sel_part != last_announced_part ) {
+            const bool first_announcement = last_announced_part == -1;
             last_announced_part = sel_part;
             const part_tuple &selected = partlist[sel_part];
             const sub_body_part_type *subpart = std::get<1>( selected );
@@ -636,7 +637,7 @@ void bodygraph_display::display()
                 }
             }
             get_narration_service().announce( {
-                last_announced_part == 0 ? narration_event::ui_opened :
+                first_announcement ? narration_event::ui_opened :
                 narration_event::selection_changed,
                 std::string( _( "Body status. " ) ) + report, true
             } );
