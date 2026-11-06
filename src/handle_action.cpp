@@ -3350,6 +3350,12 @@ bool game::handle_action()
                "Control plus R or F10 reads the last five game messages. "
                "F7 repeats the previous narration. "
                "F11 toggles automatic terrain change announcements. "
+               "To store items on a nearby cupboard, shelf, or other furniture tile, "
+               "press Shift plus D to drop items on an adjacent tile, choose the "
+               "direction of the furniture, then choose the items to place there. "
+               "Press slash to open Advanced Inventory Management and move items "
+               "between your inventory and nearby tiles. Most cupboards are storage "
+               "tiles, not containers you must open first. "
                "Question mark opens standard game help or keybindings. "
                "The written guide is also in doc/NVDA_ACCESSIBILITY_GUIDE.md. "
                "These commands provide information, not automatic gameplay decisions." ),
