@@ -41,11 +41,11 @@
 #include "mtype.h"
 #include "npc.h"
 #include "omdata.h"
-#include "options.h"
 #include "overmap.h"
 #include "overmap_connection.h"
 #include "overmap_types.h"
 #include "path_info.h"
+#include "perf.h"
 #include "point.h"
 #include "rng.h"
 #include "simple_pathfinding.h"
@@ -280,20 +280,7 @@ void overmap_global_state::clear()
 
 const region_settings &overmapbuffer::get_settings( const tripoint_abs_omt &p )
 {
-    overmap *om = get_om_global( p ).om;
-    return om->get_settings();
-}
-
-const region_settings &overmapbuffer::get_default_settings( const point_abs_om &p )
-{
-    const std::string rsettings_id = get_option<std::string>( "DEFAULT_REGION" );
-    const region_settings_id region_settings_default( rsettings_id );
-
-    if( !region_settings_default.is_valid() ) {
-        debugmsg( "overmap%s: can't find region '%s'", p.to_string(),
-                  rsettings_id.c_str() ); // gonna die now =[
-    }
-    return *region_settings_default;
+    return *get_overmap_region( project_to<coords::om>( p ) );
 }
 
 void overmapbuffer::add_note( const tripoint_abs_omt &p, const std::string &message )
@@ -725,10 +712,13 @@ void overmapbuffer::process_mongroups()
 
 void overmapbuffer::move_hordes()
 {
+    cata_timer horde_timer( "move hordes" );
     // arbitrary radius to include nearby overmaps (aside from the current one)
     const int radius = MAPSIZE * 2;
     const tripoint_abs_sm center = get_player_character().pos_abs_sm();
     for( overmap *&om : get_overmaps_near( center, radius ) ) {
+        cata_timer horde_timer_om( string_format( "move hordes at %d/%d", om->global_base_point().x(),
+                                   om->global_base_point().y() ) );
         om->move_hordes();
     }
 }
@@ -2077,7 +2067,6 @@ void overmapbuffer::display_description_at( const tripoint_abs_sm &where, bool d
         if( draw_origin ) {
             ImGui::NewLine();
             cataimgui::TextColoredParagraph( c_light_gray, get_origin( oter->get_type_id()->src ) );
-            ImGui::NewLine();
         }
     };
 

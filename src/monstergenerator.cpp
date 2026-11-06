@@ -695,6 +695,8 @@ void MonsterGenerator::init_attack()
     add_hardcoded_attack( "EVOLVE_KILL_STRIKE", mattack::evolve_kill_strike );
     add_hardcoded_attack( "LEECH_SPAWNER", mattack::leech_spawner );
     add_hardcoded_attack( "MON_LEECH_EVOLUTION", mattack::mon_leech_evolution );
+    add_hardcoded_attack( "FIXBOT_SPAWNER", mattack::fixbot_spawner );
+    add_hardcoded_attack( "FIXBOT_SPAWNER_HAYWIRE", mattack::fixbot_spawner_haywire );
     add_hardcoded_attack( "TINDALOS_TELEPORT", mattack::tindalos_teleport );
     add_hardcoded_attack( "FLESH_TENDRIL", mattack::flesh_tendril );
     add_hardcoded_attack( "BIO_OP_BIOJUTSU", mattack::bio_op_random_biojutsu );
@@ -721,6 +723,8 @@ void MonsterGenerator::init_defense()
     defense_map["ACIDSPLASH"] = &mdefense::acidsplash;
     // Blind fire on unseen attacker
     defense_map["RETURN_FIRE"] = &mdefense::return_fire;
+    // Deflects projectiles
+    defense_map["SHOT_RICOCHET"] = &mdefense::ricochet;
 }
 
 void MonsterGenerator::validate_species_ids( mtype &mon )
@@ -918,6 +922,14 @@ void mtype::load( const JsonObject &jo, const std::string_view src )
     optional( jo, was_loaded, "dodge", sk_dodge, numeric_bound_reader<int> {0} );
 
     // FIXME: load resistances by reader class
+    if( jo.has_member( "block" ) ) {
+        JsonObject block_jo = jo.get_object( "block" );
+
+        block.chance = block_jo.get_int( "chance", 0 );
+        block.effectiveness = block_jo.get_int( "effectiveness", 0 );
+        block.count = block_jo.get_int( "count", 0 );
+        block.ranged = block_jo.get_bool( "ranged", false );
+    }
     if( jo.has_object( "armor" ) ) {
         armor = load_resistances_instance( jo.get_object( "armor" ) );
     }
