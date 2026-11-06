@@ -10,6 +10,7 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 ## Exploring the world
 
 - **Shift+V**: Open the list of nearby monsters, items, terrain, and furniture. This is the key surroundings scanner; use the list's controls to browse the categories.
+- **E** in the Items tab of Shift+V: Examine the selected item. NVDA announces its detailed item properties and description as the item information window opens. This does not yet add a spoken Examine action to the Creatures or Terrain/Furniture tabs.
 - **x** (lowercase): Open the look-around cursor. Move the cursor with directional keys to examine visible or otherwise legitimately known tiles.
 - **Shift+X**: Peek around a corner. Select a direction and use the look-around cursor from the temporary peeking viewpoint. Peeking costs moves. The dedicated NVDA explanation of the peeking transition is still incomplete.
 - **Ctrl+L** or **F8**: Describe the eight tiles adjacent to your character.
