@@ -2924,6 +2924,11 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
         case ACTION_DIR_DROP: {
             std::optional<tripoint_bub_ms> pnt = mouse_target;
             if( !pnt ) {
+                get_narration_service().announce( {
+                    narration_event::contextual_help,
+                    _( "Drop where? Press a direction key to choose the adjacent "
+                       "tile, cupboard, or shelf to store items on. Escape cancels." ), true
+                } );
                 pnt = choose_adjacent( _( "Drop where?" ) );
             }
             if( pnt ) {
