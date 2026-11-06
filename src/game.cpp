@@ -6843,6 +6843,11 @@ void game::unload_container( const std::optional<tripoint_bub_ms> &p )
 {
     std::optional<tripoint_bub_ms> pnt = p;
     if( !pnt ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            _( "Unload container onto ground. Choose an adjacent tile with a "
+               "direction key, or Escape to cancel. Then select a container." ), true
+        } );
         pnt = choose_adjacent( _( "Unload where?" ) );
     }
     if( pnt ) {
