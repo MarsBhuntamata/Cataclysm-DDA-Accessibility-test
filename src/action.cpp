@@ -908,9 +908,9 @@ action_id handle_action_menu( map &here )
             if( hotkey_for_action( ACTION_QUICKLOAD, /*maximum_modifier_count=*/1 ).has_value() ) {
                 REGISTER_ACTION( ACTION_QUICKLOAD );
             }
-            if( hotkey_for_action( ACTION_SUICIDE, /*maximum_modifier_count=*/1 ).has_value() ) {
-                REGISTER_ACTION( ACTION_SUICIDE );
-            }
+            // Abandon has no default hotkey.  Always expose it in the action
+            // menu so keyboard and screen reader users can discover it.
+            REGISTER_ACTION( ACTION_SUICIDE );
             REGISTER_ACTION( ACTION_HELP );
             if( ( entry = &entries.back() ) ) {
                 // help _is_a menu.
