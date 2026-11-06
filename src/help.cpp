@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "action.h"
+#include "accessibility.h"
 #include "cata_path.h"
 #include "cata_utility.h"
 #include "catacharset.h"
@@ -195,6 +196,18 @@ void help::display_help() const
         next_hotkey = ctxt.next_unassigned_hotkey( hkq, next_hotkey );
     }
 
+    std::string spoken_topics = _( "Help topics. Press the corresponding letter to read a topic. Escape returns to the game." );
+    for( const auto &entry : hotkeys ) {
+        const auto topic = help_texts.find( entry.first );
+        if( topic != help_texts.end() ) {
+            spoken_topics += " " + entry.second.short_description() + ": " +
+                             topic->second.first.translated() + ".";
+        }
+    }
+    get_narration_service().announce( {
+        narration_event::ui_opened, spoken_topics, true
+    } );
+
     ui.on_redraw( [&]( const ui_adaptor & ) {
         draw_border( w_help_border, BORDER_COLOR, _( "Help" ) );
         wnoutrefresh( w_help_border );
@@ -263,6 +276,13 @@ void help::display_help() const
                 } );
 
                 if( !i18n_help_texts.empty() ) {
+                    std::string spoken_page = help_text_it->second.first.translated() + ". ";
+                    for( const std::string &line : i18n_help_texts ) {
+                        spoken_page += remove_color_tags( line ) + " ";
+                    }
+                    get_narration_service().announce( {
+                        narration_event::contextual_help, spoken_page, true
+                    } );
                     ui.on_screen_resize( nullptr );
 
                     const auto get_w_help_border = [&]() {
