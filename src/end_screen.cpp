@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "ascii_art.h"
 #include "cata_imgui.h"
@@ -64,6 +65,14 @@ void end_screen_data::draw_end_screen_ui( bool actually_dead )
     ctxt.register_action( "TEXT.CONFIRM" );
     ctxt.set_timeout( 50 );
     end_screen_ui_impl p_impl;
+
+    // The tombstone is an ImGui window, so NVDA cannot infer its title or
+    // tell when this otherwise silent screen is waiting for confirmation.
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        _( "The End. Final moments screen. If a last words field is present, "
+           "you can type in it. Press Enter to continue." ), true
+    } );
 
     while( true ) {
         ui_manager::redraw_invalidated();
