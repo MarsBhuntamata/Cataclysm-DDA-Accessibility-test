@@ -16,6 +16,12 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **F6**: Describe the tile underfoot.
 - **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
 
+## Death and game-over narration
+
+- The final tombstone screen announces itself and explains that Enter continues. If a last-words input is present, it can be edited before continuing.
+- The game-over flow announces final messages, scores, epilogue checks, and completion. The scores window narrates its tab name and up to twelve entries when entering the Achievements, Conducts, or Scores tabs; the Kills tab announces totals. Use left and right arrows to change tabs and Escape to continue.
+- The main menu retains its own spoken entry and focused selection after the game returns to it. These changes need an NVDA playtest to verify timing and focus.
+
 ## Loading saved characters and finding Abandon Character
 
 - **Load Game → choose a world → choose a character**: selecting a saved character loads it directly. There is no custom character Delete/archive action; no `.deleted` files are created by the accessibility load menu.
