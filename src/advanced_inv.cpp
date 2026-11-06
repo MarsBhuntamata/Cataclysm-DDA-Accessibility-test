@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "advanced_inv_area.h"
 #include "advanced_inv_listitem.h"
@@ -2091,6 +2092,32 @@ void advanced_inventory::display()
         } );
     }
 
+    // Speak the focused source pane and item after navigation, without
+    // announcing unchanged rows on every redraw.
+    std::string last_spoken_focus;
+    auto announce_focus = [&]() {
+        advanced_inventory_pane &pane = panes[src];
+        const advanced_inv_area &area = squares[pane.get_area()];
+        const advanced_inv_listitem *item = pane.get_cur_item_ptr();
+        std::string report = src == left ? _( "Left pane." ) : _( "Right pane." );
+        report += " " + area.name + ". ";
+        report += item ? remove_color_tags( item->name ) : std::string( _( "No item selected." ) );
+        const std::string identity = std::to_string( static_cast<int>( src ) ) +
+                                     ":" + std::to_string( pane.get_area() ) + ":" +
+                                     std::to_string( pane.index ) + ":" + report;
+        if( identity != last_spoken_focus ) {
+            const bool opening = last_spoken_focus.empty();
+            last_spoken_focus = identity;
+            get_narration_service().announce( {
+                opening ? narration_event::ui_opened : narration_event::selection_changed,
+                opening ? std::string( _( "Advanced inventory. Use Tab to switch panes, "
+                                         "direction keys to choose locations, and item movement "
+                                         "commands to transfer items. " ) ) + report : report,
+                true
+            } );
+        }
+    };
+
     while( !exit ) {
         if( player_character.get_moves() < 0 ) {
             do_return_entry();
@@ -2109,6 +2136,7 @@ void advanced_inventory::display()
             break;
         }
 
+        announce_focus();
         process_action( ctxt.handle_input() );
     }
 }
