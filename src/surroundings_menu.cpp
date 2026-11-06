@@ -1177,6 +1177,14 @@ void surroundings_menu::draw_examine_info()
             std::vector<iteminfo> selected_info;
             std::vector<iteminfo> dummy_info;
             const item *selected_item = item_data.selected_entry->get_selected_entity();
+            // The detailed item-info window is visually rendered, but its
+            // contents are not exposed to NVDA. Speak the same item details
+            // when the player presses Examine in the surroundings list.
+            get_narration_service().announce( {
+                narration_event::item_description_opened,
+                remove_color_tags( selected_item->tname() + ". " + selected_item->info( true ) ),
+                true
+            } );
             selected_item->info( true, selected_info );
             item_info_data dummy( selected_item->tname(), selected_item->type_name(), selected_info,
                                   dummy_info );
