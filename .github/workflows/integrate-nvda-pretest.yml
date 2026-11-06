@@ -1,0 +1,49 @@
+name: Integrate upstream into NVDA pre-test branch
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - balloon-upstream-pretest-2026-11-07
+    paths:
+      - .github/workflows/integrate-nvda-pretest.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: integrate-nvda-pretest
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: balloon-upstream-pretest-2026-11-07
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Merge current CleverRaven master without changing NVDA working branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/CleverRaven/Cataclysm-DDA.git
+          git fetch upstream master
+          echo "Upstream: $(git rev-parse upstream/master)"
+          echo "Pre-test: $(git rev-parse HEAD)"
+          # Preserve our changes where a line-level conflict occurs.
+          # Any remaining structural/binary conflicts stop the workflow.
+          git merge --no-commit --no-ff -X ours upstream/master || {
+            echo "::error::Merge could not be completed automatically. Resolve conflicts manually."
+            git status --short
+            exit 1
+          }
+          if git diff --cached --quiet; then
+            echo "Already up to date."
+          else
+            git commit -m "Pre-test merge: bring upstream CDDA master into NVDA fork"
+            git push origin HEAD:balloon-upstream-pretest-2026-11-07
+          fi
