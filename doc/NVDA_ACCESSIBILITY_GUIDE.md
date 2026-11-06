@@ -16,9 +16,9 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **F6**: Describe the tile underfoot.
 - **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
 
-## Removing a saved character and finding Abandon Character
+## Loading saved characters and finding Abandon Character
 
-- **Load Game → choose a world → choose a character → Delete**: after confirmation, remove only that character from the load list. The `.sav` is preserved in the same world folder with a `.deleted` suffix so it can be restored manually. The world, mods, other character saves, and shared map data remain intact.
+- **Load Game → choose a world → choose a character**: selecting a saved character loads it directly. There is no custom character Delete/archive action; no `.deleted` files are created by the accessibility load menu.
 - **Abandon Character** now always appears in the gameplay action menu even without a keyboard shortcut. It is the game's original death/abandon action, not the safe character-removal option.
 - **View Help** announces its help topic shortcuts, then narrates the chosen help article.
 - **Sidebar Options** announces focused panel or layout, including whether a panel is enabled. Tab toggles a panel, Enter or S begins/ends moving a panel or selects a layout, and left/right switches columns.
