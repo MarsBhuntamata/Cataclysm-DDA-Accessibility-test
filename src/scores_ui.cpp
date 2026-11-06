@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "achievement.h"
 #include "cata_imgui.h"
 #include "color.h"
@@ -71,6 +72,7 @@ class scores_ui_impl : public cataimgui::window
         void draw_kills_text() const;
 
         scores_ui_tab selected_tab = enum_traits<scores_ui_tab>::first;
+        scores_ui_tab last_announced_tab = scores_ui_tab::num_tabs;
         scores_ui_tab switch_tab = enum_traits<scores_ui_tab>::last;
 
         size_t window_width = ImGui::GetMainViewport()->Size.x * 8 / 9;
@@ -345,6 +347,43 @@ void scores_ui_impl::draw_controls()
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+    }
+
+    // ImGui tabs are not exposed as native screen-reader controls. Speak the
+    // selected tab and a bounded summary only when the tab actually changes.
+    if( selected_tab != last_announced_tab ) {
+        last_announced_tab = selected_tab;
+        std::string spoken;
+        const std::vector<std::string> *entries = nullptr;
+        if( selected_tab == scores_ui_tab::achievements ) {
+            spoken = _( "Achievements." );
+            entries = &achievements_text;
+        } else if( selected_tab == scores_ui_tab::conducts ) {
+            spoken = _( "Conducts." );
+            entries = &conducts_text;
+        } else if( selected_tab == scores_ui_tab::scores ) {
+            spoken = _( "Scores." );
+            entries = &scores_text;
+        } else if( selected_tab == scores_ui_tab::kills ) {
+            spoken = string_format( _( "Kills. %d monsters, %d NPCs, %d total." ),
+                                    monster_kills, npc_kills, total_kills );
+        }
+        if( entries != nullptr ) {
+            if( entries->empty() ) {
+                spoken += " " + std::string( _( "No entries." ) );
+            } else {
+                const size_t limit = std::min( entries->size(), size_t( 12 ) );
+                for( size_t i = 0; i < limit; ++i ) {
+                    spoken += " " + ( *entries )[i];
+                }
+                if( entries->size() > limit ) {
+                    spoken += " " + std::string( _( "More entries are displayed visually." ) );
+                }
+            }
+        }
+        get_narration_service().announce( {
+            narration_event::selection_changed, spoken, true
+        } );
     }
 
     if( selected_tab == scores_ui_tab::achievements ) {
