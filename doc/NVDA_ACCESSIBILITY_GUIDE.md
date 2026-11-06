@@ -24,6 +24,13 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - Most CDDA cupboards and shelves are furniture tiles with storage capacity, not containers you need to open first. Placing items on their tile stores them there. Ordinary **d** drops items at your position instead; **Shift+D** selects an adjacent destination.
 - The usual keybindings can be changed. Open **?** to inspect or remap controls if these keys behave differently.
 
+## Adjacent drop, advanced inventory, and spell targeting
+
+- **Shift+D**: The adjacent-drop command announces "Drop where?" and asks for a direction. After choosing a tile, CDDA opens the normal item selection interface. Use it to select which items to drop on a cupboard, shelf, or other valid tile.
+- **/**: Advanced Inventory Management announces the active left/right pane, its location, and the selected item as focus changes. Navigate and move items using the normal CDDA advanced-inventory controls; use **?** in that screen to review bindings.
+- **]**: When casting a targeted spell, the spell-targeting interface announces its instructions and the selected creature or tile, cursor offset, and distance. The narrator reports the game's known target, not hidden creatures or unexplored terrain.
+- These are source changes and require an NVDA build test to verify speech timing and that all relevant targeting modes work.
+
 ## Death and game-over narration
 
 - The final tombstone screen announces itself and explains that Enter continues. If a last-words input is present, it can be edited before continuing.
