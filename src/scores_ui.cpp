@@ -374,7 +374,9 @@ void scores_ui_impl::draw_controls()
             } else {
                 const size_t limit = std::min( entries->size(), size_t( 12 ) );
                 for( size_t i = 0; i < limit; ++i ) {
-                    spoken += " " + ( *entries )[i];
+                    // Achievement, conduct, and score strings contain CDDA color
+                    // markup for visual display. Never speak raw color tags.
+                    spoken += " " + remove_color_tags( ( *entries )[i] );
                 }
                 if( entries->size() > limit ) {
                     spoken += " " + std::string( _( "More entries are displayed visually." ) );
