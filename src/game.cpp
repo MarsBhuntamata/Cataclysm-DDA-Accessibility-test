@@ -2992,12 +2992,33 @@ void game::bury_screen() const
 
 void game::death_screen()
 {
+    get_narration_service().announce( {
+        narration_event::status_changed,
+        _( "Game over. Preparing your character's final records." ), true
+    } );
     gamemode->game_over();
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        _( "Final game messages." ), true
+    } );
     Messages::display_messages();
     u.get_avatar_diary()->death_entry();
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        _( "Final scores and achievements. Use the screen controls to review them, "
+           "or Escape to continue." ), true
+    } );
     show_scores_ui();
+    get_narration_service().announce( {
+        narration_event::status_changed,
+        _( "Scores closed. Checking for surviving companions' epilogues." ), true
+    } );
     disp_NPC_epilogues();
     display_faction_epilogues();
+    get_narration_service().announce( {
+        narration_event::ui_closed,
+        _( "Game over sequence complete. Returning to the main menu." ), true
+    } );
 }
 
 // A timestamp that can be used to make unique file names
