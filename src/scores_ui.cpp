@@ -74,6 +74,8 @@ class scores_ui_impl : public cataimgui::window
 
         scores_ui_tab selected_tab = enum_traits<scores_ui_tab>::first;
         scores_ui_tab last_announced_tab = scores_ui_tab::num_tabs;
+        size_t spoken_entry_index = 0;
+        size_t last_announced_entry_index = static_cast<size_t>( -1 );
         scores_ui_tab switch_tab = enum_traits<scores_ui_tab>::last;
 
         size_t window_width = ImGui::GetMainViewport()->Size.x * 8 / 9;
@@ -288,8 +290,12 @@ void scores_ui_impl::draw_controls()
         npc_group_collapsed = !npc_group_collapsed;
     } else if( last_action == "UP" ) {
         s = cataimgui::scroll::line_up;
+        if( spoken_entry_index > 0 ) {
+            --spoken_entry_index;
+        }
     } else if( last_action == "DOWN" ) {
         s = cataimgui::scroll::line_down;
+        ++spoken_entry_index;
     } else if( last_action == "NEXT_TAB" || last_action == "RIGHT" ) {
         s = cataimgui::scroll::begin;
         switch_tab = selected_tab;
@@ -350,43 +356,60 @@ void scores_ui_impl::draw_controls()
         ImGui::EndTabBar();
     }
 
-    // ImGui tabs are not exposed as native screen-reader controls. Speak the
-    // selected tab and a bounded summary only when the tab actually changes.
-    if( selected_tab != last_announced_tab ) {
+    // Announce one entry at a time. A fixed twelve-item summary makes later
+    // achievements inaccessible and produces an overwhelming NVDA utterance.
+    const bool changed_tab = selected_tab != last_announced_tab;
+    if( changed_tab ) {
         last_announced_tab = selected_tab;
-        std::string spoken;
-        const std::vector<std::string> *entries = nullptr;
-        if( selected_tab == scores_ui_tab::achievements ) {
-            spoken = _( "Achievements." );
-            entries = &achievements_text;
-        } else if( selected_tab == scores_ui_tab::conducts ) {
-            spoken = _( "Conducts." );
-            entries = &conducts_text;
-        } else if( selected_tab == scores_ui_tab::scores ) {
-            spoken = _( "Scores." );
-            entries = &scores_text;
-        } else if( selected_tab == scores_ui_tab::kills ) {
-            spoken = string_format( _( "Kills. %d monsters, %d NPCs, %d total." ),
-                                    monster_kills, npc_kills, total_kills );
+        spoken_entry_index = 0;
+        last_announced_entry_index = static_cast<size_t>( -1 );
+    }
+    const std::vector<std::string> *spoken_entries = nullptr;
+    std::string spoken_heading;
+    switch( selected_tab ) {
+        case scores_ui_tab::achievements:
+            spoken_heading = _( "Achievements" );
+            spoken_entries = &achievements_text;
+            break;
+        case scores_ui_tab::conducts:
+            spoken_heading = _( "Conducts" );
+            spoken_entries = &conducts_text;
+            break;
+        case scores_ui_tab::scores:
+            spoken_heading = _( "Scores" );
+            spoken_entries = &scores_text;
+            break;
+        case scores_ui_tab::kills:
+            spoken_heading = string_format( _( "Kills. %d monsters, %d NPCs, %d total." ),
+                                            monster_kills, npc_kills, total_kills );
+            break;
+        default:
+            break;
+    }
+    if( spoken_entries ) {
+        if( !spoken_entries->empty() ) {
+            spoken_entry_index = std::min( spoken_entry_index, spoken_entries->size() - 1 );
+        } else {
+            spoken_entry_index = 0;
         }
-        if( entries != nullptr ) {
-            if( entries->empty() ) {
-                spoken += " " + std::string( _( "No entries." ) );
+        if( changed_tab || spoken_entry_index != last_announced_entry_index ) {
+            std::string spoken = spoken_heading + ". ";
+            if( spoken_entries->empty() ) {
+                spoken += _( "No entries." );
             } else {
-                const size_t limit = std::min( entries->size(), size_t( 12 ) );
-                for( size_t i = 0; i < limit; ++i ) {
-                    // Achievement, conduct, and score strings contain CDDA color
-                    // markup for visual display. Never speak raw color tags.
-                    spoken += " " + remove_color_tags( ( *entries )[i] );
-                }
-                if( entries->size() > limit ) {
-                    spoken += " " + std::string( _( "More entries are displayed visually." ) );
-                }
+                spoken += string_format( _( "Entry %d of %d. " ),
+                                         static_cast<int>( spoken_entry_index + 1 ),
+                                         static_cast<int>( spoken_entries->size() ) );
+                spoken += remove_color_tags( ( *spoken_entries )[spoken_entry_index] );
             }
+            if( changed_tab ) {
+                spoken += " " + std::string( _( "Use up and down to hear entries one at a time." ) );
+            }
+            get_narration_service().announce( { narration_event::selection_changed, spoken, true } );
+            last_announced_entry_index = spoken_entry_index;
         }
-        get_narration_service().announce( {
-            narration_event::selection_changed, spoken, true
-        } );
+    } else if( changed_tab ) {
+        get_narration_service().announce( { narration_event::selection_changed, spoken_heading, true } );
     }
 
     if( selected_tab == scores_ui_tab::achievements ) {
