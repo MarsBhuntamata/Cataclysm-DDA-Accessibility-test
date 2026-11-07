@@ -12,7 +12,7 @@ on:
       - 'CMakePresets.json'
       - 'build-scripts/**'
       - 'msvc-full-features/**'
-      - '.github/workflows/nvda-accessibility-build.yml'
+      - '.github/workflows/nvda-upstream-pretest-build.yml'
   workflow_dispatch:
 
 concurrency:
