@@ -10,7 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "body_status_ui.h"
 #include "bodypart.h"
@@ -58,129 +57,7 @@ static const json_character_flag json_flag_PAIN_IMMUNE( "PAIN_IMMUNE" );
 static const trait_id trait_DEBUG_HS( "DEBUG_HS" );
 static const trait_id trait_SUNLIGHT_DEPENDENT( "SUNLIGHT_DEPENDENT" );
 
-template <typename T> struct enum_traits;
-
-namespace
-{
-enum class medical_tab_mode {
-    TAB_LIMBS,
-    TAB_SUMMARY,
-    last
-};
-} // namespace
-
-template<>
-struct enum_traits<medical_tab_mode> {
-    static constexpr medical_tab_mode last = medical_tab_mode::last;
-    static constexpr medical_tab_mode first = medical_tab_mode::TAB_LIMBS;
-};
-
-namespace
-{
-class medical_ui : public cataimgui::window
-{
-    public:
-        explicit medical_ui( Character *guy ) : cataimgui::window( _( "Medical" ),
-                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav ) {
-            you = guy;
-        };
-
-        bool execute();
-        std::string get_limb_effects( const bodypart_id &part ) const;
-        std::string get_limb_wounds( const bodypart_id &part ) const;
-        std::string get_limb_scores_and_modifiers( const bodypart_id &part ) const;
-        std::string get_modified_limb_name( const bodypart_id &part ) const;
-
-        void draw_limbs_list( const std::vector<bodypart_id> &bodyparts );
-        void summary_tab() const;
-        void limb_tab( const std::vector<bodypart_id> &bodyparts );
-
-        void draw_hint_section();
-
-        std::string last_action;
-    protected:
-
-        void draw_controls() override;
-        cataimgui::bounds get_bounds() override {
-
-            const float window_width = std::clamp( float( str_width_to_pixels( EVEN_MINIMUM_TERM_WIDTH ) ),
-                                                   ImGui::GetMainViewport()->Size.x / 2,
-                                                   ImGui::GetMainViewport()->Size.x );
-            const float window_height = std::clamp( float( str_height_to_pixels( EVEN_MINIMUM_TERM_HEIGHT ) ),
-                                                    ImGui::GetMainViewport()->Size.y / 2,
-                                                    ImGui::GetMainViewport()->Size.y );
-
-            const cataimgui::bounds bounds{ -1.f, -1.f, window_width, window_height };
-            return bounds;
-        }
-
-    private:
-        Character *you;
-        bodypart_id bp;
-        input_context ctxt;
-        cataimgui::scroll s = cataimgui::scroll::none;
-        medical_tab_mode selected_tab = medical_tab_mode::TAB_LIMBS;
-        std::string last_spoken_medical_report;
-        bool medical_opening_announced = false;
-
-        float get_table_column_width() const {
-            return ImGui::GetWindowSize().x / 2;
-        }
-};
-} // namespace
-
-bool Character::disp_medical()
-{
-    medical_ui medic( this );
-    return medic.execute();
-}
-
-bool medical_ui::execute()
-{
-    ctxt.register_action( "UP", to_translation( "Move cursor up" ) );
-    ctxt.register_action( "DOWN", to_translation( "Move cursor down" ) );
-    ctxt.register_action( "SCROLL_UP", to_translation( "Move cursor up" ) );
-    ctxt.register_action( "SCROLL_DOWN", to_translation( "Move cursor down" ) );
-    ctxt.register_action( "PAGE_UP", to_translation( "Scroll description up" ) );
-    ctxt.register_action( "PAGE_DOWN", to_translation( "Scroll description down" ) );
-    ctxt.register_action( "HOME", to_translation( "Scroll description to top" ) );
-    ctxt.register_action( "END", to_translation( "Scroll description to bottom" ) );
-    ctxt.register_leftright();
-    ctxt.register_action( "NEXT_TAB" );
-    ctxt.register_action( "PREV_TAB" );
-    ctxt.register_action( "MOUSE_MOVE" );
-    ctxt.register_action( "APPLY", to_translation( "Use item" ) );
-    ctxt.register_action( "CONFIRM", to_translation( "Pick bodypart to be mended" ) );
-    ctxt.register_action( "QUIT" );
-    ctxt.register_action( "HELP_KEYBINDINGS" );
-    ctxt.set_timeout( 16 );
-
-    while( true ) {
-        ui_manager::redraw_invalidated();
-        last_action = ctxt.handle_input();
-        if( last_action == "QUIT" || !get_is_open() ) {
-            break;
-        }
-
-        // creating a new window within main loop of draw_controls() causes destructor to destroy wrong window
-        // so moved here, outside of draw_controls()
-        if( last_action == "CONFIRM" ) {
-            if( you->pick_wound_fix( bp ) ) {
-                return true;
-            }
-        }
-
-        if( last_action == "APPLY" ) {
-            if( you->is_avatar() ) {
-                avatar_action::use_item( *you->as_avatar() );
-            } else {
-                popup( _( "Applying not implemented for NPCs." ) );
-            }
-        }
-
-    }
-    return false;
-}
+class temp_crafting_inventory;
 
 static std::string coloured_stat_display( int statCur, int statMax )
 {
@@ -673,83 +550,7 @@ void medical_ui::draw_limbs_details( const Character &you, const bodypart_id &bp
         cataimgui::draw_colored_text( limb_scores, c_unset, table_width );
     }
 
-    if( selected_limb < 0 ) {
-        selected_limb = last_entry;
-    } else if( selected_limb > last_entry ) {
-        selected_limb = 0;
-    };
-
-    if( !bodyparts.empty() ) {
-        bp = bodyparts[selected_limb];
-    }
-
-    std::string medical_report;
-    if( selected_tab == medical_tab_mode::TAB_SUMMARY ) {
-        medical_report = _( "Summary." );
-        medical_report += " " + remove_color_tags( draw_speed_summary( *you ) );
-        medical_report += " " + remove_color_tags( draw_stats_summary( *you ) );
-    } else if( bodyparts.empty() ) {
-        medical_report = _( "Limbs. No body parts." );
-    } else {
-        medical_report = _( "Limbs." );
-        medical_report += " " + uppercase_first_letter( body_part_name( bp, 1 ) );
-        const int hp_max = you->get_part_hp_max( bp );
-        const int hp_cur = you->get_part_hp_cur( bp );
-        if( you->has_flag( json_flag_PAIN_IMMUNE ) ) {
-            medical_report += ". " + remove_color_tags( hp_feeling(
-                                  hp_max > 0 ? hp_cur / static_cast<float>( hp_max ) : 0.0f ) );
-        } else {
-            medical_report += ". " + string_format( _( "Health %d of %d." ), hp_cur, hp_max );
-        }
-        if( you->is_limb_broken( bp ) ) {
-            medical_report += " " + std::string( _( "Broken." ) );
-        }
-        if( you->worn_with_flag( flag_SPLINT, bp ) ) {
-            medical_report += " " + std::string( _( "Splinted." ) );
-        }
-        const std::string effects = remove_color_tags( get_limb_effects( bp ) );
-        const std::string wounds = remove_color_tags( get_limb_wounds( bp ) );
-        const std::string scores = remove_color_tags( get_limb_scores_and_modifiers( bp ) );
-        if( !effects.empty() ) {
-            medical_report += " " + effects;
-        }
-        if( !wounds.empty() ) {
-            medical_report += " " + wounds;
-        }
-        if( !scores.empty() ) {
-            medical_report += " " + scores;
-        }
-        if( effects.empty() && wounds.empty() ) {
-            medical_report += " " + std::string( _( "No wounds or medical effects." ) );
-        }
-    }
-    if( !medical_opening_announced || medical_report != last_spoken_medical_report ) {
-        get_narration_service().announce( {
-            medical_opening_announced ? narration_event::selection_changed : narration_event::ui_opened,
-            medical_opening_announced ? medical_report :
-            std::string( _( "Medical. " ) ) + medical_report, true
-        } );
-        medical_opening_announced = true;
-        last_spoken_medical_report = medical_report;
-    }
-
-    draw_hint_section();
-
-    if( ImGui::BeginTabBar( "##Tabs" ) ) {
-        if( cataimgui::BeginTabItem( _( "Limbs" ), selected_tab == medical_tab_mode::TAB_LIMBS ) ) {
-            // if we picked the tab via mouse imput, update selected_tab
-            // TODO there seems to be some lag appearing when you pick it with mouse?
-            selected_tab = ImGui::IsItemActive() ? medical_tab_mode::TAB_LIMBS : selected_tab;
-            limb_tab( bodyparts );
-            ImGui::EndTabItem();
-        }
-        if( cataimgui::BeginTabItem( _( "Summary" ), selected_tab == medical_tab_mode::TAB_SUMMARY ) ) {
-            selected_tab = ImGui::IsItemActive() ? medical_tab_mode::TAB_SUMMARY : selected_tab;
-            summary_tab();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
-    }
+    ImGui::EndChild();
 }
 
 namespace
