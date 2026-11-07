@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "accessibility.h"
 #include "cata_path.h"
 #include "cata_utility.h"
 #include "catacharset.h"
@@ -265,10 +266,44 @@ void safemode::show( const std::string &custom_name_in, bool is_safemode_in )
         wnoutrefresh( w );
     } );
 
+    std::string last_spoken_safe_rule;
     while( true ) {
         auto &current_tab = tab == GLOBAL_TAB ? global_rules : character_rules;
 
         ui_manager::redraw();
+
+        // The safe-mode rule table is curses-drawn and is not exposed as
+        // accessible controls. Speak the selected row and active column.
+        const char *column_names[] = {
+            "Rule", "Attitude", "Proximity", "List", "Category", "Movement mode"
+        };
+        std::string speech = tab == GLOBAL_TAB ? _( "Safe mode. Global rules." ) :
+                             _( "Safe mode. Character rules." );
+        if( current_tab.empty() ) {
+            speech += " " + std::string( _( "No rules in this tab. Use add rule to create one." ) );
+        } else if( line >= 0 && line < static_cast<int>( current_tab.size() ) ) {
+            const safemode::rules_class &rule = current_tab[line];
+            const std::string attitude = rule.category == Categories::HOSTILE_SPOTTED ?
+                                         Creature::get_attitude_ui_data( rule.attitude ).first.translated() :
+                                         std::string( "---" );
+            const std::string proximity = ( rule.category == Categories::SOUND || !rule.whitelist ) ?
+                                          std::to_string( rule.proximity ) : std::string( "---" );
+            const std::string category_text = rule.category == Categories::SOUND ? _( "Sound" ) : _( "Hostile" );
+            const std::string movement = rule.movement_mode == MovementModes::WALKING ? _( "Walking" ) :
+                                         rule.movement_mode == MovementModes::DRIVING ? _( "Driving" ) : _( "Both" );
+            speech += " " + string_format( _( "Rule %d of %d. %s. %s. Attitude: %s. "
+                                            "Proximity: %s. %s. Category: %s. Movement: %s. "
+                                            "Current column: %s." ),
+                      line + 1, static_cast<int>( current_tab.size() ),
+                      rule.rule.empty() ? _( "Empty rule" ) : rule.rule,
+                      rule.active ? _( "Enabled" ) : _( "Disabled" ),
+                      attitude, proximity, rule.whitelist ? _( "Whitelist" ) : _( "Blacklist" ),
+                      category_text, movement, _( column_names[column] ) );
+        }
+        if( speech != last_spoken_safe_rule ) {
+            get_narration_service().announce( { narration_event::selection_changed, speech, true } );
+            last_spoken_safe_rule = speech;
+        }
 
         const std::string action = ctxt.handle_input();
         const int recmax = static_cast<int>( current_tab.size() );
