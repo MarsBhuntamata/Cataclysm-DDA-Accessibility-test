@@ -45,6 +45,7 @@
 #include "inventory_ui.h"
 #include "item.h"
 #include "item_location.h"
+#include "iteminfo_accessibility.h"
 #include "itype.h"
 #include "localized_comparator.h"
 #include "magic_type.h"
@@ -2782,6 +2783,11 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                                           crafting_rec.makes_amount() * bs, MAX_ITEM_IN_SQUARE ) );
                     break;
                 case craft_confirm_result::too_dark:
+                    get_narration_service().announce( {
+                        narration_event::contextual_help,
+                        _( "Crafter can't see! There is not enough light for this craft. "
+                           "Move into a brighter area or use a light source." ), true
+                    } );
                     popup( _( "Crafter can't see!" ) );
                     break;
                 case craft_confirm_result::ok:
@@ -2807,6 +2813,13 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                               line_item_info_popup, info_width );
         data.handle_scrolling = true;
         data.arrow_scrolling = true;
+        // Recipe result descriptions are drawn in a separate ImGui window,
+        // which does not automatically expose the contents to NVDA.
+        get_narration_service().announce( {
+            narration_event::item_description_opened,
+            make_item_narration_text( data.get_item_name(), data.get_type_name(),
+                                      data.get_item_display() ), true
+        } );
         iteminfo_window info_window( data,
                                      point::north_west, info_width, info_height );
         info_window.execute();
