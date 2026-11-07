@@ -47,6 +47,7 @@
 #include "item_contents.h"
 #include "item_location.h"
 #include "item_tname.h"
+#include "iteminfo_accessibility.h"
 #include "itype.h"
 #include "localized_comparator.h"
 #include "map.h"
@@ -1780,6 +1781,20 @@ void advanced_inventory::action_examine( advanced_inv_listitem *sitem,
         return colstart + ( src == advanced_inventory::side::left ? w_width / 2 : 0 );
     };
     avatar &player_character = get_avatar();
+    // Announce examined items on both the carried-item menu path and
+    // the ground-item information window path.
+    if( sitem && !sitem->items.empty() && sitem->items.front() ) {
+        const item_location &examined = sitem->items.front();
+        std::vector<iteminfo> spoken_info;
+        examined->info( true, spoken_info );
+        get_narration_service().announce( {
+            narration_event::item_description_opened,
+            make_item_narration_text(
+                examined->tname( 1, tname::unprefixed_tname, true ),
+                examined->type_name(), spoken_info, examined.describe( &player_character ) ),
+            true
+        } );
+    }
     if( spane.get_area() == AIM_INVENTORY || spane.get_area() == AIM_WORN ||
         ( spane.container && spane.container.carrier() == player_character.as_character() ) ) {
         const item_location &loc = sitem->items.front();
