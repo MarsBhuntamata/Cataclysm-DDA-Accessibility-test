@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "action.h"
-#include "accessibility.h"
+#include "cata_assert.h"
+#include "cata_imgui.h"
 #include "cata_path.h"
 #include "character.h"
 #include "color.h"
@@ -144,116 +144,6 @@ help_window::help_window() : cataimgui::window( "help",
         hotkeys.emplace( option_category.first, next_hotkey );
         next_hotkey = ctxt.next_unassigned_hotkey( hkq, next_hotkey );
     }
-
-    std::string spoken_topics = _( "Help topics. Press the corresponding letter to read a topic. Escape returns to the game." );
-    for( const auto &entry : hotkeys ) {
-        const auto topic = help_texts.find( entry.first );
-        if( topic != help_texts.end() ) {
-            spoken_topics += " " + entry.second.short_description() + ": " +
-                             topic->second.first.translated() + ".";
-        }
-    }
-    get_narration_service().announce( {
-        narration_event::ui_opened, spoken_topics, true
-    } );
-
-    ui.on_redraw( [&]( const ui_adaptor & ) {
-        draw_border( w_help_border, BORDER_COLOR, _( "Help" ) );
-        wnoutrefresh( w_help_border );
-        opt_map = draw_menu( w_help, sel, hotkeys );
-    } );
-
-    do {
-        ui_manager::redraw();
-
-        sel = -1;
-        action = ctxt.handle_input();
-        input_event input = ctxt.get_raw_input();
-
-        // Mouse selection
-        if( action == "MOUSE_MOVE" || action == "SELECT" ) {
-            std::optional<point> coord = ctxt.get_coordinates_text( w_help );
-            if( !!coord ) {
-                int cnt = run_for_point_in<int, point>( opt_map, *coord,
-                [&sel]( const std::pair<int, inclusive_rectangle<point>> &p ) {
-                    sel = p.first;
-                } );
-                if( cnt > 0 && action == "SELECT" ) {
-                    auto iter = hotkeys.find( sel );
-                    if( iter != hotkeys.end() ) {
-                        input = iter->second;
-                        action = "CONFIRM";
-                    }
-                }
-            }
-        }
-
-        for( const auto &hotkey_entry : hotkeys ) {
-            auto help_text_it = help_texts.find( hotkey_entry.first );
-            if( help_text_it == help_texts.end() ) {
-                continue;
-            }
-            if( input == hotkey_entry.second ) {
-                std::vector<std::string> i18n_help_texts;
-                i18n_help_texts.reserve( help_text_it->second.second.size() );
-                std::transform( help_text_it->second.second.begin(), help_text_it->second.second.end(),
-                std::back_inserter( i18n_help_texts ), [&]( const translation & line ) {
-                    std::string line_proc = line.translated();
-                    if( line_proc == "<DRAW_NOTE_COLORS>" ) {
-                        line_proc = get_note_colors();
-                    } else if( line_proc == "<HELP_DRAW_DIRECTIONS>" ) {
-                        line_proc = get_dir_grid();
-                    }
-                    size_t pos = line_proc.find( "<press_", 0, 7 );
-                    while( pos != std::string::npos ) {
-                        size_t pos2 = line_proc.find( ">", pos, 1 );
-
-                        std::string action = line_proc.substr( pos + 7, pos2 - pos - 7 );
-                        std::string replace = "<color_light_blue>" +
-                                              press_x( look_up_action( action ), "", "" ) + "</color>";
-
-                        if( replace.empty() ) {
-                            debugmsg( "Help json: Unknown action: %s", action );
-                        } else {
-                            line_proc = string_replace(
-                                            line_proc, "<press_" + std::move( action ) + ">", replace );
-                        }
-
-                        pos = line_proc.find( "<press_", pos2, 7 );
-                    }
-                    return line_proc;
-                } );
-
-                if( !i18n_help_texts.empty() ) {
-                    std::string spoken_page = help_text_it->second.first.translated() + ". ";
-                    for( const std::string &line : i18n_help_texts ) {
-                        spoken_page += remove_color_tags( line ) + " ";
-                    }
-                    get_narration_service().announce( {
-                        narration_event::contextual_help, spoken_page, true
-                    } );
-                    ui.on_screen_resize( nullptr );
-
-                    const auto get_w_help_border = [&]() {
-                        init_windows( ui );
-                        return w_help_border;
-                    };
-
-                    scrollable_text( get_w_help_border, _( "Help" ),
-                                     std::accumulate( i18n_help_texts.begin() + 1, i18n_help_texts.end(),
-                                                      i18n_help_texts.front(),
-                    []( std::string lhs, const std::string & rhs ) {
-                        return std::move( lhs ) + "\n\n" + rhs;
-                    } ) );
-
-                    ui.on_screen_resize( init_windows );
-                }
-                action = "CONFIRM";
-                break;
-
-            }
-        }
-    } while( action != "QUIT" );
 }
 
 void help_window::draw_controls()
@@ -508,6 +398,11 @@ void help_window::swap_translated_paragraphs()
                                                 untranslated_paragraph.translated(), modifier ).first;
         parse_tags( translated_paragraph, u, u );
     }
+    std::string spoken_page = cat.name.translated();
+    for( const auto &paragraph : translated_paragraphs ) {
+        spoken_page += ". " + remove_color_tags( paragraph.first );
+    }
+    get_narration_service().announce( { narration_event::contextual_help, spoken_page, true } );
 }
 
 int help_window::previous_option( int option )
