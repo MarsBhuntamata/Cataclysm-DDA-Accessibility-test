@@ -2611,6 +2611,15 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
                 }
             }
             description += ". " + attitude;
+            // Match the monster information screen's visibility indicator.
+            // This is current line of sight, not proof of pursuit or aggro.
+            // Inattentive characters cannot reliably judge this information.
+            if( const monster *mon = dynamic_cast<const monster *>( critter );
+                mon != nullptr && !observer.has_trait( trait_id( "INATTENTIVE" ) ) ) {
+                description += ". " + std::string( mon->sees( here, observer ) ?
+                    _( "Can see to your current location." ) :
+                    _( "Can't see to your current location." ) );
+            }
             // Describe visible injury in look-cursor and map survey narration,
             // consistent with firearm and throwing target narration.
             if( critter->get_hp_max() > 0 ) {
