@@ -22,6 +22,7 @@
 #include "kill_tracker.h"
 #include "localized_comparator.h"
 #include "mtype.h"
+#include "output.h"
 #include "past_games_info.h"
 #include "stats_tracker.h"
 #include "string_formatter.h"
