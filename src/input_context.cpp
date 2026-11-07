@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "action.h"
+#include "accessibility.h"
 #include "cata_imgui.h"
 #include "cata_utility.h"
 #include "catacharset.h"
@@ -1053,6 +1054,8 @@ action_id input_context::display_menu( bool permit_execute_action )
     kb_menu.hotkeys = ctxt.get_available_single_char_hotkeys( display_help_hotkeys );
     kb_menu.init();
     int raw_input_char = 0;
+    size_t accessible_row = 0;
+    std::string last_spoken_keybinding;
     //const auto redraw = [&]( ui_adaptor & ui ) {
     //};
     //ui.on_redraw( redraw );
@@ -1060,6 +1063,26 @@ action_id input_context::display_menu( bool permit_execute_action )
     while( true ) {
         kb_menu.highlight_row_index = -1;
         ui_manager::redraw();
+        if( kb_menu.status == kb_menu_status::show ) {
+            std::string speech = _( "Keybindings." );
+            if( kb_menu.filtered_registered_actions.empty() ) {
+                speech += " " + std::string( _( "No matching actions." ) );
+            } else {
+                accessible_row = std::min( accessible_row,
+                                           kb_menu.filtered_registered_actions.size() - 1 );
+                const std::string &id = kb_menu.filtered_registered_actions[accessible_row];
+                speech += " " + string_format( _( "Action %d of %d. %s. Keys: %s." ),
+                           static_cast<int>( accessible_row + 1 ),
+                           static_cast<int>( kb_menu.filtered_registered_actions.size() ),
+                           get_action_name( id ), get_desc( id ) );
+            }
+            if( speech != last_spoken_keybinding ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed, speech, true
+                } );
+                last_spoken_keybinding = speech;
+            }
+        }
         if( kb_menu.has_button_action() ) {
             action = kb_menu.get_button_action();
             raw_input_char = 0;
@@ -1113,16 +1136,25 @@ action_id input_context::display_menu( bool permit_execute_action )
                 kb_menu.status = kb_menu_status::execute;
             }
         } else if( action == "PAGE_UP" ) {
+            accessible_row = accessible_row > 10 ? accessible_row - 10 : 0;
             kb_menu.keybinds_scroll = cataimgui::scroll::page_up;
         } else if( action == "PAGE_DOWN" ) {
+            accessible_row += 10;
             kb_menu.keybinds_scroll = cataimgui::scroll::page_down;
         } else if( action == "HOME" ) {
+            accessible_row = 0;
             kb_menu.keybinds_scroll = cataimgui::scroll::begin;
         } else if( action == "END" ) {
+            accessible_row = kb_menu.filtered_registered_actions.empty() ? 0 :
+                             kb_menu.filtered_registered_actions.size() - 1;
             kb_menu.keybinds_scroll = cataimgui::scroll::end;
         } else if( action == "UILIST.UP" ) {
+            if( accessible_row > 0 ) {
+                --accessible_row;
+            }
             kb_menu.keybinds_scroll = cataimgui::scroll::line_up;
         } else if( action == "UILIST.DOWN" ) {
+            ++accessible_row;
             kb_menu.keybinds_scroll = cataimgui::scroll::line_down;
         } else if( action == "TEXT.CLEAR" ) {
             kb_menu.clear_filter();
