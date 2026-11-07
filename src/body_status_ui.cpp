@@ -1,4 +1,5 @@
 #include "body_status_ui.h" // IWYU pragma: associated
+#include "accessibility.h"
 
 #include <functional>
 #include <memory>
@@ -267,6 +268,7 @@ void body_status_ui::upon_switching_tab()
     update_uilist_entries();
     get_current_tab_uilist()->set_selected( 0 );
     bs_uistate.update_selected( 0 );
+    announce_body_status_focus( *this );
 
     switch( bs_uistate.selected_tab ) {
         case body_status_tab::BS_TAB_SUMMARY: {
@@ -643,6 +645,46 @@ void body_status_callback::confirm( uilist *menu )
     }
 }
 
+// Narrate the currently focused entry in the unified upstream body-status UI.
+static void announce_body_status_focus( body_status_ui &ui )
+{
+    const body_status_uistate &state = ui.bs_uistate;
+    std::shared_ptr<uilist> list = ui.get_current_tab_uilist();
+    if( !list || list->selected < 0 ||
+        static_cast<size_t>( list->selected ) >= list->entries.size() ) {
+        return;
+    }
+    std::string report = _( "Body status" );
+    if( state.selected_tab == body_status_tab::BS_TAB_SUMMARY ) {
+        report += ". " + std::string( _( "Summary" ) );
+    } else if( state.selected_tab == body_status_tab::BS_TAB_MEDICAL ) {
+        report += ". " + std::string( _( "Medical" ) );
+    } else {
+        report += ". " + std::string( _( "Sort armor" ) );
+    }
+    report += ". " + remove_color_tags( list->entries[list->selected].txt );
+    if( state.selected_tab == body_status_tab::BS_TAB_SUMMARY &&
+        static_cast<size_t>( state.selected_index ) < state.partlist.size() ) {
+        for( const std::string &line : state.info_txt ) {
+            if( line != "--" ) {
+                report += ". " + remove_color_tags( line );
+            }
+        }
+    } else if( state.selected_tab == body_status_tab::BS_TAB_MEDICAL &&
+               state.selected_bodypart.is_valid() ) {
+        const Character &character = state.displayed_character;
+        const bodypart_id bp = state.selected_bodypart;
+        report += ". " + remove_color_tags( medical_ui::get_limb_effects( character, bp ) );
+        report += ". " + remove_color_tags( medical_ui::get_limb_wounds( character, bp ) );
+        report += ". " + remove_color_tags( medical_ui::get_limb_scores_and_modifiers( character, bp ) );
+    } else if( state.selected_tab == body_status_tab::BS_TAB_SORT_ARMOR &&
+               state.selected_armor.valid() ) {
+        const item &armor = *state.selected_armor;
+        report += ". " + remove_color_tags( clothing_info::clothing_layer( armor ) );
+    }
+    get_narration_service().announce( { narration_event::selection_changed, report, true } );
+}
+
 void body_status_callback::select( uilist *menu )
 {
     body_status_uistate &bs_uistate = ui_parent->bs_uistate;
@@ -652,6 +694,7 @@ void body_status_callback::select( uilist *menu )
 
     int menu_selected = menu->selected;
     bs_uistate.update_selected( menu_selected );
+    announce_body_status_focus( *ui_parent );
 }
 
 void body_status_uistate::update_selected( int index )
