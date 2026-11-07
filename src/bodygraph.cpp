@@ -6,13 +6,12 @@
 #include <initializer_list>
 #include <set>
 
-#include "accessibility.h"
+#include "body_status_ui.h"
 #include "bodypart.h"
 #include "cata_imgui.h"
 #include "catacharset.h"
 #include "character.h"
 #include "character_attire.h"
-#include "color.h"
 #include "creature.h"
 #include "damage.h"
 #include "debug.h"
@@ -390,99 +389,6 @@ void body_status_uistate::prepare_infotext()
             info_txt.emplace_back( dt.env ? get_env_str( dt.id ) : get_res_str( dt.id ) );
         }
     }
-}
-
-shared_ptr_fast<ui_adaptor> bodygraph_display::create_or_get_ui_adaptor()
-{
-    shared_ptr_fast<ui_adaptor> current_ui = ui.lock();
-    if( !current_ui ) {
-        ui = current_ui = make_shared_fast<ui_adaptor>();
-        current_ui->on_screen_resize( [this]( ui_adaptor & cui ) {
-            init_ui_windows();
-            info_txt.clear();
-            if( !partlist.empty() && std::get<3>( partlist[sel_part] ) ) {
-                prepare_infotext( false );
-            }
-            cui.position_from_window( w_border );
-        } );
-        current_ui->mark_resize();
-        current_ui->on_redraw( [this]( const ui_adaptor & ) {
-            draw_borders();
-            draw_partlist();
-            draw_graph();
-            draw_info();
-        } );
-    }
-    return current_ui;
-}
-
-void bodygraph_display::display()
-{
-    shared_ptr_fast<ui_adaptor> current_ui = create_or_get_ui_adaptor();
-    prepare_partlist();
-    prepare_infolist();
-
-    bool done = false;
-    int last_announced_part = -1;
-    while( !done ) {
-        ui_manager::redraw();
-        if( !partlist.empty() && sel_part != last_announced_part ) {
-            const bool first_announcement = last_announced_part == -1;
-            last_announced_part = sel_part;
-            const part_tuple &selected = partlist[sel_part];
-            const sub_body_part_type *subpart = std::get<1>( selected );
-            std::string report = subpart != nullptr ? subpart->name.translated() :
-                                 std::get<0>( selected )->name.translated();
-            if( !std::get<3>( selected ) ) {
-                report += ". " + std::string( _( "Body part absent." ) );
-            } else {
-                for( const std::string &line : info_txt ) {
-                    if( line != "--" ) {
-                        report += ". " + remove_color_tags( line );
-                    }
-                }
-            }
-            get_narration_service().announce( {
-                first_announcement ? narration_event::ui_opened :
-                narration_event::selection_changed,
-                std::string( _( "Body status. " ) ) + report, true
-            } );
-        }
-        std::string action = ctxt.handle_input();
-        if( action == "QUIT" || ( action == "LEFT" && id != bodygraph_full_body ) ) {
-            done = true;
-        } else if( action == "CONFIRM" || action == "RIGHT" ) {
-            if( !!std::get<2>( partlist[sel_part] ) ) {
-                bodygraph_id nextgraph = std::get<2>( partlist[sel_part] )->nested_graph;
-                if( !nextgraph.is_null() ) {
-                    display_bodygraph( *u, nextgraph );
-                    prepare_infolist();
-                }
-            }
-        } else if( action == "SCROLL_INFOBOX_UP" || action == "PAGE_UP" ) {
-            top_info--;
-        } else if( action == "SCROLL_INFOBOX_DOWN" || action == "PAGE_DOWN" ) {
-            top_info++;
-        } else if( navigate_ui_list( action, sel_part, 3, partlist.size(), true ) ) {
-            prepare_infolist();
-        }
-        if( static_cast<int>( info_txt.size() ) >= all_height - 2 ) {
-            top_info = clamp( top_info, 0, static_cast<int>( info_txt.size() ) - ( all_height - 2 ) );
-        } else {
-            top_info = 0;
-        }
-        if( sel_part < top_part ) {
-            top_part = sel_part;
-        } else if( sel_part >= top_part + ( all_height - 2 ) ) {
-            top_part = sel_part - ( all_height - 3 );
-        }
-    }
-}
-
-void display_bodygraph( const Character &u, const bodygraph_id &id )
-{
-    bodygraph_display bgd( &u, id );
-    bgd.display();
 }
 
 std::vector<std::string> get_bodygraph_lines( const Character &u,
