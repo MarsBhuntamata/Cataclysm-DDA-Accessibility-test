@@ -2542,7 +2542,7 @@ void crafting_ui_impl::announce_focused_recipe()
         if( selected->is_nested() ) {
             label += ". " + std::string( _( "Recipe group. Enter to expand." ) );
         } else if( static_cast<size_t>( line ) < available.size() ) {
-            label += available[line].can_craft ?
+            label += available[line].can_craft_recipe ?
                      ". " + std::string( _( "Craftable." ) ) :
                      ". " + std::string( _( "Requirements not met." ) );
         }
