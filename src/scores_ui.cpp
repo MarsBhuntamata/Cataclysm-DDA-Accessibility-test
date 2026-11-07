@@ -426,6 +426,8 @@ void scores_ui_impl::draw_controls()
     }
 
     cataimgui::set_scroll( s );
+    // The UI can redraw multiple times for one input; consume navigation once.
+    last_action.clear();
 }
 } // namespace
 
