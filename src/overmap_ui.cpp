@@ -2222,12 +2222,12 @@ static tripoint_abs_omt display()
     } );
 
     bool map_dirty = true;
-    map_view_state drawn{ curs, uistate.overmap_show_overlays };
     do {
         if( map_dirty ) {
             ui->invalidate_ui();
         }
         ui_manager::redraw();
+        const map_view_state drawn{ curs, uistate.overmap_show_overlays };
 
         // Cursor speech uses overmap vision, never unrestricted terrain lookup
         // for unknown squares. As with Look Around, use short relative offsets.
