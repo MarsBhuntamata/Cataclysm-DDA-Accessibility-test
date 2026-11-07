@@ -1,0 +1,139 @@
+name: NVDA upstream pre-test build
+
+on:
+  push:
+    branches:
+      - balloon-upstream-pretest-2026-11-07
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'data/raw/keybindings.json'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'build-scripts/**'
+      - 'msvc-full-features/**'
+      - '.github/workflows/nvda-accessibility-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: nvda-accessibility-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64 tiles and sound
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\.github\vcpkg_triplets
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+      - name: Install CMake
+        uses: lukka/get-cmake@f176ccd3f28bda569c43aae4894f06b2435a3375 # latest
+        with:
+          cmakeVersion: 3.31.6
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        with:
+          vcpkgDirectory: '${{ runner.workspace }}\b\vcpkg'
+          vcpkgGitCommitId: 'f6672d8e480ccdecddfad3fd1b838ba369ffe6cd'
+
+      - name: Configure Windows tiles build
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
+          $env:VCPKG_INSTALLATION_ROOT = $env:VCPKG_ROOT
+          cmake --preset windows-tiles-sounds-x64-msvc
+
+      - name: Compile game and accessibility tests
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
+          $installedRoot = Join-Path $PWD "out/build/windows-tiles-sounds-x64-msvc/vcpkg_installed/x64-windows-static"
+          $glslang = Get-ChildItem -Path $installedRoot -Filter glslangValidator.exe -File -Recurse | Select-Object -First 1
+          if (-not $glslang) { throw "vcpkg installed glslang but glslangValidator.exe was not found under $installedRoot" }
+          $shadercross = Get-ChildItem -Path $installedRoot -Filter shadercross.exe -File -Recurse | Select-Object -First 1
+          if (-not $shadercross) { throw "vcpkg installed SDL shadercross but shadercross.exe was not found under $installedRoot" }
+          $env:GLSLANG = $glslang.FullName
+          $env:SDL_SHADERCROSS = $shadercross.FullName
+          Write-Host "Using glslangValidator: $env:GLSLANG"
+          Write-Host "Using shadercross: $env:SDL_SHADERCROSS"
+          cmake --build --preset windows-tiles-sounds-x64-msvc --target cataclysm-tiles cata_test-tiles --parallel 2
+
+      - name: Run focused accessibility tests
+        shell: pwsh
+        run: |
+          $test = Get-ChildItem -Path out/build/windows-tiles-sounds-x64-msvc -Filter cata_test-tiles.exe -Recurse | Select-Object -First 1
+          if (-not $test) { throw "The test executable was not produced." }
+          & $test.FullName "[accessibility]" --rng-seed 12345
+
+      - name: Package Windows game and runtime DLLs
+        shell: pwsh
+        run: |
+          $buildRoot = Join-Path $PWD "out/build/windows-tiles-sounds-x64-msvc"
+          $installedRoot = Join-Path $buildRoot "vcpkg_installed/x64-windows-static"
+          $exe = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.exe -File -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "The game executable was not produced." }
+          $stage = Join-Path $PWD "out/package/cdda-nvda-test-build"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -LiteralPath $exe.FullName -Destination $stage
+          $pdb = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.pdb -File -Recurse | Select-Object -First 1
+          if (-not $pdb) { throw "The game PDB was not produced; symbolized crash diagnosis would not be possible." }
+          Copy-Item -LiteralPath $pdb.FullName -Destination $stage
+          Write-Host "Packaged debug symbols: $($pdb.FullName)"
+          $dlls = Get-ChildItem -Path (Join-Path $installedRoot "bin") -Filter *.dll -File -ErrorAction SilentlyContinue
+          foreach ($dll in $dlls) {
+            Copy-Item -LiteralPath $dll.FullName -Destination $stage -Force
+          }
+          $mpg123 = Get-ChildItem -Path $installedRoot -Filter mpg123.dll -File -Recurse | Select-Object -First 1
+          if (-not $mpg123) { throw "mpg123.dll is required by the game but was not found under $installedRoot" }
+          Copy-Item -LiteralPath $mpg123.FullName -Destination $stage -Force
+
+          # Fetch the official, redistributable NVDA Controller Client library.
+          # Without this DLL the game's NVDA speech backend cannot initialize.
+          $nvdaClientVersion = "2026.3"
+          $nvdaClientUrl = "https://download.nvaccess.org/releases/$nvdaClientVersion/nvda_${nvdaClientVersion}_controllerClient.zip"
+          $clientZip = Join-Path $env:RUNNER_TEMP "nvda-controller-client.zip"
+          $clientDir = Join-Path $env:RUNNER_TEMP "nvda-controller-client"
+          Invoke-WebRequest -Uri $nvdaClientUrl -OutFile $clientZip
+          Expand-Archive -LiteralPath $clientZip -DestinationPath $clientDir -Force
+          $clientDll = Get-ChildItem -LiteralPath $clientDir -Filter nvdaControllerClient.dll -File -Recurse |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+            Select-Object -First 1
+          if (-not $clientDll) { throw "The official NVDA client archive did not contain an x64 nvdaControllerClient.dll." }
+          Copy-Item -LiteralPath $clientDll.FullName -Destination $stage -Force
+          $clientLicense = Get-ChildItem -LiteralPath $clientDir -Filter license.txt -File -Recurse | Select-Object -First 1
+          if (-not $clientLicense) { throw "NVDA Controller Client license.txt was not found." }
+          Copy-Item -LiteralPath $clientLicense.FullName -Destination (Join-Path $stage "nvda-controller-client-license.txt") -Force
+
+          # The game must be launched beside its game data and graphics.
+          # Packaging only the exe and DLLs makes a nonfunctional standalone zip.
+          Copy-Item -LiteralPath (Join-Path $PWD "data") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "gfx") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "LICENSE.txt") -Destination $stage -Force
+
+          @('@echo off', 'cd /d "%~dp0"', '"cataclysm-tiles.exe"') |
+            Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
+
+          foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
+            if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing packaged dependency: $required" }
+          }
+          Write-Host "Packaged game, runtime dependencies, NVDA Controller Client and game data."
+          Get-ChildItem -Path $stage | ForEach-Object { Write-Host $_.Name }
+
+      - name: Upload Windows game and runtime package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdda-nvda-upstream-pretest-build
+          path: out/package/cdda-nvda-test-build/*
+          if-no-files-found: error
+          retention-days: 14
