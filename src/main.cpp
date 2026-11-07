@@ -801,6 +801,9 @@ bool initialize_interface( const cli_opts &cli )
 
     g = std::make_unique<game>();
 
+    return true;
+}
+
 void load_static_game_data( const cli_opts &cli )
 {
     // First load and initialize everything that does not
