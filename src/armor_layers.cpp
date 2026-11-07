@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "accessibility.h"
+#include "avatar.h"
 #include "body_part_set.h"
 #include "bodypart.h"
 #include "catacharset.h"
@@ -964,7 +965,7 @@ void outfit::sort_armor( Character &guy )
             if( worn_item.has_flag( json_flag_HIDDEN ) ) {
                 focus += ". " + std::string( _( "Hidden on character sprite." ) );
             }
-            focus += ". " + clothing_layer( worn_item );
+            focus += ". " + clothing_info::clothing_layer( worn_item );
             const item_penalties penalty = get_item_penalties( tmp_worn[leftListIndex], guy, speech_bp );
             if( !penalty.body_parts_with_stacking_penalty.empty() ) {
                 focus += ". " + string_format( _( "Stacking penalty on %s." ),
@@ -975,7 +976,7 @@ void outfit::sort_armor( Character &guy )
                            body_part_names( penalty.body_parts_with_out_of_order_penalty ) );
             }
             const std::vector<std::string> properties =
-                clothing_properties( worn_item, 80, guy, speech_bp );
+                clothing_info::clothing_properties( worn_item, guy, speech_bp );
             for( const std::string &property : properties ) {
                 focus += ". " + remove_color_tags( property );
             }
@@ -1004,12 +1005,12 @@ void outfit::sort_armor( Character &guy )
             if( leftListSize > 0 && leftListIndex >= 0 && leftListIndex < leftListSize ) {
                 const item &worn_item = *tmp_worn[leftListIndex];
                 lines.push_back( make_item_name_narration_text( worn_item.tname() ) );
-                lines.push_back( clothing_layer( worn_item ) );
-                const std::vector<std::string> flags = clothing_flags_description( worn_item, 100 );
+                lines.push_back( clothing_info::clothing_layer( worn_item ) );
+                const std::vector<std::string> flags = clothing_info::clothing_flags_description( worn_item );
                 lines.insert( lines.end(), flags.begin(), flags.end() );
-                const std::vector<std::string> properties = clothing_properties( worn_item, 100, guy, speech_bp );
+                const std::vector<std::string> properties = clothing_info::clothing_properties( worn_item, guy, speech_bp );
                 lines.insert( lines.end(), properties.begin(), properties.end() );
-                const std::vector<std::string> protection = clothing_protection( worn_item, 100, speech_bp );
+                const std::vector<std::string> protection = clothing_info::clothing_protection( worn_item, speech_bp );
                 lines.insert( lines.end(), protection.begin(), protection.end() );
             }
             if( lines.empty() ) {
