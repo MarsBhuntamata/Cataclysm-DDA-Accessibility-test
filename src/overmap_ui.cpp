@@ -2222,6 +2222,7 @@ static tripoint_abs_omt display()
     } );
 
     bool map_dirty = true;
+    map_view_state drawn{ curs, uistate.overmap_show_overlays };
     do {
         if( map_dirty ) {
             ui->invalidate_ui();
