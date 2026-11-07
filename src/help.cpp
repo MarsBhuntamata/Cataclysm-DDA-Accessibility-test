@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "accessibility.h"
 #include "cata_assert.h"
 #include "cata_imgui.h"
 #include "cata_path.h"
