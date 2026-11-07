@@ -27,6 +27,8 @@
 #include "units.h"
 #include "units_utility.h"
 
+static void announce_body_status_focus( body_status_ui &ui );
+
 static const bodygraph_id bodygraph_full_body( "full_body" );
 
 static const flag_id json_flag_HIDDEN( "HIDDEN" );
