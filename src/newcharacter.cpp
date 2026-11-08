@@ -2780,14 +2780,17 @@ void character_creator_ui_impl::draw_controls()
     }
 
     auto check_new_tab = [this]( character_creator_tab new_tab ) {
+        // Capture ImGui state before rebuilding the embedded uilist.
+        // Rebuilding it can invalidate UI drawing state during tab changes.
+        const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
         if( new_tab != cc_uistate.previous_tab ) {
             cc_uistate.selected_tab = new_tab;
             ui_parent->upon_switching_tab();
         }
         std::shared_ptr<uilist> current_uilist = ui_parent->get_current_tab_uilist();
         if( current_uilist ) {
-            const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
-            if( current_uilist->desired_bounds->y != cursor_pos.y ||
+            if( !current_uilist->desired_bounds ||
+                current_uilist->desired_bounds->y != cursor_pos.y ||
                 current_uilist->desired_bounds->w != tabbed_listinfo_ui::uilist_reset_desired_bounds().w ) {
                 ui_parent->update_uilist_position( cursor_pos );
             }
