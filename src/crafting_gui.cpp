@@ -2812,12 +2812,40 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                               line_item_info_popup, info_width );
         data.handle_scrolling = true;
         data.arrow_scrolling = true;
-        // Recipe result descriptions are drawn in a separate ImGui window,
-        // which does not automatically expose the contents to NVDA.
+        // The resulting item's description is not the recipe's ingredient
+        // list. Speak both, including all component alternatives, so the
+        // crafting details aren't confined to the visual side panel.
+        std::string recipe_speech = make_item_narration_text(
+                                        data.get_item_name(), data.get_type_name(),
+                                        data.get_item_display() );
+        const recipe &selected_recipe = *current[line];
+        const inventory &crafting_inv = available[line].inv_override ?
+                                        *available[line].inv_override : crafter->crafting_inventory();
+        const auto &component_groups = selected_recipe.simple_requirements().get_components();
+        if( component_groups.empty() ) {
+            recipe_speech += ". " + std::string( _( "No item components required." ) );
+        } else {
+            recipe_speech += ". " + std::string( _( "Required components:" ) );
+            for( const auto &alternatives : component_groups ) {
+                std::string group_speech;
+                for( const item_comp &component : alternatives ) {
+                    const int owned = item::count_by_charges( component.type ) ?
+                                      crafting_inv.charges_of( component.type, INT_MAX,
+                                              selected_recipe.get_component_filter() ) :
+                                      crafting_inv.amount_of( component.type, false, INT_MAX,
+                                              selected_recipe.get_component_filter() );
+                    if( !group_speech.empty() ) {
+                        group_speech += " " + std::string( _( "or" ) ) + " ";
+                    }
+                    group_speech += component.to_string( get_batch_size(), owned );
+                }
+                if( !group_speech.empty() ) {
+                    recipe_speech += " " + group_speech + ".";
+                }
+            }
+        }
         get_narration_service().announce( {
-            narration_event::item_description_opened,
-            make_item_narration_text( data.get_item_name(), data.get_type_name(),
-                                      data.get_item_display() ), true
+            narration_event::item_description_opened, recipe_speech, true
         } );
         iteminfo_window info_window( data,
                                      point::north_west, info_width, info_height );
