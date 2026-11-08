@@ -1248,6 +1248,14 @@ void surroundings_menu::execute()
                     const Creature *critter = monster_data.selected_entry->get_selected_entity();
                     report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_entity()->disp_name() ) +
                               ". " + spoken_distance( remove_color_tags( monster_data.selected_entry->get_selected_distance_string() ) );
+                    const Character &observer = get_player_character();
+                    if( observer.has_trait( trait_INATTENTIVE ) ) {
+                        report += ". " + std::string( _( "Awareness unknown." ) );
+                    } else if( critter->sees( get_map(), observer ) ) {
+                        report += ". " + std::string( _( "Can see to your current location." ) );
+                    } else {
+                        report += ". " + std::string( _( "Can't see to your current location." ) );
+                    }
                     if( get_player_character().has_trait( trait_INATTENTIVE ) ) {
                         report += ". " + std::string( _( "Attitude unknown" ) );
                     } else {
