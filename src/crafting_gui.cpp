@@ -2844,6 +2844,79 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                 }
             }
         }
+        // Read recipe requirements displayed outside the result-item popup.
+        // Keep alternatives grouped by OR, like the visual crafting sidebar.
+        const requirement_data &recipe_requirements = selected_recipe.simple_requirements();
+        const int batch_size = get_batch_size();
+        const auto &tool_groups = recipe_requirements.get_tools();
+        const auto &quality_groups = recipe_requirements.get_qualities();
+        if( !tool_groups.empty() || !quality_groups.empty() ) {
+            recipe_speech += " " + std::string( _( "Required tools and qualities:" ) );
+            for( const auto &alternatives : quality_groups ) {
+                std::string group;
+                for( const quality_requirement &quality : alternatives ) {
+                    if( !group.empty() ) {
+                        group += " " + std::string( _( "or" ) ) + " ";
+                    }
+                    group += quality.to_string( 1 );
+                    group += quality.has( crafter, crafting_inv, return_true<item>, 1 ) ?
+                             " " + std::string( _( "available" ) ) :
+                             " " + std::string( _( "missing" ) );
+                }
+                if( !group.empty() ) {
+                    recipe_speech += " " + group + ".";
+                }
+            }
+            for( const auto &alternatives : tool_groups ) {
+                std::string group;
+                for( const tool_comp &tool : alternatives ) {
+                    if( !group.empty() ) {
+                        group += " " + std::string( _( "or" ) ) + " ";
+                    }
+                    group += tool.to_string( batch_size );
+                    group += tool.has( crafter, crafting_inv, return_true<item>, batch_size ) ?
+                             " " + std::string( _( "available" ) ) :
+                             " " + std::string( _( "missing" ) );
+                }
+                if( !group.empty() ) {
+                    recipe_speech += " " + group + ".";
+                }
+            }
+        }
+        if( selected_recipe.skill_used ) {
+            const int required = selected_recipe.get_difficulty( *crafter );
+            recipe_speech += " " + string_format( _( "Primary skill: %s. Level %d, required %d." ),
+                             selected_recipe.skill_used->name(),
+                             crafter->get_skill_level( selected_recipe.skill_used ), required );
+        }
+        for( const auto &skill : selected_recipe.required_skills ) {
+            recipe_speech += " " + string_format( _( "Additional skill: %s. Level %d, required %d." ),
+                             skill.first->name(), crafter->get_skill_level( skill.first ), skill.second );
+        }
+        const auto &recipe_proficiencies = selected_recipe.get_proficiencies();
+        if( !recipe_proficiencies.empty() ) {
+            recipe_speech += " " + std::string( _( "Proficiencies:" ) );
+            const std::vector<Character *> helpers = crafter->get_crafting_group();
+            for( const recipe_proficiency &prof : recipe_proficiencies ) {
+                const bool known = crafter->has_proficiency( prof.id ) ||
+                                   std::any_of( helpers.begin(), helpers.end(),
+                [&prof]( const Character *helper ) {
+                    return helper->has_proficiency( prof.id );
+                } );
+                recipe_speech += " " + prof.id->name();
+                recipe_speech += prof.required ? " " + std::string( _( "required" ) ) :
+                                 " " + std::string( _( "optional" ) );
+                recipe_speech += known ? ", " + std::string( _( "known" ) ) :
+                                 ", " + std::string( _( "not known" ) );
+                recipe_speech += ".";
+            }
+        }
+        const int expected_turns = crafter->expected_time_to_craft( selected_recipe, batch_size ) /
+                                   to_moves<int>( 1_turns );
+        recipe_speech += " " + string_format( _( "Estimated crafting time: %s." ),
+                                             approx_craft_time( expected_turns ) );
+        recipe_speech += " " + string_format( _( "Success chance: %.1f percent." ),
+                                             100.f * crafter->recipe_success_chance( selected_recipe ) );
         get_narration_service().announce( {
             narration_event::item_description_opened, recipe_speech, true
         } );
