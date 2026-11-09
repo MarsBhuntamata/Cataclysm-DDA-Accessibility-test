@@ -52,7 +52,19 @@ jobs:
         run: |
           $env:VCPKG_ROOT = "${{ runner.workspace }}\b\vcpkg"
           $env:VCPKG_INSTALLATION_ROOT = $env:VCPKG_ROOT
-          cmake --preset windows-tiles-sounds-x64-msvc
+          # Transient GitHub release download failures (HTTP 504) can interrupt
+          # vcpkg's CMake/Ninja dependency bootstrap. Retry configuration safely.
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "CMake configuration attempt $attempt of $maxAttempts"
+            cmake --preset windows-tiles-sounds-x64-msvc
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq $maxAttempts) {
+              throw "CMake configuration failed after $maxAttempts attempts (exit code $LASTEXITCODE)."
+            }
+            Write-Warning "CMake configuration failed (exit code $LASTEXITCODE); retrying after 30 seconds."
+            Start-Sleep -Seconds 30
+          }
 
       - name: Compile game and accessibility tests
         shell: pwsh
