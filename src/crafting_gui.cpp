@@ -2890,14 +2890,14 @@ void crafting_ui_impl::process_action( const std::string &action_in,
             recipe_speech += " " + std::string( _( "Primary skill:" ) ) + " " +
                              selected_recipe.skill_used->name() + ". " +
                              std::string( _( "Level" ) ) + " " +
-                             std::to_string( crafter->get_skill_level( selected_recipe.skill_used ) ) +
+                             std::to_string( static_cast<int>( crafter->get_skill_level( selected_recipe.skill_used ) ) ) +
                              ", " + std::string( _( "required" ) ) + " " +
                              std::to_string( required ) + ".";
         }
         for( const auto &skill : selected_recipe.required_skills ) {
             recipe_speech += " " + std::string( _( "Additional skill:" ) ) + " " +
                              skill.first->name() + ". " + std::string( _( "Level" ) ) + " " +
-                             std::to_string( crafter->get_skill_level( skill.first ) ) +
+                             std::to_string( static_cast<int>( crafter->get_skill_level( skill.first ) ) ) +
                              ", " + std::string( _( "required" ) ) + " " +
                              std::to_string( skill.second ) + ".";
         }
