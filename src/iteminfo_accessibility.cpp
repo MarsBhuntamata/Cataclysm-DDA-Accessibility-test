@@ -22,6 +22,11 @@ void append_paragraph( std::string &target, const std::string &paragraph )
 
 std::string iteminfo_entry_text( const iteminfo &entry )
 {
+    // ASCII diagrams have visual layout but no sensible spoken reading.
+    // The item description already provides textual armor coverage details.
+    if( entry.bIsArt ) {
+        return {};
+    }
     if( entry.sType == "DESCRIPTION" ) {
         return !entry.bDrawName || entry.sName == "--" ? std::string() : entry.sName;
     }
