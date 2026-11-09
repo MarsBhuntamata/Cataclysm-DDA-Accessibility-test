@@ -2886,13 +2886,21 @@ void crafting_ui_impl::process_action( const std::string &action_in,
         }
         if( selected_recipe.skill_used ) {
             const int required = selected_recipe.get_difficulty( *crafter );
-            recipe_speech += " " + string_format( _( "Primary skill: %s. Level %d, required %d." ),
-                             selected_recipe.skill_used->name(),
-                             crafter->get_skill_level( selected_recipe.skill_used ), required );
+            // Build narration from translated labels rather than sending
+            // a mixed string/integer format to CDDA's strict formatter.
+            recipe_speech += " " + std::string( _( "Primary skill:" ) ) + " " +
+                             selected_recipe.skill_used->name() + ". " +
+                             std::string( _( "Level" ) ) + " " +
+                             std::to_string( crafter->get_skill_level( selected_recipe.skill_used ) ) +
+                             ", " + std::string( _( "required" ) ) + " " +
+                             std::to_string( required ) + ".";
         }
         for( const auto &skill : selected_recipe.required_skills ) {
-            recipe_speech += " " + string_format( _( "Additional skill: %s. Level %d, required %d." ),
-                             skill.first->name(), crafter->get_skill_level( skill.first ), skill.second );
+            recipe_speech += " " + std::string( _( "Additional skill:" ) ) + " " +
+                             skill.first->name() + ". " + std::string( _( "Level" ) ) + " " +
+                             std::to_string( crafter->get_skill_level( skill.first ) ) +
+                             ", " + std::string( _( "required" ) ) + " " +
+                             std::to_string( skill.second ) + ".";
         }
         const auto &recipe_proficiencies = selected_recipe.get_proficiencies();
         if( !recipe_proficiencies.empty() ) {
@@ -2914,8 +2922,8 @@ void crafting_ui_impl::process_action( const std::string &action_in,
         }
         const int expected_turns = crafter->expected_time_to_craft( selected_recipe, batch_size ) /
                                    to_moves<int>( 1_turns );
-        recipe_speech += " " + string_format( _( "Estimated crafting time: %s." ),
-                                             approx_craft_time( expected_turns ) );
+        recipe_speech += " " + std::string( _( "Estimated crafting time:" ) ) + " " +
+                         approx_craft_time( expected_turns ) + ".";
         recipe_speech += " " + string_format( _( "Success chance: %.1f percent." ),
                                              100.f * crafter->recipe_success_chance( selected_recipe ) );
         get_narration_service().announce( {
