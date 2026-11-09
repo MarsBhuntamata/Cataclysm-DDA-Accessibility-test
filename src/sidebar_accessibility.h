@@ -66,8 +66,11 @@ std::string speak_status_section( const status_section &section );
 /** One-shot summary: visible creatures first, then every abnormal row. */
 std::string build_status_glance( const avatar &ava );
 
-/** "Creatures: 2 zombies north, hostile sees you; dog west." */
+/** "Creatures: 2 zombies north, hostile sees you; dog west. One hostile can see you." */
 std::string describe_visible_threats( const avatar &ava );
+
+/** Visible creatures hostile to the player that currently have line of sight to them. */
+int count_hostiles_seeing_player( const avatar &ava );
 
 // Helpers exposed for unit tests.
 std::string expand_sidebar_label( const std::string &label, const widget_id &wid );

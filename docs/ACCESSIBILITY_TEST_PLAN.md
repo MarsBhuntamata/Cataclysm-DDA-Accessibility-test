@@ -32,8 +32,8 @@ If the function row controls hardware, use Fn plus the corresponding function ke
 
 - Verify known-visible vs unseen tiles in the F8 survey and look cursor.
 - Confirm look-around speaks only on cursor change and F7 repeats it.
-- Check Ctrl+S on a healthy character alone: "All sidebar values normal" and "No creatures in view". With a zombie in view it names the creature, its direction, and "hostile sees you" when it has noticed you. While bleeding it names the limb and the bleeding intensity.
-- In the F9 browser, toggle a panel off in the sidebar options (`}`) and reopen: that section must disappear. Switch the layout (labels, classic, compact) and confirm the sections follow.
+- Check Ctrl+S on a healthy character alone: "All sidebar values normal" and "No creatures in view". With a zombie in view it names the creature, its direction, and ends with "One hostile can see you" (or a count) when it has line of sight to you, or "No hostile can see you" otherwise. Compare with the Shift+V scanner, which should agree. While bleeding it names the limb and the bleeding intensity.
+- In the F9 browser, toggle a panel off in Sidebar options (unbound by default: assign it a key such as `}` in the `?` keybindings menu, or bind the Debug menu so the Debug category of the action menu shows it) and reopen: that section must disappear. Switch the layout (labels, classic, compact) and confirm the sections follow.
 - Limb rows read "cur of max" plus "low" or "critical" bands and any wound words; graphs and the body graph are never spoken as symbols.
 - Confirm F10 reports actual recent messages and does not advance turns.
 - Toggle F11 on, move between different terrain, then turn off and confirm silence on movement.

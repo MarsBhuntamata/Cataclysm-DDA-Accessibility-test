@@ -20,6 +20,8 @@
 #include "enum_conversions.h"
 #include "enums.h"
 #include "line.h"
+#include "map.h"
+#include "map_scale_constants.h"
 #include "messages.h"
 #include "mtype.h"
 #include "npc.h"
@@ -887,6 +889,19 @@ std::string speak_status_section( const status_section &section )
     return join_strings( parts, " " );
 }
 
+int count_hostiles_seeing_player( const avatar &ava )
+{
+    const map &here = get_map();
+    int count = 0;
+    for( const Creature *critter : ava.get_visible_creatures( MAX_VIEW_DISTANCE ) ) {
+        if( critter != nullptr && critter->attitude_to( ava ) == Creature::Attitude::HOSTILE &&
+            critter->sees( here, ava ) ) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 std::string describe_visible_threats( const avatar &ava )
 {
     const monster_visible_info &mv = ava.get_mon_visible();
@@ -908,8 +923,19 @@ std::string describe_visible_threats( const avatar &ava )
     }
     if( parts.empty() ) {
         out += _( "No creatures in view." );
+        return out;
+    }
+    out += std::string( _( "Creatures" ) ) + ": " + join_strings( parts, "; " ) + ".";
+    // The sidebar compass only flags line of sight for creatures past the
+    // edge of the map window; a sighted player sees the on-screen ones
+    // directly. Check every visible hostile ourselves instead.
+    const int hostiles_seeing = count_hostiles_seeing_player( ava );
+    if( hostiles_seeing == 1 ) {
+        out += std::string( " " ) + _( "One hostile can see you." );
+    } else if( hostiles_seeing > 1 ) {
+        out += " " + string_format( _( "%d hostiles can see you." ), hostiles_seeing );
     } else {
-        out += std::string( _( "Creatures" ) ) + ": " + join_strings( parts, "; " ) + ".";
+        out += std::string( " " ) + _( "No hostile can see you." );
     }
     return out;
 }

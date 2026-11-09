@@ -7,6 +7,7 @@
 #include "calendar.h"
 #include "cata_catch.h"
 #include "coordinates.h"
+#include "creature.h"
 #include "effect.h"
 #include "game.h"
 #include "map.h"
@@ -275,6 +276,21 @@ TEST_CASE( "compass and glance describe visible creatures", "[sidebar_accessibil
         const std::vector<status_row> rows = accessible_widget_rows( widget_test_compass_N, ava, 36 );
         REQUIRE( rows.size() == 1 );
         CHECK( rows[0].value == "clear" );
+    }
+
+    SECTION( "hostile on screen with line of sight is reported" ) {
+        // Close enough to be drawn on the map window, where the sidebar
+        // compass never flags line of sight.
+        const tripoint_bub_ms east = ava.pos_bub() + tripoint( 3, 0, 0 );
+        monster &zed = spawn_test_monster( "mon_zombie", east );
+        g->mon_info_update();
+        REQUIRE( ava.sees( here, zed ) );
+        REQUIRE( zed.sees( here, ava ) );
+        REQUIRE( zed.attitude_to( ava ) == Creature::Attitude::HOSTILE );
+        CHECK( count_hostiles_seeing_player( ava ) == 1 );
+        const std::string threats = describe_visible_threats( ava );
+        CHECK( contains( threats, "zombie" ) );
+        CHECK( contains( threats, "One hostile can see you." ) );
     }
 
     SECTION( "wounds are always part of the glance" ) {
