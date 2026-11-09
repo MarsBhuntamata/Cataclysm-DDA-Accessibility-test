@@ -6377,7 +6377,6 @@ look_around_result game::look_around(
         if( ( ( show_window && !select_zone && !is_moving_zone ) ||
               select_zone || is_moving_zone ) &&
             ( !last_spoken_look_position || *last_spoken_look_position != lp ) ) {
-            ( !last_spoken_look_position || *last_spoken_look_position != lp ) ) {
             const tripoint_bub_ms home = u.pos_bub();
             const int dx = lp.x() - home.x();
             const int dy = lp.y() - home.y();
