@@ -5969,6 +5969,9 @@ void game::peek()
 {
     map &here = get_map();
 
+    get_narration_service().announce( {
+        narration_event::selection_changed, _( "Peek where? Choose a direction." ), true
+    } );
     const std::optional<tripoint_rel_ms> p = choose_direction( _( "Peek where?" ), true );
     if( !p ) {
         return;
@@ -6289,7 +6292,7 @@ look_around_result game::look_around(
 
     bool blink = true;
     // Look-around uses a hand-moved cursor, not a uilist. Read it only when
-    // the position changes and only for the ordinary browsing mode.
+    // the position changes in ordinary look and peeking modes.
     std::optional<tripoint_bub_ms> last_spoken_look_position;
     look_around_result result;
 
@@ -6392,7 +6395,7 @@ look_around_result game::look_around(
         invalidate_main_ui_adaptor();
         ui_manager::redraw();
 
-        if( ( ( show_window && !select_zone && !peeking && !is_moving_zone ) ||
+        if( ( ( show_window && !select_zone && !is_moving_zone ) ||
               select_zone || is_moving_zone ) &&
             ( !last_spoken_look_position || *last_spoken_look_position != lp ) ) {
             const tripoint_bub_ms home = u.pos_bub();
@@ -6417,6 +6420,9 @@ look_around_result game::look_around(
             }
             std::string speech = string_format( "%s. %s", relative,
                                                  accessibility_describe_local_tile( lp ) );
+            if( peeking ) {
+                speech = std::string( _( "Peeking. " ) ) + speech;
+            }
             if( select_zone ) {
                 speech = ( has_first_point ? std::string( _( "Second zone corner. " ) ) :
                            std::string( _( "First zone corner. " ) ) ) + speech;
