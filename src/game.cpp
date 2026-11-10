@@ -2611,6 +2611,25 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             }
         }
     }
+    // Appliances and wall wiring are stored as vehicle parts, not terrain.
+    // Announce the part at this tile rather than only the underlying floor.
+    if( const optional_vpart_position vp = here.veh_at( tile ) ) {
+        if( vp->vehicle().is_appliance() ) {
+            if( const std::optional<vpart_reference> appliance =
+                    vp->part_with_feature( VPFLAG_APPLIANCE, false ) ) {
+                description += ". " + string_format( _( "Appliance: %s." ),
+                                                    appliance->info().name() );
+            } else {
+                description += ". " + string_format( _( "Power grid appliance: %s." ),
+                                                    vp->vehicle().name );
+            }
+            if( vp->vehicle().is_powergrid() ) {
+                description += " " + std::string( _( "Power grid segment." ) );
+            }
+        } else {
+            description += ". " + string_format( _( "Vehicle: %s." ), vp->vehicle().name );
+        }
+    }
     if( here.sees_some_items( tile, observer ) ) {
         description += ". " + std::string( _( "Items on the ground." ) );
     }
