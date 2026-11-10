@@ -1,5 +1,7 @@
 #include "auto_pickup.h"
 
+#include "accessibility.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -352,10 +354,30 @@ void user_interface::show()
     ctxt.register_action( "TEST_RULE" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "SWITCH_AUTO_PICKUP_OPTION" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     const bool allow_swapping = tabs.size() == 2;
     if( allow_swapping ) {
         ctxt.register_action( "SWAP_RULE_GLOBAL_CHAR" );
     }
+
+    const auto announce_selection = [&]() {
+        const rule_list &rules = tabs[iTab].new_rules;
+        std::string speech = tabs[iTab].title;
+        speech += get_option<bool>( "AUTO_PICKUP" ) ? _( ". Auto pickup enabled." ) :
+                  _( ". Auto pickup disabled." );
+        if( rules.empty() ) {
+            speech += _( " No pickup rules." );
+        } else {
+            const rule &selected = rules[iLine];
+            speech += string_format( _( " Rule %d of %d. %s. %s. %s. %s column." ),
+                                     iLine + 1, static_cast<int>( rules.size() ),
+                                     selected.sRule.empty() ? _( "Empty rule" ) : selected.sRule,
+                                     selected.bActive ? _( "Enabled" ) : _( "Disabled" ),
+                                     selected.bExclude ? _( "Exclude" ) : _( "Include" ),
+                                     bLeftColumn ? _( "Pattern" ) : _( "Include or exclude" ) );
+        }
+        get_narration_service().announce( { narration_event::selection_changed, speech, true } );
+    };
 
     ui.on_redraw( [&]( const ui_adaptor & ) {
         // Redraw the border
@@ -449,6 +471,7 @@ void user_interface::show()
         wnoutrefresh( w );
     } );
 
+    announce_selection();
     while( true ) {
         rule_list &cur_rules = tabs[iTab].new_rules;
 
@@ -459,6 +482,13 @@ void user_interface::show()
         const int recmax = static_cast<int>( cur_rules.size() );
         const int scroll_rate = recmax > 20 ? 10 : 3;
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
+        const size_t previous_tab = iTab;
+        const int previous_line = iLine;
+        const bool previous_column = bLeftColumn;
 
         if( action == "NEXT_TAB" || action == "PREV_TAB" ) {
             iTab = inc_clamp_wrap( iTab, action == "NEXT_TAB", tabs.size() );
@@ -551,6 +581,14 @@ void user_interface::show()
         } else if( action == "SWITCH_AUTO_PICKUP_OPTION" ) {
             get_options().get_option( "AUTO_PICKUP" ).setNext();
             get_options().save();
+        }
+        if( iTab != previous_tab || iLine != previous_line || bLeftColumn != previous_column ||
+            action == "ADD_RULE" || action == "REMOVE_RULE" || action == "COPY_RULE" ||
+            action == "SWAP_RULE_GLOBAL_CHAR" || action == "CONFIRM" ||
+            action == "ENABLE_RULE" || action == "DISABLE_RULE" ||
+            action == "MOVE_RULE_UP" || action == "MOVE_RULE_DOWN" ||
+            action == "SWITCH_AUTO_PICKUP_OPTION" ) {
+            announce_selection();
         }
     }
 
