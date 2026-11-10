@@ -1,12 +1,14 @@
 #include "ui_iteminfo.h"
 
 #include <imgui/imgui.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "accessibility.h"
 #include "color.h"
 #include "input_enums.h"
+#include "iteminfo_accessibility.h"
 #include "translations.h"
 #include "ui_manager.h"
 
@@ -28,6 +30,13 @@ iteminfo_window::iteminfo_window( item_info_data &info, point pos, int width, in
         }
     }
     ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "READ_ITEM_DESCRIPTION" );
+    ctxt.register_action( "UP" );
+    ctxt.register_action( "DOWN" );
+    ctxt.register_action( "PAGE_UP" );
+    ctxt.register_action( "PAGE_DOWN" );
+    ctxt.register_action( "HOME" );
+    ctxt.register_action( "END" );
     ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "CONFIRM" );
     ctxt.register_action( "QUIT" );
@@ -70,30 +79,109 @@ void iteminfo_window::execute()
         return;
     }
 
+    const std::string narration = data.accessibility_narration.empty() ?
+                                  make_item_narration_text( data.get_item_name(), data.get_type_name(),
+                                          data.get_item_display() ) : data.accessibility_narration;
+    std::vector<std::string> lines;
+    // The structured item-info generator separates each entry with a newline.
+    // Break unusually long entries into sentences as well, so a rope or armor
+    // description cannot consume the entire speech queue at once.
+    size_t begin = 0;
+    while( begin < narration.size() ) {
+        const size_t end = narration.find( '\n', begin );
+        const std::string paragraph = narration.substr( begin,
+                                      end == std::string::npos ? std::string::npos : end - begin );
+        size_t segment = 0;
+        while( segment < paragraph.size() ) {
+            size_t split = std::string::npos;
+            if( paragraph.size() - segment > 180 ) {
+                split = paragraph.find( ". ", segment );
+            }
+            const std::string text = paragraph.substr( segment,
+                                     split == std::string::npos ? std::string::npos : split - segment + 1 );
+            if( text.find_first_not_of( " \t\r" ) != std::string::npos ) {
+                lines.push_back( text );
+            }
+            if( split == std::string::npos ) {
+                break;
+            }
+            segment = split + 2;
+        }
+        if( end == std::string::npos ) {
+            break;
+        }
+        begin = end + 1;
+    }
+    if( lines.empty() ) {
+        lines.push_back( _( "No item description available." ) );
+    }
+
+    size_t spoken_line = 0;
+    get_narration_service().announce( {
+        narration_event::item_description_opened,
+        lines.front() + " " +
+        _( "Use Up and Down to read each description line. Page Up and Page Down skip ten lines. Home and End jump to the beginning or end. F8 reads the full description." ),
+        true
+    } );
+
     while( true ) {
         ui_manager::redraw();
-        std::string action = ctxt.handle_input();
+        const std::string action = ctxt.handle_input();
+        bool moved = false;
 
-        if( data.handle_scrolling && data.arrow_scrolling && action == "UP" ) {
-            s = cataimgui::scroll::line_up;
-        } else if( data.handle_scrolling && data.arrow_scrolling && action == "DOWN" ) {
-            s = cataimgui::scroll::line_down;
-        } else if( data.handle_scrolling && action == "PAGE_UP" ) {
-            s = cataimgui::scroll::page_up;
-        } else if( data.handle_scrolling && action == "PAGE_DOWN" ) {
-            s = cataimgui::scroll::page_down;
-        } else if( data.handle_scrolling && action == "HOME" ) {
-            s = cataimgui::scroll::begin;
-        } else if( data.handle_scrolling && action == "END" ) {
-            s = cataimgui::scroll::end;
+        if( action == "UP" ) {
+            if( spoken_line > 0 ) {
+                --spoken_line;
+            }
+            if( data.handle_scrolling && data.arrow_scrolling ) {
+                s = cataimgui::scroll::line_up;
+            }
+            moved = true;
+        } else if( action == "DOWN" ) {
+            spoken_line = std::min( spoken_line + 1, lines.size() - 1 );
+            if( data.handle_scrolling && data.arrow_scrolling ) {
+                s = cataimgui::scroll::line_down;
+            }
+            moved = true;
+        } else if( action == "PAGE_UP" ) {
+            spoken_line = spoken_line > 10 ? spoken_line - 10 : 0;
+            if( data.handle_scrolling ) {
+                s = cataimgui::scroll::page_up;
+            }
+            moved = true;
+        } else if( action == "PAGE_DOWN" ) {
+            spoken_line = std::min( spoken_line + 10, lines.size() - 1 );
+            if( data.handle_scrolling ) {
+                s = cataimgui::scroll::page_down;
+            }
+            moved = true;
+        } else if( action == "HOME" ) {
+            spoken_line = 0;
+            if( data.handle_scrolling ) {
+                s = cataimgui::scroll::begin;
+            }
+            moved = true;
+        } else if( action == "END" ) {
+            spoken_line = lines.size() - 1;
+            if( data.handle_scrolling ) {
+                s = cataimgui::scroll::end;
+            }
+            moved = true;
+        } else if( action == "READ_ITEM_DESCRIPTION" ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help, narration, true
+            } );
         } else if( action == "REPEAT_NARRATION" ) {
             get_narration_service().repeat_last();
         } else if( action == "CONFIRM" || action == "QUIT" ||
                    ( data.any_input && action == "ANY_INPUT" && !ctxt.get_raw_input().sequence.empty() ) ) {
             break;
         }
-
-        // mouse click on x to close leads here
+        if( moved ) {
+            get_narration_service().announce( {
+                narration_event::selection_changed, lines[spoken_line], true
+            } );
+        }
         if( !get_is_open() ) {
             break;
         }
