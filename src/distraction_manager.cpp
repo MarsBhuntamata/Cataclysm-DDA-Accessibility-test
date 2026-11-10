@@ -10,6 +10,7 @@
 #include "input_context.h"
 #include "output.h"
 #include "point.h"
+#include "string_formatter.h"
 #include "translations.h"
 #include "ui_helpers.h"
 #include "ui_manager.h"
