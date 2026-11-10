@@ -588,6 +588,9 @@ struct item_info_data {
         }
 
         int *ptr_selected = &selected;
+        // Full speech-only description, including contextual data such as an
+        // item's inventory location or a recipe's required components.
+        std::string accessibility_narration;
         bool without_getch = false;
         bool without_border = false;
         bool handle_scrolling = false;
