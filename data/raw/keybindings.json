@@ -5757,6 +5757,14 @@
   },
   {
     "type": "keybinding",
+    "id": "READ_ITEM_DESCRIPTION",
+    "name": "Read entire item or recipe description (F8)",
+    "bindings": [
+      { "input_method": "keyboard_any", "key": "F8" }
+    ]
+  },
+  {
+    "type": "keybinding",
     "id": "REPEAT_NARRATION",
     "name": "Repeat last narration (F7)",
     "bindings": [
