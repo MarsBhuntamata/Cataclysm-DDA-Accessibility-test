@@ -1,5 +1,7 @@
 #include "auto_note.h"
 
+#include "accessibility.h"
+
 #include <cstddef>
 #include <functional>
 #include <iosfwd>
@@ -329,6 +331,7 @@ void auto_note_manager_gui::show()
     input_context ctxt{ "AUTO_NOTES" };
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "SWITCH_AUTO_NOTE_OPTION" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "NEXT_TAB" );
     if( !char_emptyMode || !global_emptyMode ) {
@@ -339,6 +342,27 @@ void auto_note_manager_gui::show()
         ctxt.register_action( "DISABLE_MAPEXTRA_NOTE" );
         ctxt.register_action( "CHANGE_MAPEXTRA_CHARACTER" );
     }
+
+    const auto announce_selection = [&]() {
+        const bool empty = bCharacter ? char_emptyMode : global_emptyMode;
+        std::string speech = bCharacter ? _( "Character auto notes. " ) : _( "Global auto notes. " );
+        speech += get_option<bool>( "AUTO_NOTES_MAP_EXTRAS" ) ?
+                  _( "Auto notes enabled. " ) : _( "Auto notes disabled. " );
+        if( empty ) {
+            speech += _( "No discovered map extras in this list." );
+        } else {
+            const map_extra_id &id = ( bCharacter ? char_displayCache : global_displayCache )[currentLine];
+            const auto &entry = ( bCharacter ? char_mapExtraCache : global_mapExtraCache ).at( id );
+            speech += entry.first.name();
+            speech += entry.second ? _( ". Enabled." ) : _( ". Disabled." );
+            const auto &symbols = bCharacter ? char_custom_symbol_cache : global_custom_symbol_cache;
+            const auto custom = symbols.find( id );
+            if( custom != symbols.end() ) {
+                speech += string_format( _( " Custom symbol: %s." ), custom->second.get_symbol_string() );
+            }
+        }
+        get_narration_service().announce( { narration_event::selection_changed, speech, true } );
+    };
 
     ui.on_redraw( [&]( const ui_adaptor & ) {
         // == Draw border
@@ -465,19 +489,27 @@ void auto_note_manager_gui::show()
         wnoutrefresh( w );
     } );
 
+    announce_selection();
     while( true ) {
         ui_manager::redraw();
 
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
 
         // Actions that also work with no items to display
         if( action == "SWITCH_AUTO_NOTE_OPTION" ) {
             get_options().get_option( "AUTO_NOTES_MAP_EXTRAS" ).setNext();
             get_options().save();
+            announce_selection();
         } else if( action == "QUIT" ) {
             break;
         } else if( action == "NEXT_TAB" ) {
             bCharacter = !bCharacter;
+            currentLine = 0;
+            announce_selection();
         }
 
         if( bCharacter ? char_emptyMode : global_emptyMode ) {
@@ -491,13 +523,19 @@ void auto_note_manager_gui::show()
                 global_mapExtraCache )[currentItem];
         const int scroll_rate = cacheSize > 20 ? 10 : 3;
 
+        const int previous_line = currentLine;
         if( navigate_ui_list( action, currentLine, scroll_rate, cacheSize, true ) ) {
+            if( currentLine != previous_line ) {
+                announce_selection();
+            }
         } else if( action == "ENABLE_MAPEXTRA_NOTE" ) {
             entry.second = true;
             ( bCharacter ? charwasChanged : globalwasChanged ) = true;
+            announce_selection();
         } else if( action == "DISABLE_MAPEXTRA_NOTE" ) {
             entry.second = false;
             ( bCharacter ? charwasChanged : globalwasChanged ) = true;
+            announce_selection();
         } else if( action == "CHANGE_MAPEXTRA_CHARACTER" ) {
             string_input_popup_imgui custom_symbol_popup( 0 );
             custom_symbol_popup.set_label( _( "Enter a map extra custom symbol (empty to unset):" ) );
@@ -544,10 +582,12 @@ void auto_note_manager_gui::show()
                     set_cached_custom_symbol( currentItem, value_to_set, bCharacter );
                 }
                 ( bCharacter ? charwasChanged : globalwasChanged ) = true;
+                announce_selection();
             }
         } else if( action == "CONFIRM" ) {
             entry.second = !entry.second;
             ( bCharacter ? charwasChanged : globalwasChanged ) = true;
+            announce_selection();
         }
     }
 
