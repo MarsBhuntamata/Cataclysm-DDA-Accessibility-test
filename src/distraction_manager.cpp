@@ -1,5 +1,7 @@
 #include "distraction_manager.h"
 
+#include "accessibility.h"
+
 #include <string>
 #include <vector>
 
@@ -74,8 +76,20 @@ void distraction_manager_gui::show()
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "CONFIRM" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_leftright();
     ctxt.register_navigate_ui_list();
+
+    const auto announce_selection = [&]() {
+        const configurable_distraction &entry = get_configurable_distractions()[currentLine];
+        const std::string speech = string_format( _( "%s. %s. %s" ),
+                                   _( entry.name.c_str() ),
+                                   *entry.state ? _( "Enabled" ) : _( "Disabled" ),
+                                   _( entry.description.c_str() ) );
+        get_narration_service().announce( {
+            narration_event::selection_changed, speech, true
+        } );
+    };
 
     ui.on_redraw( [&]( const ui_adaptor & ) {
         // Draw border
@@ -131,6 +145,7 @@ void distraction_manager_gui::show()
         wnoutrefresh( w );
     } );
 
+    announce_selection();
     while( true ) {
         ui_manager::redraw();
 
@@ -139,9 +154,17 @@ void distraction_manager_gui::show()
         if( action == "QUIT" ) {
             break;
         }
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
 
+        const int previous_line = currentLine;
         bool toggle_state;
         if( navigate_ui_list( action, currentLine, 5, number_of_distractions, true ) ) {
+            if( currentLine != previous_line ) {
+                announce_selection();
+            }
         } else if( action == "CONFIRM" || action == "LEFT" || action == "RIGHT" ) {
             *( get_configurable_distractions()[currentLine].state ) ^= true;
             if( get_configurable_distractions()[currentLine].is_toggle ) {
@@ -163,6 +186,7 @@ void distraction_manager_gui::show()
                 uistate.distraction_withdrawal = toggle_state;
                 uistate.distraction_craft_step_complete = toggle_state;
             }
+            announce_selection();
         }
     }
 }
