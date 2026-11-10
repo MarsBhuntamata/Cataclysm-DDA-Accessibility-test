@@ -2925,9 +2925,7 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                          approx_craft_time( expected_turns ) + ".";
         recipe_speech += " " + string_format( _( "Success chance: %.1f percent." ),
                                              100.f * crafter->recipe_success_chance( selected_recipe ) );
-        get_narration_service().announce( {
-            narration_event::item_description_opened, recipe_speech, true
-        } );
+        data.accessibility_narration = recipe_speech;
         iteminfo_window info_window( data,
                                      point::north_west, info_width, info_height );
         info_window.execute();
