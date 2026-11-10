@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "bionics.h"
 #include "bodypart.h"
@@ -689,6 +690,37 @@ void avatar::power_bionics()
     ctxt.register_action( "TOGGLE_SHUTDOWN" );
     ctxt.register_action( "TOGGLE_SPRITE" );
     ctxt.register_action( "SORT" );
+    ctxt.register_action( "REPEAT_NARRATION" );
+
+    const auto announce_selected_bionic = [&]() {
+        const sorted_bionics &list = tab_mode == TAB_ACTIVE ? active : passive;
+        std::string speech = tab_mode == TAB_ACTIVE ? _( "Activatable bionics. " ) :
+                             _( "Passive bionics. " );
+        speech += string_format( _( "Power %s of %s. " ),
+                                 units::display( get_power_level() ),
+                                 units::display( get_max_power_level() ) );
+        if( list.empty() ) {
+            speech += tab_mode == TAB_ACTIVE ? _( "No activatable bionics installed." ) :
+                      _( "No passive bionics installed." );
+        } else {
+            const bionic &selected = *list[std::clamp( cursor, 0, static_cast<int>( list.size() ) - 1 )];
+            speech += string_format( _( "%d of %d. Key %c. " ),
+                                     cursor + 1, static_cast<int>( list.size() ), selected.invlet );
+            speech += build_bionic_powerdesc_string( selected, this );
+            speech += selected.powered ? _( ". Active." ) : _( ". Inactive." );
+            if( menu_mode == EXAMINING ) {
+                speech += _( " Description. " );
+                speech += selected.id->description.translated();
+                if( selected.has_weapon() ) {
+                    speech += string_format( _( " Installed weapon: %s." ), selected.get_weapon().tname() );
+                }
+            }
+        }
+        if( menu_mode == REASSIGNING ) {
+            speech += _( " Reassigning bionic hotkey." );
+        }
+        get_narration_service().announce( { narration_event::selection_changed, speech, true } );
+    };
 
     ui.on_redraw( [&]( const ui_adaptor & ) {
         if( hide ) {
@@ -773,6 +805,7 @@ void avatar::power_bionics()
         }
     } );
 
+    announce_selected_bionic();
     for( ;; ) {
         ui_manager::redraw();
 
@@ -780,7 +813,8 @@ void avatar::power_bionics()
         ::sorted_bionics *current_bionic_list = tab_mode == TAB_ACTIVE ? &active : &passive;
         max_scroll_position = std::max( 0, static_cast<int>( current_bionic_list->size() ) - LIST_HEIGHT );
         scroll_position = clamp( scroll_position, 0, max_scroll_position );
-        cursor = clamp<int>( cursor, 0, current_bionic_list->size() );
+        cursor = current_bionic_list->empty() ? 0 :
+                 clamp<int>( cursor, 0, static_cast<int>( current_bionic_list->size() ) - 1 );
 
 #if defined(__ANDROID__)
         ctxt.get_registered_manual_keys().clear();
@@ -791,11 +825,19 @@ void avatar::power_bionics()
 #endif
 
         const std::string action = ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
+        const int previous_cursor = cursor;
+        const bionic_tab_mode previous_tab = tab_mode;
+        const bionic_menu_mode previous_mode = menu_mode;
         const int ch = ctxt.get_raw_input().get_first_input();
         bionic *tmp = nullptr;
 
         if( action == "DOWN" ) {
-            if( static_cast<size_t>( cursor ) < current_bionic_list->size() - 1 ) {
+            if( !current_bionic_list->empty() &&
+                static_cast<size_t>( cursor ) < current_bionic_list->size() - 1 ) {
                 cursor++;
             } else {
                 cursor = 0;
@@ -808,7 +850,9 @@ void avatar::power_bionics()
                 scroll_position = std::max( cursor - half_list_view_location, 0 );
             }
         } else if( action == "UP" ) {
-            if( cursor > 0 ) {
+            if( current_bionic_list->empty() ) {
+                cursor = 0;
+            } else if( cursor > 0 ) {
                 cursor--;
             } else {
                 cursor = current_bionic_list->size() - 1;
@@ -1036,6 +1080,7 @@ void avatar::power_bionics()
                     if( moves < 0 ) {
                         return;
                     }
+                    announce_selected_bionic();
                     continue;
                 } else {
                     popup( _( "You can not activate %s!\n"
@@ -1075,6 +1120,12 @@ void avatar::power_bionics()
             }
         } else if( action == "QUIT" ) {
             break;
+        }
+        if( cursor != previous_cursor || tab_mode != previous_tab || menu_mode != previous_mode ||
+            action == "TOGGLE_SAFE_FUEL" || action == "TOGGLE_SHUTDOWN" ||
+            action == "TOGGLE_SPRITE" || action == "SORT" ||
+            action == "CONFIRM" || action == "REASSIGN" ) {
+            announce_selected_bionic();
         }
     }
 }
