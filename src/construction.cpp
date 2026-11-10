@@ -1420,6 +1420,11 @@ void place_construction( std::vector<construction_group_str_id> const &groups )
     g->add_draw_callback( draw_preview );
 
     const tripoint_bub_ms &loc = player_character.pos_bub();
+    get_narration_service().announce( {
+        narration_event::contextual_help,
+        _( "Construct where? Choose an adjacent tile with a direction key, or press Escape to cancel." ),
+        true
+    } );
     const std::optional<tripoint_bub_ms> pnt_ = choose_adjacent(
                 loc, _( "Construct where?" ),
                 /*allow_vertical=*/false, /*timeout=*/get_option<int>( "BLINK_SPEED" ),
