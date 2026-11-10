@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdlib>
 #include <initializer_list>
 #include <map>
 #include <memory>
@@ -7,6 +8,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "cached_options.h"
 #include "calendar.h"
@@ -729,6 +731,71 @@ void veh_app_interact::app_loop( map &here )
 {
     bool done = false;
     Character &you = get_player_character();
+
+    // The tiles UI draws these as connection lines. Provide the same
+    // connected-vehicle and merged-appliance information to screen readers.
+    const tripoint_bub_ms origin = you.pos_bub();
+    const auto position_text = [&]( const tripoint_bub_ms &pos ) {
+        const int dx = pos.x() - origin.x();
+        const int dy = pos.y() - origin.y();
+        const int dz = pos.z() - origin.z();
+        if( dx == 0 && dy == 0 && dz == 0 ) {
+            return std::string( _( "here" ) );
+        }
+        std::string direction;
+        if( dx != 0 ) {
+            direction += string_format( _( "%d %s" ), std::abs( dx ),
+                                        dx > 0 ? _( "east" ) : _( "west" ) );
+        }
+        if( dy != 0 ) {
+            if( !direction.empty() ) {
+                direction += ", ";
+            }
+            direction += string_format( _( "%d %s" ), std::abs( dy ),
+                                        dy > 0 ? _( "south" ) : _( "north" ) );
+        }
+        if( dz != 0 ) {
+            if( !direction.empty() ) {
+                direction += ", ";
+            }
+            direction += string_format( _( "%d %s" ), std::abs( dz ),
+                                        dz > 0 ? _( "above" ) : _( "below" ) );
+        }
+        return direction;
+    };
+    std::string grid_speech = string_format( _( "%s. Appliance connections. " ), veh->name );
+    grid_speech += has_battery_in_grid( here, veh ) ?
+                   _( "A battery is connected to this grid. " ) :
+                   _( "No connected battery detected. " );
+    int listed = 0;
+    for( const vpart_reference part : veh->get_all_parts() ) {
+        if( listed >= 30 ) {
+            grid_speech += _( " Additional components omitted. " );
+            break;
+        }
+        grid_speech += string_format( _( "%s, %s. " ), part.info().name(),
+                                      position_text( veh->bub_part_pos( here, part.part() ) ) );
+        ++listed;
+    }
+    const auto connected = veh->search_connected_vehicles( here );
+    if( connected.empty() ) {
+        grid_speech += _( "No external vehicle connections. " );
+    } else {
+        grid_speech += _( "Connected vehicles: " );
+        int listed_vehicles = 0;
+        for( const auto &link : connected ) {
+            if( listed_vehicles >= 20 ) {
+                grid_speech += _( " Additional vehicles omitted. " );
+                break;
+            }
+            const vehicle *other = link.first;
+            grid_speech += string_format( _( "%s, %s. " ), other->name,
+                                           position_text( other->bub_part_pos( here, other->part( 0 ) ) ) );
+            ++listed_vehicles;
+        }
+    }
+    get_narration_service().announce( { narration_event::ui_opened, grid_speech, true } );
+
     while( !done ) {
         // scope this tighter so that this ui is hidden when app_actions[ret]() triggers
         {
