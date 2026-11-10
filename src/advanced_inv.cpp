@@ -1783,22 +1783,26 @@ void advanced_inventory::action_examine( advanced_inv_listitem *sitem,
         return colstart + ( src == advanced_inventory::side::left ? w_width / 2 : 0 );
     };
     avatar &player_character = get_avatar();
-    // The advanced-inventory examine paths use separate item interfaces:
-    // carried items open the inventory action menu, while ground items open
-    // an iteminfo_window. Neither guarantees an initial description event.
-    // Read the selected item before opening either interface.
-    if( sitem && !sitem->items.empty() && sitem->items.front() ) {
-        const item_location &examined = sitem->items.front();
-        std::vector<iteminfo> spoken_info;
-        examined->info( true, spoken_info );
-        get_narration_service().announce( {
-            narration_event::item_description_opened,
-            make_item_narration_text(
-                examined->tname( 1, tname::unprefixed_tname, true ),
-                examined->type_name(), spoken_info, examined.describe( &player_character ) ),
-            true
-        } );
+    if( !sitem || sitem->items.empty() || !sitem->items.front() ) {
+        return;
     }
+    const item_location &examined = sitem->items.front();
+    const std::string item_name = examined->tname( 1, tname::unprefixed_tname, true );
+    const std::string type_name = examined->type_name();
+    const std::string location = examined.describe( &player_character );
+    std::vector<iteminfo> spoken_info;
+    std::vector<iteminfo> comparison_info;
+    examined->info( true, spoken_info );
+    item_info_data inspect_data( item_name, type_name, spoken_info, comparison_info );
+    inspect_data.accessibility_narration =
+        make_item_narration_text( item_name, type_name, spoken_info, location );
+    inspect_data.handle_scrolling = true;
+    inspect_data.arrow_scrolling = true;
+
+    // Review the item before its interactive carried-item action menu.
+    // Ground items use this reader as their examination interface.
+    iteminfo_window inspect_window( inspect_data, point( info_startx(), 0 ), info_width(), TERMY );
+    inspect_window.execute();
     if( spane.get_area() == AIM_INVENTORY || spane.get_area() == AIM_WORN ||
         ( spane.container && spane.container.carrier() == player_character.as_character() ) ) {
         const item_location &loc = sitem->items.front();
@@ -1823,19 +1827,6 @@ void advanced_inventory::action_examine( advanced_inv_listitem *sitem,
             player_character.inv->restack( player_character );
         }
         recalc = true;
-    } else {
-        item &it = *sitem->items.front();
-        std::vector<iteminfo> vThisItem;
-        std::vector<iteminfo> vDummy;
-        it.info( true, vThisItem );
-
-        item_info_data data( it.tname( 1, tname::unprefixed_tname, true ), it.type_name(), vThisItem,
-                             vDummy );
-        data.handle_scrolling = true;
-        data.arrow_scrolling = true;
-
-        iteminfo_window info_window( data, point( info_startx(), 0 ), info_width(), TERMY );
-        info_window.execute();
     }
     if( ret == KEY_NPAGE || ret == KEY_DOWN ) {
         spane.scroll_by( +1 );
