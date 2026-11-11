@@ -1009,6 +1009,8 @@ action_id input_context::display_menu( bool permit_execute_action )
     ctxt.register_action( "COORDINATE" );
     ctxt.register_action( "MOUSE_MOVE" );
     ctxt.register_action( "SELECT" );
+    ctxt.register_action( "CONFIRM" );
+    ctxt.register_action( "REPEAT_NARRATION" );
     ctxt.register_action( "REMOVE" );
     ctxt.register_action( "RESET" );
     ctxt.register_action( "ADD_LOCAL" );
@@ -1056,6 +1058,7 @@ action_id input_context::display_menu( bool permit_execute_action )
     int raw_input_char = 0;
     size_t accessible_row = 0;
     std::string last_spoken_keybinding;
+    std::string last_spoken_edit_mode;
     //const auto redraw = [&]( ui_adaptor & ui ) {
     //};
     //ui.on_redraw( redraw );
@@ -1064,6 +1067,7 @@ action_id input_context::display_menu( bool permit_execute_action )
         kb_menu.highlight_row_index = -1;
         ui_manager::redraw();
         if( kb_menu.status == kb_menu_status::show ) {
+            last_spoken_edit_mode.clear();
             std::string speech = _( "Keybindings." );
             if( kb_menu.filtered_registered_actions.empty() ) {
                 speech += " " + std::string( _( "No matching actions." ) );
@@ -1081,6 +1085,39 @@ action_id input_context::display_menu( bool permit_execute_action )
                     narration_event::selection_changed, speech, true
                 } );
                 last_spoken_keybinding = speech;
+            }
+        }
+        // Editing modes must announce the current action as the cursor moves.
+        // Keyboard users can press Enter on the spoken row instead of guessing
+        // a separate hotkey assigned only to the visual table.
+        if( kb_menu.status != kb_menu_status::show &&
+            kb_menu.status != kb_menu_status::filter &&
+            !kb_menu.filtered_registered_actions.empty() ) {
+            accessible_row = std::min( accessible_row,
+                                       kb_menu.filtered_registered_actions.size() - 1 );
+            const std::string &selected_id = kb_menu.filtered_registered_actions[accessible_row];
+            std::string operation;
+            if( kb_menu.status == kb_menu_status::add ) {
+                operation = _( "Add local binding" );
+            } else if( kb_menu.status == kb_menu_status::add_global ) {
+                operation = _( "Add global binding" );
+            } else if( kb_menu.status == kb_menu_status::remove ) {
+                operation = _( "Remove binding" );
+            } else if( kb_menu.status == kb_menu_status::reset ) {
+                operation = _( "Reset binding" );
+            } else if( kb_menu.status == kb_menu_status::execute ) {
+                operation = _( "Execute action" );
+            }
+            std::string speech = string_format(
+                                     _( "%s. Action %d of %d: %s. Current keys: %s. Press Enter to select this action, or Escape to cancel." ),
+                                     operation, static_cast<int>( accessible_row + 1 ),
+                                     static_cast<int>( kb_menu.filtered_registered_actions.size() ),
+                                     get_action_name( selected_id ), get_desc( selected_id ) );
+            if( speech != last_spoken_edit_mode ) {
+                get_narration_service().announce( {
+                    narration_event::selection_changed, speech, true
+                } );
+                last_spoken_edit_mode = speech;
             }
         }
         if( kb_menu.has_button_action() ) {
@@ -1172,14 +1209,19 @@ action_id input_context::display_menu( bool permit_execute_action )
             } else {
                 break;
             }
+        } else if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
         } else if( action == "HELP_KEYBINDINGS" ) {
             // update available hotkeys in case they've changed
             kb_menu.hotkeys = ctxt.get_available_single_char_hotkeys( display_help_hotkeys );
         } else if( !kb_menu.filtered_registered_actions.empty() &&
                    kb_menu.status != kb_menu_status::show ) {
             size_t action_index = SIZE_MAX;
-            if( action == "SELECT" && kb_menu.highlight_row_index != -1 ) {
+            if( action == "CONFIRM" ) {
+                action_index = accessible_row;
+            } else if( action == "SELECT" && kb_menu.highlight_row_index != -1 ) {
                 action_index = kb_menu.highlight_row_index;
+                accessible_row = action_index;
             } else {
                 size_t hotkey_index = kb_menu.hotkeys.find_first_of( raw_input_char );
                 if( hotkey_index == std::string::npos ) {
@@ -1202,23 +1244,57 @@ action_id input_context::display_menu( bool permit_execute_action )
             // Only attempt removal for a local context, or when there's
             // bindings for the default context.
             if( kb_menu.status == kb_menu_status::remove && ( is_local || !is_empty ) ) {
-                changed = action_remove( name, action_id, is_local, is_empty );
+                const bool applied = action_remove( name, action_id, is_local, is_empty );
+                changed = changed || applied;
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    applied ? string_format( _( "Removed binding for %s. Remaining keys: %s." ),
+                                             name, get_desc( action_id ) ) :
+                    string_format( _( "Binding removal cancelled or failed for %s." ), name ), true
+                } );
             } else if( kb_menu.status == kb_menu_status::reset ) {
-                changed = action_reset( action_id );
+                const bool applied = action_reset( action_id );
+                changed = changed || applied;
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    applied ? string_format( _( "Reset bindings for %s. Keys: %s." ),
+                                             name, get_desc( action_id ) ) :
+                    string_format( _( "Binding reset cancelled or failed for %s." ), name ), true
+                } );
             } else if( kb_menu.status == kb_menu_status::add_global && is_local ) {
                 // Disallow adding global actions to an action that already has a local defined.
                 popup( _( "There are already local keybindings defined for this action, please remove them first." ) );
             } else if( kb_menu.status == kb_menu_status::add ||
                        kb_menu.status == kb_menu_status::add_global ) {
-                changed = action_add( name, action_id, is_local, kb_menu.status );
+                const bool global_binding = kb_menu.status == kb_menu_status::add_global;
+                get_narration_service().announce( {
+                    narration_event::contextual_help,
+                    string_format( _( "Press the new key or key combination for %s." ), name ), true
+                } );
+                const bool applied = action_add( name, action_id, is_local, kb_menu.status );
+                changed = changed || applied;
+                get_narration_service().announce( {
+                    narration_event::selection_changed,
+                    applied ? string_format( _( "Added %s binding for %s. Keys: %s." ),
+                                             global_binding ? _( "global" ) : _( "local" ),
+                                             name, get_desc( action_id ) ) :
+                    string_format( _( "Binding assignment cancelled or failed for %s." ), name ), true
+                } );
             } else if( kb_menu.status == kb_menu_status::execute && permit_execute_action ) {
                 action_to_execute = look_up_action( action_id );
                 break;
             }
             kb_menu.status = kb_menu_status::show;
+            last_spoken_keybinding.clear();
         }
     }
 
+    if( changed ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            _( "Keybindings changed. Save changes? Confirm to keep them, or decline to discard." ), true
+        } );
+    }
     if( changed && query_yn( _( "Save changes?" ) ) ) {
         try {
             inp_mngr.save();
