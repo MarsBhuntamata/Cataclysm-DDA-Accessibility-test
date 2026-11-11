@@ -3042,9 +3042,30 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
 
         case ACTION_SKY:
             if( here.is_outside( player_character.pos_bub() ) ) {
+                // The sky weather overmap is visual. Narrate the conditions on
+                // opening so a screen-reader user can distinguish day/night
+                // without requiring a watch or an exact in-game timestamp.
+                std::string sky_description = _( "Sky: " );
+                if( is_dawn( calendar::turn ) ) {
+                    sky_description += _( "Dawn." );
+                } else if( is_dusk( calendar::turn ) ) {
+                    sky_description += _( "Dusk." );
+                } else if( is_day( calendar::turn ) ) {
+                    sky_description += _( "Daytime." );
+                } else {
+                    sky_description += _( "Nighttime." );
+                }
+                sky_description += " " + string_format( _( "Weather: %s." ),
+                                   get_weather().weather_id->name.translated() );
+                get_narration_service().announce( {
+                    narration_event::contextual_help, sky_description, true
+                } );
                 ui::omap::display_visible_weather();
             } else {
                 add_msg( m_info, _( "You can't see the sky from here." ) );
+                get_narration_service().announce( {
+                    narration_event::contextual_help, _( "You can't see the sky from here." ), true
+                } );
             }
             break;
 
