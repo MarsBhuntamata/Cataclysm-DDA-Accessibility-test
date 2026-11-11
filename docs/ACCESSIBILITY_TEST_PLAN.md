@@ -6,7 +6,8 @@
 These are bound only in DEFAULTMODE, to avoid hijacking text-entry and NPC dialogue shortcuts:
 
 - **Ctrl+L**: Survey the eight neighboring tiles. Also F8.
-- **Ctrl+S**: Read current character condition (stamina, pain, hunger, thirst, and hit points). Also F9.
+- **Ctrl+S**: Status glance. Visible creatures by direction, then every sidebar value that is currently outside its normal colour band, using the sidebar's own words.
+- **F9**: Status browser. A modal list of the active sidebar layout, one section per enabled panel in sidebar order.
 - **Ctrl+R**: Read the last five game messages. Also F10.
 
 **F6** still describes terrain underfoot, **F7** repeats the last announcement, and **F11** toggles automatic terrain-change speech. Existing Ctrl+R in dialogue and Ctrl+S in the string editor are retained in their respective contexts. Ctrl+Shift combinations are deliberately not used.
@@ -20,7 +21,7 @@ These keys are available in the regular game world, without spending a turn:
 - **F6**: Describe terrain beneath the player.
 - **F7**: Repeat the most recent speech (also in supported menus and look-around).
 - **F8**: Survey the eight immediately adjacent tiles, clockwise from north. Include visible creatures and ground-item presence without revealing unseen tiles.
-- **F9**: Read stamina, pain, hunger, thirst, and minimum/maximum body-part hit points (raw game values).
+- **F9**: Open the status browser. It should announce "Status" followed by the first section name and first row. Left/Right and Tab/Shift+Tab move between sections in the same order as the on-screen sidebar; Up/Down read rows; F8 reads the current section; F1 reads all sections; Escape closes. Reopening returns to the last section.
 - **F10**: Read up to five recent gameplay messages, oldest first.
 - **F11**: Toggle automatic terrain-change speech while walking. Off by default; only speaks when terrain names change.
 - **Look around**: Move the usual look cursor; NVDA should read the relative direction/distance, visible terrain, creatures, and items. The cursor does not consume a turn.
@@ -31,7 +32,9 @@ If the function row controls hardware, use Fn plus the corresponding function ke
 
 - Verify known-visible vs unseen tiles in the F8 survey and look cursor.
 - Confirm look-around speaks only on cursor change and F7 repeats it.
-- Check F9 in injured and healthy characters. Numbers are raw game data, not diagnoses.
+- Check Ctrl+S on a healthy character alone: "All sidebar values normal" and "No creatures in view". With a zombie in view it names the creature, its direction, and ends with "One hostile can see you" (or a count) when it has line of sight to you, or "No hostile can see you" otherwise. Compare with the Shift+V scanner, which should agree. While bleeding it names the limb and the bleeding intensity.
+- In the F9 browser, toggle a panel off in Sidebar options (unbound by default: assign it a key such as `}` in the `?` keybindings menu, or bind the Debug menu so the Debug category of the action menu shows it) and reopen: that section must disappear. Switch the layout (labels, classic, compact) and confirm the sections follow.
+- Limb rows read "cur of max" plus "low" or "critical" bands and any wound words; graphs and the body graph are never spoken as symbols.
 - Confirm F10 reports actual recent messages and does not advance turns.
 - Toggle F11 on, move between different terrain, then turn off and confirm silence on movement.
 - Verify NPC dialogues, input popups, menus, inventory, and clean window close still work.
