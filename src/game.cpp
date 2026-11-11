@@ -2617,8 +2617,8 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             if( const monster *mon = dynamic_cast<const monster *>( critter );
                 mon != nullptr && !observer.has_trait( trait_id( "INATTENTIVE" ) ) ) {
                 description += ". " + std::string( mon->sees( here, observer ) ?
-                    _( "Can see to your current location." ) :
-                    _( "Can't see to your current location." ) );
+                                                   _( "Can see to your current location." ) :
+                                                   _( "Can't see to your current location." ) );
             }
             // Describe visible injury in look-cursor and map survey narration,
             // consistent with firearm and throwing target narration.
@@ -2643,10 +2643,10 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             if( const std::optional<vpart_reference> appliance =
                     vp->part_with_feature( VPFLAG_APPLIANCE, false ) ) {
                 description += ". " + string_format( _( "Appliance: %s." ),
-                                                    appliance->info().name() );
+                                                     appliance->info().name() );
             } else {
                 description += ". " + string_format( _( "Power grid appliance: %s." ),
-                                                    vp->vehicle().name );
+                                                     vp->vehicle().name );
             }
             if( vp->vehicle().is_powergrid() ) {
                 description += " " + std::string( _( "Power grid segment." ) );
@@ -5615,7 +5615,8 @@ void game::examine( bool with_pickup )
             { "east", 1, 0 }, { "southeast", 1, 1 },
             { "south", 0, 1 }, { "southwest", -1, 1 },
             { "west", -1, 0 }, { "northwest", -1, -1 }
-        }};
+        }
+    };
     for( const examination_direction &direction : examination_directions ) {
         tripoint_bub_ms tile = u.pos_bub();
         tile.x() += direction.dx;
@@ -5917,7 +5918,8 @@ void game::pickup()
     // Ground items can be visible around the character but pressing g first
     // enters a target tile selector. Explain that silent intermediate step.
     const tripoint_bub_ms center = u.pos_bub();
-    std::string pickup_prompt = _( "Pick up. Choose an adjacent or current tile with a direction key." );
+    std::string pickup_prompt =
+        _( "Pick up. Choose an adjacent or current tile with a direction key." );
     static constexpr std::array<std::pair<const char *, point>, 9> nearby = {{
             { "here", point( 0, 0 ) },
             { "north", point( 0, -1 ) },
@@ -5928,7 +5930,8 @@ void game::pickup()
             { "southwest", point( -1, 1 ) },
             { "west", point( -1, 0 ) },
             { "northwest", point( -1, -1 ) }
-        }};
+        }
+    };
     bool found_ground_items = false;
     for( const auto &dir : nearby ) {
         const tripoint_bub_ms p( center + dir.second );
@@ -5938,7 +5941,8 @@ void game::pickup()
         }
     }
     if( !found_ground_items ) {
-        pickup_prompt += ". " + std::string( _( "No visible ground items nearby. Vehicle cargo may still be available." ) );
+        pickup_prompt += ". " + std::string(
+                             _( "No visible ground items nearby. Vehicle cargo may still be available." ) );
     }
     get_narration_service().announce( {
         narration_event::contextual_help, pickup_prompt, true
@@ -6439,7 +6443,7 @@ look_around_result game::look_around(
                 relative += string_format( _( ", level offset %d" ), lp.z() - home.z() );
             }
             std::string speech = string_format( "%s. %s", relative,
-                                                 accessibility_describe_local_tile( lp ) );
+                                                accessibility_describe_local_tile( lp ) );
             if( peeking ) {
                 speech = std::string( _( "Peeking. " ) ) + speech;
             }

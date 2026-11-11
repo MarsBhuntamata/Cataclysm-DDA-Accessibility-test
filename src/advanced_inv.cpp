@@ -2111,8 +2111,8 @@ void advanced_inventory::display()
             get_narration_service().announce( {
                 opening ? narration_event::ui_opened : narration_event::selection_changed,
                 opening ? std::string( _( "Advanced inventory. Use Tab to switch panes, "
-                                         "direction keys to choose locations, and item movement "
-                                         "commands to transfer items. " ) ) + report : report,
+                                          "direction keys to choose locations, and item movement "
+                                          "commands to transfer items. " ) ) + report : report,
                 true
             } );
         }

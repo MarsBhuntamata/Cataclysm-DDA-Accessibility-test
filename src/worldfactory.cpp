@@ -1375,7 +1375,7 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
             mod_focus += ". " + get_mod_list_tabs()[iCurrentTab].second.translated();
         }
         const std::vector<mod_id> &shown_mods = active_header == 0 ?
-                all_tabs[iCurrentTab].mods : active_mod_order;
+                                                all_tabs[iCurrentTab].mods : active_mod_order;
         if( cursel[active_header] < shown_mods.size() ) {
             const MOD_INFORMATION &selected_mod = *shown_mods[cursel[active_header]];
             mod_focus += ". " + selected_mod.name();
@@ -1940,7 +1940,7 @@ int worldfactory::show_worldgen_basic( WORLD *world )
         if( sel_opt == 0 ) {
             worldgen_focus = string_format( _( "World name: %s" ), worldname );
             worldgen_focus += ". " + string_format( _( "Open mod manager: %s. Advanced settings: %s." ),
-                              ctxt.get_desc( "PICK_MODS", 1U ), ctxt.get_desc( "ADVANCED_SETTINGS", 1U ) );
+                                                    ctxt.get_desc( "PICK_MODS", 1U ), ctxt.get_desc( "ADVANCED_SETTINGS", 1U ) );
         } else if( sel_opt <= static_cast<int>( wg_sliders.size() ) ) {
             const int index = sel_opt - 1;
             worldgen_focus = wg_sliders[index]->name().translated() + ". " +

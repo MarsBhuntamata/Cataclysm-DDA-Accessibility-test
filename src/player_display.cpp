@@ -1341,15 +1341,24 @@ static std::string accessible_player_info_row( Character &you, player_display_ta
 static std::string accessible_player_info_tab_name( player_display_tab tab )
 {
     switch( tab ) {
-        case player_display_tab::stats: return _( title_STATS );
-        case player_display_tab::encumbrance: return _( title_ENCUMB );
-        case player_display_tab::speed: return _( title_SPEED );
-        case player_display_tab::skills: return _( title_SKILLS );
-        case player_display_tab::traits: return _( title_TRAITS );
-        case player_display_tab::bionics: return _( title_BIONICS );
-        case player_display_tab::effects: return _( title_EFFECTS );
-        case player_display_tab::proficiencies: return _( title_PROFICIENCIES );
-        case player_display_tab::num_tabs: return _( "Character" );
+        case player_display_tab::stats:
+            return _( title_STATS );
+        case player_display_tab::encumbrance:
+            return _( title_ENCUMB );
+        case player_display_tab::speed:
+            return _( title_SPEED );
+        case player_display_tab::skills:
+            return _( title_SKILLS );
+        case player_display_tab::traits:
+            return _( title_TRAITS );
+        case player_display_tab::bionics:
+            return _( title_BIONICS );
+        case player_display_tab::effects:
+            return _( title_EFFECTS );
+        case player_display_tab::proficiencies:
+            return _( title_PROFICIENCIES );
+        case player_display_tab::num_tabs:
+            return _( "Character" );
     }
     return _( "Character" );
 }

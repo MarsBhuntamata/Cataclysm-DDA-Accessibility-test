@@ -827,8 +827,8 @@ bool main_menu::opening_screen()
                 } else {
                     const auto &chosen = candidates[rng( 0, static_cast<int>( candidates.size() - 1 ) )];
                     const std::string announcement = string_format(
-                        _( "Random character: %s, in world %s. Load this character?" ),
-                        chosen.second.decoded_name(), chosen.first );
+                                                         _( "Random character: %s, in world %s. Load this character?" ),
+                                                         chosen.second.decoded_name(), chosen.first );
                     get_narration_service().announce( {
                         narration_event::contextual_help, announcement, true
                     } );
@@ -1236,15 +1236,16 @@ bool main_menu::load_character_tab( const std::string &worldname )
         mmenu.entries.emplace_back( opt_val++, true, MENU_AUTOASSIGN, save_str, "", playtime_str );
     }
     const int random_option = opt_val;
-    mmenu.entries.emplace_back( opt_val++, true, 'r', _( "Choose a random saved character in this world" ) );
+    mmenu.entries.emplace_back( opt_val++, true, 'r',
+                                _( "Choose a random saved character in this world" ) );
     mmenu.entries.emplace_back( opt_val, true, 'q', _( "<- Back to Main Menu" ), c_yellow, c_yellow );
     mmenu.query();
     opt_val = mmenu.ret;
     if( opt_val == random_option ) {
         const save_t &chosen = savegames[rng( 0, static_cast<int>( savegames.size() - 1 ) )];
         const std::string announcement = string_format(
-            _( "Randomly selected %s in world %s. Load this character?" ),
-            chosen.decoded_name(), worldname );
+                                             _( "Randomly selected %s in world %s. Load this character?" ),
+                                             chosen.decoded_name(), worldname );
         get_narration_service().announce( {
             narration_event::contextual_help, announcement, true
         } );

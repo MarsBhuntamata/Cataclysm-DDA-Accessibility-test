@@ -3478,8 +3478,8 @@ bool target_ui::set_cursor_pos( const tripoint_bub_ms &new_pos )
         // Spell and thrown-weapon targeting must not imply this gun-specific
         // warning guarantees safety.
         const std::vector<weak_ptr_fast<Creature>> friendlies =
-            mode == TargetMode::Fire ? list_friendlies_in_lof() :
-            std::vector<weak_ptr_fast<Creature>>();
+                mode == TargetMode::Fire ? list_friendlies_in_lof() :
+                std::vector<weak_ptr_fast<Creature>>();
         if( !friendlies.empty() ) {
             report += " " + std::string( _( "Warning: friendly creature in line of fire." ) );
             for( const weak_ptr_fast<Creature> &weak_creature : friendlies ) {

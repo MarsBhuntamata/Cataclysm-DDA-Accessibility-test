@@ -557,7 +557,8 @@ void veh_interact::do_main_loop( map &here )
         msg.reset();
         if( action == "REPEAT_NARRATION" ) {
             get_narration_service().repeat_last();
-        } else if( const std::optional<tripoint_rel_ms> vec = main_context.get_direction_rel_ms( action ) ) {
+        } else if( const std::optional<tripoint_rel_ms> vec = main_context.get_direction_rel_ms(
+                       action ) ) {
             move_cursor( here, vec->xy() );
         } else if( action == "QUIT" ) {
             finish = true;

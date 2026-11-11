@@ -1076,9 +1076,9 @@ action_id input_context::display_menu( bool permit_execute_action )
                                            kb_menu.filtered_registered_actions.size() - 1 );
                 const std::string &id = kb_menu.filtered_registered_actions[accessible_row];
                 speech += " " + string_format( _( "Action %d of %d. %s. Keys: %s." ),
-                           static_cast<int>( accessible_row + 1 ),
-                           static_cast<int>( kb_menu.filtered_registered_actions.size() ),
-                           get_action_name( id ), get_desc( id ) );
+                                               static_cast<int>( accessible_row + 1 ),
+                                               static_cast<int>( kb_menu.filtered_registered_actions.size() ),
+                                               get_action_name( id ), get_desc( id ) );
             }
             if( speech != last_spoken_keybinding ) {
                 get_narration_service().announce( {

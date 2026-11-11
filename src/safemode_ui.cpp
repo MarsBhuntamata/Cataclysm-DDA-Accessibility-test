@@ -288,17 +288,18 @@ void safemode::show( const std::string &custom_name_in, bool is_safemode_in )
                                          std::string( "---" );
             const std::string proximity = ( rule.category == Categories::SOUND || !rule.whitelist ) ?
                                           std::to_string( rule.proximity ) : std::string( "---" );
-            const std::string category_text = rule.category == Categories::SOUND ? _( "Sound" ) : _( "Hostile" );
+            const std::string category_text = rule.category == Categories::SOUND ? _( "Sound" ) :
+                                              _( "Hostile" );
             const std::string movement = rule.movement_mode == MovementModes::WALKING ? _( "Walking" ) :
                                          rule.movement_mode == MovementModes::DRIVING ? _( "Driving" ) : _( "Both" );
             speech += " " + string_format( _( "Rule %d of %d. %s. %s. Attitude: %s. "
-                                            "Proximity: %s. %s. Category: %s. Movement: %s. "
-                                            "Current column: %s." ),
-                      line + 1, static_cast<int>( current_tab.size() ),
-                      rule.rule.empty() ? _( "Empty rule" ) : rule.rule,
-                      rule.active ? _( "Enabled" ) : _( "Disabled" ),
-                      attitude, proximity, rule.whitelist ? _( "Whitelist" ) : _( "Blacklist" ),
-                      category_text, movement, _( column_names[column] ) );
+                                              "Proximity: %s. %s. Category: %s. Movement: %s. "
+                                              "Current column: %s." ),
+                                           line + 1, static_cast<int>( current_tab.size() ),
+                                           rule.rule.empty() ? _( "Empty rule" ) : rule.rule,
+                                           rule.active ? _( "Enabled" ) : _( "Disabled" ),
+                                           attitude, proximity, rule.whitelist ? _( "Whitelist" ) : _( "Blacklist" ),
+                                           category_text, movement, _( column_names[column] ) );
         }
         if( speech != last_spoken_safe_rule ) {
             get_narration_service().announce( { narration_event::selection_changed, speech, true } );

@@ -518,7 +518,7 @@ void zone_manager_ui::display_zone_manager()
         } else {
             const zone_data &focused_zone = zones[active_index].get();
             zone_speech += ". " + string_format( _( "Zone %d of %d. %s" ),
-                                               active_index + 1, zone_cnt, focused_zone.get_name() );
+                                                 active_index + 1, zone_cnt, focused_zone.get_name() );
             zone_speech += ". " + mgr.get_name_from_type( focused_zone.get_type() );
             zone_speech += focused_zone.get_enabled() ?
                            ". " + std::string( _( "Enabled." ) ) :
@@ -531,8 +531,8 @@ void zone_manager_ui::display_zone_manager()
             }
             const tripoint_abs_ms center = focused_zone.get_center_point();
             zone_speech += ". " + string_format( _( "Distance %d, direction %s." ),
-                                                static_cast<int>( trig_dist( u.pos_abs(), center ) ),
-                                                direction_name_short( direction_from( u.pos_abs(), center ) ) );
+                                                 static_cast<int>( trig_dist( u.pos_abs(), center ) ),
+                                                 direction_name_short( direction_from( u.pos_abs(), center ) ) );
             for( const auto &option : focused_zone.get_options().get_descriptions() ) {
                 zone_speech += ". " + option.first + ": " + option.second;
             }
@@ -567,9 +567,9 @@ void zone_manager_ui::display_zone_manager()
                 const tripoint_abs_ms start = zone.get_start_point();
                 const tripoint_abs_ms end = zone.get_end_point();
                 description += ". " + string_format( _( "Start: x %d, y %d, z %d." ),
-                                                    start.x(), start.y(), start.z() );
+                                                     start.x(), start.y(), start.z() );
                 description += ". " + string_format( _( "End: x %d, y %d, z %d." ),
-                                                    end.x(), end.y(), end.z() );
+                                                     end.x(), end.y(), end.z() );
                 for( const auto &option : zone.get_options().get_descriptions() ) {
                     description += ". " + option.first + ": " + option.second;
                 }

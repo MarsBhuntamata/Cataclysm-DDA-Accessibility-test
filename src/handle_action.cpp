@@ -3058,7 +3058,7 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
                     sky_description += _( "Nighttime." );
                 }
                 sky_description += " " + string_format( _( "Weather: %s." ),
-                                   get_weather().weather_id->name.translated() );
+                                                        get_weather().weather_id->name.translated() );
                 get_narration_service().announce( {
                     narration_event::contextual_help, sky_description, true
                 } );
@@ -3348,7 +3348,8 @@ bool game::handle_action()
                 { _( "southwest" ), -1, 1 },
                 { _( "west" ), -1, 0 },
                 { _( "northwest" ), -1, -1 }
-            }};
+            }
+        };
         std::string report = _( "Surroundings." );
         const tripoint_bub_ms origin = player_character.pos_bub();
         for( const direction_info &dir : directions ) {
@@ -3389,7 +3390,7 @@ bool game::handle_action()
         get_narration_service().announce( {
             narration_event::contextual_help,
             enabled ? std::string( _( "Automatic terrain-change speech on." ) ) :
-                      std::string( _( "Automatic terrain-change speech off." ) ), true
+            std::string( _( "Automatic terrain-change speech off." ) ), true
         } );
         return false;
     }
