@@ -1006,9 +1006,26 @@ static void smash( const std::optional<tripoint_bub_ms> &p = std::nullopt )
 
     avatar &player_character = get_avatar();
     avatar::smash_result res = player_character.smash( smashp );
-    if( res.did_smash && !res.success && res.can_smash &&
-        query_yn( _( "Keep smashing until destroyed?" ) ) ) {
-        player_character.assign_activity( bash_activity_actor( smashp ) );
+    if( res.did_smash && !res.success && res.can_smash ) {
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            _( "The target is not destroyed. You can keep smashing it. Confirm the repeat-smashing prompt, or press S and choose the direction again." ), true
+        } );
+        if( query_yn( _( "Keep smashing until destroyed?" ) ) ) {
+            player_character.assign_activity( bash_activity_actor( smashp ) );
+        }
+    } else if( res.success ) {
+        get_narration_service().announce( {
+            narration_event::status_changed, _( "Smashing succeeded. Target destroyed." ), true
+        } );
+    } else if( !res.can_smash && !res.success ) {
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            res.did_smash ?
+            _( "Your blow could not damage the target effectively. A stronger smashing tool may be needed." ) :
+            _( "Nothing was smashed. Check the target and try a different approach." ),
+            true
+        } );
     }
 }
 
