@@ -90,8 +90,10 @@
 #if defined(TILES)
 #include "sdl_gamepad.h"
 #endif
+#include "sidebar_accessibility.h"
 #include "sleep.h"
 #include "sounds.h"
+#include "status_browser.h"
 #include "string_formatter.h"
 #include "timed_event.h"
 #include "translation.h"
@@ -3310,7 +3312,11 @@ bool game::handle_action()
                "Shift plus X peeks around a corner; choose a direction, then use the look cursor. "
                "Peeking costs moves and its spoken feedback is still being improved. "
                "Control plus L or F8 describes the eight adjacent tiles. "
-               "F6 describes your current tile. Control plus S or F9 reads character status. "
+               "F6 describes your current tile. Control plus S speaks a status glance: "
+               "creatures in view, then anything the sidebar would highlight. "
+               "F9 opens the status browser, which reads the whole sidebar section by "
+               "section: Left and Right or Tab switch sections, Up and Down read rows, "
+               "F8 reads the current section, F1 reads every section, Escape closes. "
                "Control plus R or F10 reads the last five game messages. "
                "F7 repeats the previous narration. "
                "F11 toggles automatic terrain change announcements. "
@@ -3355,20 +3361,16 @@ bool game::handle_action()
         return false;
     }
     if( action == "DESCRIBE_STATUS" ) {
-        const int stamina_max = std::max( 1, player_character.get_stamina_max() );
-        const int stamina_percent = player_character.get_stamina() * 100 / stamina_max;
-        std::string status_report = string_format(
-            _( "Status. Stamina %d percent. Pain %d. Hunger %d. Thirst %d. "
-               "Lowest body-part hit points %d, highest %d." ),
-            stamina_percent, player_character.get_pain(),
-            player_character.get_hunger(), player_character.get_thirst(),
-            player_character.get_lowest_hp(), player_character.get_highest_hp() );
-        if( player_character.has_effect( efftype_id( "bleed" ) ) ) {
-            status_report = std::string( _( "Warning: you are bleeding. " ) ) + status_report;
-        }
+        // A quick glance at the sidebar: visible creatures, then only the
+        // values a sighted player would see highlighted.
         get_narration_service().announce( {
-            narration_event::status_changed, status_report, true
+            narration_event::status_changed, build_status_glance( player_character ), true
         } );
+        return false;
+    }
+    if( action == "STATUS_BROWSER" ) {
+        // The full sidebar, section by section, in the player's own layout order.
+        show_status_browser( player_character );
         return false;
     }
     if( action == "READ_RECENT_MESSAGES" ) {
