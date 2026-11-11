@@ -64,3 +64,51 @@ TEST_CASE( "item narration respects hidden item information entries", "[accessib
     CHECK( narration.find( "Internal-only text" ) == std::string::npos );
     CHECK( narration.find( "Player-facing description." ) != std::string::npos );
 }
+
+TEST_CASE( "inventory focus speaks the name first, then details, then state", "[accessibility]" )
+{
+    inventory_focus_parts parts;
+    parts.name = "<color_c_green>++</color> backpack";
+    CHECK( make_inventory_focus_narration( parts ) == "green backpack" );
+
+    // Expanded or collapsed is only spoken for rows that can be toggled.
+    parts.collapsed = true;
+    CHECK( make_inventory_focus_narration( parts ) == "green backpack" );
+    parts.has_chevron = true;
+    CHECK( make_inventory_focus_narration( parts ) == "green backpack. collapsed" );
+    parts.collapsed = false;
+    CHECK( make_inventory_focus_narration( parts ) == "green backpack. expanded" );
+
+    parts.marked = 3;
+    parts.available = 5;
+    parts.enabled = false;
+    parts.denial = "<color_c_red>too heavy</color>";
+    CHECK( make_inventory_focus_narration( parts ) ==
+           "green backpack. Marked 3 of 5. Unavailable: too heavy. expanded" );
+
+    parts.denial.clear();
+    parts.marked = 0;
+    CHECK( make_inventory_focus_narration( parts ) == "green backpack. Unavailable. expanded" );
+}
+
+TEST_CASE( "inventory marking is spoken briefly", "[accessibility]" )
+{
+    CHECK( make_inventory_mark_narration( 0, 5 ) == "Unmarked" );
+    CHECK( make_inventory_mark_narration( 1, 1 ) == "Marked" );
+    CHECK( make_inventory_mark_narration( 2, 5 ) == "Marked 2 of 5" );
+}
+
+TEST_CASE( "show or hide contents always has a spoken outcome", "[accessibility]" )
+{
+    using result = inventory_toggle_result;
+    CHECK( make_inventory_toggle_narration( result::expanded, 4 ) == "Expanded, 4 items" );
+    CHECK( make_inventory_toggle_narration( result::expanded, 1 ) == "Expanded, 1 item" );
+    CHECK( make_inventory_toggle_narration( result::expanded ) == "Expanded" );
+    CHECK( make_inventory_toggle_narration( result::collapsed ) == "Collapsed" );
+    for( const result r : {
+             result::nothing_to_expand, result::cannot_collapse, result::filter_active,
+             result::overridden_show_all, result::overridden_hide_all
+         } ) {
+        CHECK_FALSE( make_inventory_toggle_narration( r ).empty() );
+    }
+}

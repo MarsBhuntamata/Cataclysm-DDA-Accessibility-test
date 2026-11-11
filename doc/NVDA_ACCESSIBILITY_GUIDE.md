@@ -31,6 +31,17 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **]**: When casting a targeted spell, the spell-targeting interface announces its instructions and the selected creature or tile, cursor offset, and distance. The narrator reports the game's known target, not hidden creatures or unexplored terrain.
 - These are source changes and require an NVDA build test to verify speech timing and that all relevant targeting modes work.
 
+## Inventory lists and containers
+
+These apply to the inventory (**i**), drop, pickup, and other item selection lists.
+
+- Each row is spoken name first, then a mark count or the reason it is unavailable, then **collapsed** or **expanded** if the row is a container whose contents are listed.
+- **>**: Show or hide the contents of the focused container. The result is always spoken: "Expanded, 4 items", "Collapsed", or the reason nothing changed (for example "Nothing to expand", or "Filter active, all matches shown").
+- **F6**: Describe where you are: place in the list, category, and the container the item is in.
+- **;**: Switch between category view and hierarchy view. In category view, a container's contents are listed by category, not under the container. In hierarchy view they are on the rows directly below it.
+- Marking items in drop and pickup lists says "Marked 3 of 5" or "Unmarked".
+- In the menu that opens after choosing an item from the inventory, **>** always hides contents and **<** always shows them. Advanced Inventory Management uses **>** for page down and does not expand containers.
+
 ## Body status and unloading containers
 
 - **{** (left curly brace, usually Shift+[ on US keyboards): Open Body Status. NVDA announces the selected body part, health, temperature, effects, worn items, coverage, encumbrance, and protective statistics as you change the selected part.
