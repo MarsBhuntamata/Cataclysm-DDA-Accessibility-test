@@ -52,7 +52,8 @@ jobs:
             astyle --quiet --options=.astylerc -n "$file"
           done
           make tools/format/json_formatter.cgi RELEASE=1 -j2
-          tools/format/json_formatter.cgi data/raw/keybindings.json
+          # The JSON formatter returns 1 when it successfully rewrites a file.
+          tools/format/json_formatter.cgi data/raw/keybindings.json || test "$?" -eq 1
           git add -- "${files[@]}" data/raw/keybindings.json
           git diff --cached --check
           echo "Changed files:"
