@@ -66,7 +66,8 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 
 ## Status and messages
 
-- **Ctrl+S** or **F9**: Speak character status.
+- **Ctrl+S**: Status glance. Speaks the creatures in view (by direction, and whether a hostile can see you), then only the sidebar values a sighted player would see highlighted: wounded limbs, low stamina, hunger or thirst, heavy load, and so on. Says "All sidebar values normal" when nothing is out of the ordinary.
+- **F9**: Status browser. Opens the whole sidebar as a spoken list, one section per sidebar panel in the same order and with the same panels you have enabled in the sidebar options: Limbs, Movement, Stats, Weariness, Needs, Place, Wind/Temp, Weapon, Vehicle, Compass, Weight and the message Log. **Up/Down** read one row at a time ("Left arm: 45 of 60, bleeding lightly"), **Left/Right** or **Tab/Shift+Tab** switch sections, **F8** reads the current section, **F1** reads every section, **F7** repeats, **Escape** closes. It reopens at the section you last visited.
 - **Ctrl+R** or **F10**: Speak the last five game messages.
 - **F7**: Repeat the previous NVDA announcement.
 

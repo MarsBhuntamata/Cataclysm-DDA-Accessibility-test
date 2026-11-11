@@ -5658,12 +5658,49 @@
   {
     "type": "keybinding",
     "id": "DESCRIBE_STATUS",
-    "name": "Describe character status (Ctrl+S or F9)",
+    "name": "Speak status glance: creatures and highlighted sidebar values (Ctrl+S)",
     "category": "DEFAULTMODE",
     "bindings": [
       { "input_method": "keyboard_char", "key": "CTRL+S" },
-      { "input_method": "keyboard_code", "key": "s", "mod": [ "ctrl" ] },
-      { "input_method": "keyboard_any", "key": "F9" }
+      { "input_method": "keyboard_code", "key": "s", "mod": [ "ctrl" ] }
+    ]
+  },
+  {
+    "type": "keybinding",
+    "id": "STATUS_BROWSER",
+    "name": "Open the spoken status browser of the sidebar (F9)",
+    "category": "DEFAULTMODE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F9" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_SECTION",
+    "name": "Read the whole status section",
+    "category": "STATUS_BROWSER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "READ_ALL_SECTIONS",
+    "name": "Read every status section",
+    "category": "STATUS_BROWSER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F1" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "NEXT_SECTION",
+    "name": "Next status section",
+    "category": "STATUS_BROWSER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "TAB" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "PREV_SECTION",
+    "name": "Previous status section",
+    "category": "STATUS_BROWSER",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "BACKTAB" },
+      { "input_method": "keyboard_code", "key": "TAB", "mod": [ "shift" ] }
     ]
   },
   {
