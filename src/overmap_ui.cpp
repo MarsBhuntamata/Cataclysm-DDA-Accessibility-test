@@ -2328,7 +2328,7 @@ static tripoint_abs_omt display()
                   viewer.overmap_los( curs, viewer.overmap_modified_sight_range(
                                           g->light_level( viewer.posz() ) ) * 2 ) ) ) {
                 description += ". " + string_format( _( "Weather: %s" ),
-                               overmap_ui::get_weather_at_point( curs )->name.translated() );
+                                                     overmap_ui::get_weather_at_point( curs )->name.translated() );
             }
             const tripoint_abs_omt target = viewer.get_active_mission_target();
             if( !target.is_invalid() ) {
@@ -2336,7 +2336,7 @@ static tripoint_abs_omt display()
                 const std::string name = objective != nullptr ? objective->name() :
                                          viewer.get_active_point_of_interest().text;
                 description += ". " + string_format( _( "Objective: %s. %d map tiles away." ),
-                                                    name, rl_dist( curs, target ) );
+                                                     name, rl_dist( curs, target ) );
                 const int dz = target.z() - curs.z();
                 if( dz > 0 ) {
                     description += ". " + std::string( _( "Objective above current level." ) );

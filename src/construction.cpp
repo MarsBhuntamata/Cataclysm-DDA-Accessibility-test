@@ -1079,10 +1079,11 @@ construction_id construction_menu( const bool blueprint )
             focus += ". " + std::string( _( "No construction projects." ) );
         } else if( select >= 0 && static_cast<size_t>( select ) < constructs.size() ) {
             focus += ". " + string_format( _( "Project %d of %d. %s" ), select + 1,
-                                          static_cast<int>( constructs.size() ), constructs[select]->name() );
+                                           static_cast<int>( constructs.size() ), constructs[select]->name() );
             if( current_construct_breakpoint >= 0 &&
                 static_cast<size_t>( current_construct_breakpoint ) < construct_buffer_breakpoints.size() ) {
-                const size_t first = static_cast<size_t>( construct_buffer_breakpoints[current_construct_breakpoint] );
+                const size_t first = static_cast<size_t>
+                                     ( construct_buffer_breakpoints[current_construct_breakpoint] );
                 const size_t end = std::min( full_construct_buffer.size(), first + 12 );
                 for( size_t i = first; i < end; ++i ) {
                     focus += ". " + full_construct_buffer[i];

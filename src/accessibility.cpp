@@ -23,7 +23,7 @@ std::ofstream *accessibility_diagnostic_file()
     static std::ofstream *file = []() {
         std::vector<wchar_t> executable_path( 32768, L'\0' );
         const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
-                                    static_cast<DWORD>( executable_path.size() ) );
+                                  static_cast<DWORD>( executable_path.size() ) );
         if( path_length == 0 || path_length >= executable_path.size() ) {
             OutputDebugStringA( "[accessibility] Could not determine executable path for diagnostics.\n" );
             return static_cast<std::ofstream *>( nullptr );
@@ -43,7 +43,8 @@ std::ofstream *accessibility_diagnostic_file()
             return static_cast<std::ofstream *>( nullptr );
         }
         return output;
-    }();
+    }
+    ();
     return file;
 }
 
@@ -83,12 +84,11 @@ class nvda_controller_backend : public speech_backend
         // The DLL is intentionally not unloaded during game shutdown.
         ~nvda_controller_backend() override = default;
 
-        bool initialize()
-        {
+        bool initialize() {
             log_accessibility_diagnostic( "Backend initialization started." );
             std::vector<wchar_t> executable_path( 32768, L'\0' );
             const DWORD path_length = GetModuleFileNameW( nullptr, executable_path.data(),
-                                        static_cast<DWORD>( executable_path.size() ) );
+                                      static_cast<DWORD>( executable_path.size() ) );
             if( path_length == 0 || path_length >= executable_path.size() ) {
                 log_accessibility_diagnostic( "FAIL: GetModuleFileNameW failed; Windows error " +
                                               std::to_string( GetLastError() ) );
@@ -104,8 +104,8 @@ class nvda_controller_backend : public speech_backend
             library_directory.resize( separator + 1 );
 
             const wchar_t *legacy_library_name = sizeof( void * ) == 8 ?
-                                                    L"nvdaControllerClient64.dll" :
-                                                    L"nvdaControllerClient32.dll";
+                                                 L"nvdaControllerClient64.dll" :
+                                                 L"nvdaControllerClient32.dll";
             const wchar_t *library_names[] = {
                 L"nvdaControllerClient.dll",
                 legacy_library_name
@@ -159,8 +159,7 @@ class nvda_controller_backend : public speech_backend
             return true;
         }
 
-        void speak( const narration_request &request ) override
-        {
+        void speak( const narration_request &request ) override {
             log_accessibility_diagnostic( "Speech requested: event=" +
                                           std::to_string( static_cast<int>( request.event ) ) +
                                           ", UTF-8 bytes=" + std::to_string( request.text.size() ) +
@@ -188,8 +187,7 @@ class nvda_controller_backend : public speech_backend
                                           ( speak_result == 0 ? " (success)." : " (failure)." ) );
         }
 
-        void cancel() override
-        {
+        void cancel() override {
             if( is_running() ) {
                 const unsigned long result = cancel_speech();
                 log_accessibility_diagnostic( "Cancel request returned " + std::to_string( result ) );
@@ -198,8 +196,7 @@ class nvda_controller_backend : public speech_backend
             }
         }
 
-        void braille( const std::string &text ) override
-        {
+        void braille( const std::string &text ) override {
             if( is_running() && braille_message != nullptr ) {
                 const std::wstring wide_text = utf8_to_wide( text );
                 const unsigned long result = braille_message( wide_text.c_str() );
@@ -219,8 +216,7 @@ class nvda_controller_backend : public speech_backend
         cancel_speech_fn cancel_speech = nullptr;
         braille_message_fn braille_message = nullptr;
 
-        bool is_running() const
-        {
+        bool is_running() const {
             return test_if_running != nullptr && test_if_running() == 0;
         }
 };

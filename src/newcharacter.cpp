@@ -3037,17 +3037,18 @@ bool character_creator_ui::display()
                 if( cc_uistate.selected_tab == CHARCREATOR_SUMMARY ) {
                     const avatar &creator = get_avatar();
                     speech += ". " + string_format( _( "Name: %s. Age: %s. Height: %s. Gender: %s." ),
-                            creator.name.empty() ? std::string( _( "Random" ) ) : creator.name,
-                            creator.age_string( get_scenario()->start_of_game() ),
-                            creator.height_string(), creator.male ? _( "Male" ) : _( "Female" ) );
-                    speech += ". " + string_format( _( "Edit name: %s. Edit age: %s. Edit height: %s. Change blood type: %s. Change gender: %s. Change outfit: %s. Choose starting location: %s." ),
-                            current_tab_input.get_desc( "CHANGE_NAME", 1U ),
-                            current_tab_input.get_desc( "CHANGE_AGE", 1U ),
-                            current_tab_input.get_desc( "CHANGE_HEIGHT", 1U ),
-                            current_tab_input.get_desc( "CHANGE_BLOOD_TYPE", 1U ),
-                            current_tab_input.get_desc( "CHANGE_GENDER", 1U ),
-                            current_tab_input.get_desc( "CHANGE_OUTFIT", 1U ),
-                            current_tab_input.get_desc( "CHOOSE_LOCATION", 1U ) );
+                                                    creator.name.empty() ? std::string( _( "Random" ) ) : creator.name,
+                                                    creator.age_string( get_scenario()->start_of_game() ),
+                                                    creator.height_string(), creator.male ? _( "Male" ) : _( "Female" ) );
+                    speech += ". " + string_format(
+                                  _( "Edit name: %s. Edit age: %s. Edit height: %s. Change blood type: %s. Change gender: %s. Change outfit: %s. Choose starting location: %s." ),
+                                  current_tab_input.get_desc( "CHANGE_NAME", 1U ),
+                                  current_tab_input.get_desc( "CHANGE_AGE", 1U ),
+                                  current_tab_input.get_desc( "CHANGE_HEIGHT", 1U ),
+                                  current_tab_input.get_desc( "CHANGE_BLOOD_TYPE", 1U ),
+                                  current_tab_input.get_desc( "CHANGE_GENDER", 1U ),
+                                  current_tab_input.get_desc( "CHANGE_OUTFIT", 1U ),
+                                  current_tab_input.get_desc( "CHOOSE_LOCATION", 1U ) );
                 } else if( cc_uistate.selected_tab == CHARCREATOR_SCENARIO ||
                            cc_uistate.selected_tab == CHARCREATOR_PROFESSION ||
                            cc_uistate.selected_tab == CHARCREATOR_BACKGROUND ||
@@ -3055,7 +3056,8 @@ bool character_creator_ui::display()
                     speech += ". " + std::string( _( "Use Up and Down to browse and Enter to select or toggle." ) );
                 } else if( cc_uistate.selected_tab == CHARCREATOR_STATS ||
                            cc_uistate.selected_tab == CHARCREATOR_SKILLS ) {
-                    speech += ". " + std::string( _( "Use Up and Down to browse, Left and Right to adjust, or Enter to edit the value." ) );
+                    speech += ". " + std::string(
+                                  _( "Use Up and Down to browse, Left and Right to adjust, or Enter to edit the value." ) );
                 }
             }
             get_narration_service().announce( {

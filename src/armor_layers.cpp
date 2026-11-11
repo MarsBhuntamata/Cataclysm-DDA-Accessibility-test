@@ -958,7 +958,7 @@ void outfit::sort_armor( Character &guy )
         if( leftListSize > 0 && leftListIndex >= 0 && leftListIndex < leftListSize ) {
             const item &worn_item = *tmp_worn[leftListIndex];
             focus += ". " + string_format( _( "Item %d of %d. %s" ), leftListIndex + 1,
-                                          leftListSize, make_item_name_narration_text( worn_item.tname() ) );
+                                           leftListSize, make_item_name_narration_text( worn_item.tname() ) );
             if( selected == leftListIndex ) {
                 focus += ". " + std::string( _( "Selected for reordering." ) );
             }
@@ -969,11 +969,11 @@ void outfit::sort_armor( Character &guy )
             const item_penalties penalty = get_item_penalties( tmp_worn[leftListIndex], guy, speech_bp );
             if( !penalty.body_parts_with_stacking_penalty.empty() ) {
                 focus += ". " + string_format( _( "Stacking penalty on %s." ),
-                           body_part_names( penalty.body_parts_with_stacking_penalty ) );
+                                               body_part_names( penalty.body_parts_with_stacking_penalty ) );
             }
             if( !penalty.body_parts_with_out_of_order_penalty.empty() ) {
                 focus += ". " + string_format( _( "Wrong layer order on %s." ),
-                           body_part_names( penalty.body_parts_with_out_of_order_penalty ) );
+                                               body_part_names( penalty.body_parts_with_out_of_order_penalty ) );
             }
             const std::vector<std::string> properties =
                 clothing_info::clothing_properties( worn_item, guy, speech_bp );
@@ -1008,9 +1008,11 @@ void outfit::sort_armor( Character &guy )
                 lines.push_back( clothing_info::clothing_layer( worn_item ) );
                 const std::vector<std::string> flags = clothing_info::clothing_flags_description( worn_item );
                 lines.insert( lines.end(), flags.begin(), flags.end() );
-                const std::vector<std::string> properties = clothing_info::clothing_properties( worn_item, guy, speech_bp );
+                const std::vector<std::string> properties = clothing_info::clothing_properties( worn_item, guy,
+                        speech_bp );
                 lines.insert( lines.end(), properties.begin(), properties.end() );
-                const std::vector<std::string> protection = clothing_info::clothing_protection( worn_item, speech_bp );
+                const std::vector<std::string> protection = clothing_info::clothing_protection( worn_item,
+                        speech_bp );
                 lines.insert( lines.end(), protection.begin(), protection.end() );
             }
             if( lines.empty() ) {
@@ -1019,7 +1021,7 @@ void outfit::sort_armor( Character &guy )
                 } );
             } else if( action == "READ_ARMOR_DETAILS" ) {
                 std::string full_report = string_format( _( "Armor details. %d entries." ),
-                                                        static_cast<int>( lines.size() ) );
+                                          static_cast<int>( lines.size() ) );
                 for( const std::string &line : lines ) {
                     full_report += ". " + remove_color_tags( line );
                 }

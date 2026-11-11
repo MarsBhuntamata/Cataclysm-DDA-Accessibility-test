@@ -1195,20 +1195,14 @@
     "id": "RANDOM_WORLD_SELECTION",
     "category": "PICK_WORLD_DIALOG",
     "name": "Choose a random existing world (Shift+R)",
-    "bindings": [
-      { "input_method": "keyboard_char", "key": "R" },
-      { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] }
-    ]
+    "bindings": [ { "input_method": "keyboard_char", "key": "R" }, { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] } ]
   },
   {
     "type": "keybinding",
     "id": "RANDOM_LOAD_CHARACTER",
     "category": "MAIN_MENU",
     "name": "Load a random saved character from any world (Shift+R)",
-    "bindings": [
-      { "input_method": "keyboard_char", "key": "R" },
-      { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] }
-    ]
+    "bindings": [ { "input_method": "keyboard_char", "key": "R" }, { "input_method": "keyboard_code", "key": "r", "mod": [ "shift" ] } ]
   },
   {
     "type": "keybinding",
@@ -3610,9 +3604,7 @@
     "type": "keybinding",
     "id": "DEBUG_DIALOGUE_SHOW_ALL_RESPONSE",
     "name": "Toggle debug dialogue show hidden responses",
-    "bindings": [
-      { "input_method": "keyboard_code", "mod": [ "ctrl" ], "key": "r" }
-    ]
+    "bindings": [ { "input_method": "keyboard_code", "mod": [ "ctrl" ], "key": "r" } ]
   },
   {
     "type": "keybinding",
@@ -5746,8 +5738,7 @@
     "category": "STRING_EDITOR",
     "//": "'?' is treated as text input, so a different key is used.",
     "bindings": [ { "input_method": "keyboard_any", "key": "F1" } ]
-  }
-,
+  },
   {
     "type": "keybinding",
     "id": "ACCESSIBILITY_GUIDE",
@@ -5759,26 +5750,20 @@
     "type": "keybinding",
     "id": "READ_ITEM_DESCRIPTION",
     "name": "Read entire item or recipe description (F8)",
-    "bindings": [
-      { "input_method": "keyboard_any", "key": "F8" }
-    ]
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
   },
   {
     "type": "keybinding",
     "id": "REPEAT_NARRATION",
     "name": "Repeat last narration (F7)",
-    "bindings": [
-      { "input_method": "keyboard_any", "key": "F7" }
-    ]
+    "bindings": [ { "input_method": "keyboard_any", "key": "F7" } ]
   },
   {
     "type": "keybinding",
     "id": "DESCRIBE_LOCATION",
     "name": "Describe terrain underfoot (F6)",
     "category": "DEFAULTMODE",
-    "bindings": [
-      { "input_method": "keyboard_any", "key": "F6" }
-    ]
+    "bindings": [ { "input_method": "keyboard_any", "key": "F6" } ]
   },
   {
     "type": "keybinding",

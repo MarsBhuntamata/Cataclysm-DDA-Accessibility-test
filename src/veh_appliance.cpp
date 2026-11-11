@@ -733,7 +733,7 @@ void veh_app_interact::app_loop( map &here )
     // The tiles UI draws these as connection lines. Provide the same
     // connected-vehicle and merged-appliance information to screen readers.
     const tripoint_bub_ms origin = you.pos_bub();
-    const auto position_text = [&]( const tripoint_bub_ms &pos ) {
+    const auto position_text = [&]( const tripoint_bub_ms & pos ) {
         const int dx = pos.x() - origin.x();
         const int dy = pos.y() - origin.y();
         const int dz = pos.z() - origin.z();
@@ -788,7 +788,7 @@ void veh_app_interact::app_loop( map &here )
             }
             const vehicle *other = link.first;
             grid_speech += string_format( _( "%s, %s. " ), other->name,
-                                           position_text( other->bub_part_pos( here, other->part( 0 ) ) ) );
+                                          position_text( other->bub_part_pos( here, other->part( 0 ) ) ) );
             ++listed_vehicles;
         }
     }

@@ -1212,7 +1212,7 @@ void surroundings_menu::execute()
     auto announce_selection = [&]() {
         const bool tab_changed = selected_tab != last_spoken_tab;
         last_spoken_tab = selected_tab;
-        const auto spoken_distance = []( const std::string &short_distance ) {
+        const auto spoken_distance = []( const std::string & short_distance ) {
             std::istringstream stream( short_distance );
             int steps = 0;
             std::string direction;
@@ -1234,20 +1234,28 @@ void surroundings_menu::execute()
         std::string report;
         switch( selected_tab ) {
             case surroundings_menu_tab_enum::items:
-                if( tab_changed ) { report = _( "Items" ); }
+                if( tab_changed ) {
+                    report = _( "Items" );
+                }
                 if( item_data.selected_entry ) {
-                    report += ". " + remove_color_tags( item_data.selected_entry->get_selected_entity()->display_name() ) +
-                              ". " + spoken_distance( remove_color_tags( item_data.selected_entry->get_selected_distance_string() ) );
+                    report += ". " + remove_color_tags(
+                                  item_data.selected_entry->get_selected_entity()->display_name() ) +
+                              ". " + spoken_distance( remove_color_tags(
+                                                          item_data.selected_entry->get_selected_distance_string() ) );
                 } else {
                     report += ". " + std::string( _( "No items found." ) );
                 }
                 break;
             case surroundings_menu_tab_enum::monsters:
-                if( tab_changed ) { report = _( "Creatures" ); }
+                if( tab_changed ) {
+                    report = _( "Creatures" );
+                }
                 if( monster_data.selected_entry ) {
                     const Creature *critter = monster_data.selected_entry->get_selected_entity();
-                    report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_entity()->disp_name() ) +
-                              ". " + spoken_distance( remove_color_tags( monster_data.selected_entry->get_selected_distance_string() ) );
+                    report += ". " + remove_color_tags(
+                                  monster_data.selected_entry->get_selected_entity()->disp_name() ) +
+                              ". " + spoken_distance( remove_color_tags(
+                                                          monster_data.selected_entry->get_selected_distance_string() ) );
                     const Character &observer = get_player_character();
                     if( observer.has_trait( trait_INATTENTIVE ) ) {
                         report += ". " + std::string( _( "Awareness unknown." ) );
@@ -1277,10 +1285,13 @@ void surroundings_menu::execute()
                 }
                 break;
             case surroundings_menu_tab_enum::terfurn:
-                if( tab_changed ) { report = _( "Terrain and furniture" ); }
+                if( tab_changed ) {
+                    report = _( "Terrain and furniture" );
+                }
                 if( terfurn_data.selected_entry ) {
                     report += ". " + remove_color_tags( terfurn_data.selected_entry->get_selected_entity()->name() ) +
-                              ". " + spoken_distance( remove_color_tags( terfurn_data.selected_entry->get_selected_distance_string() ) );
+                              ". " + spoken_distance( remove_color_tags(
+                                                          terfurn_data.selected_entry->get_selected_distance_string() ) );
                 } else {
                     report += ". " + std::string( _( "No terrain or furniture found." ) );
                 }

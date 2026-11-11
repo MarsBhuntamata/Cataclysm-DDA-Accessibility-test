@@ -290,7 +290,8 @@ void extended_description_window::show()
             } else {
                 report += readable_lines.front();
                 if( readable_lines.size() > 1 ) {
-                    report += ". " + std::string( _( "Use Down and Up for additional description lines, or F8 for all." ) );
+                    report += ". " + std::string(
+                                  _( "Use Down and Up for additional description lines, or F8 for all." ) );
                 }
             }
             get_narration_service().announce( { narration_event::ui_opened, report, true } );
