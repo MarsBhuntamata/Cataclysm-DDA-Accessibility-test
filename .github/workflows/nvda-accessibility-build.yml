@@ -6,6 +6,7 @@ on:
       - balloon-accessibility-framework
       - balloon-framework-trap-narration-test
       - balloon-framework-overmap-notes-test
+      - balloon-framework-mutations-test
     paths:
       - 'src/**'
       - 'tests/**'
