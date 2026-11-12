@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - balloon-upstream-pretest-2026-11-07
+      - balloon-upstream-profession-startup-fix
       - balloon-upstream-shane-status-port
     paths:
       - 'src/**'
