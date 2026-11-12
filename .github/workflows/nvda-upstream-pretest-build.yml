@@ -7,6 +7,7 @@ on:
       - balloon-upstream-shane-status-port
       - balloon-upstream-trap-narration-test
       - balloon-upstream-overmap-notes-test
+      - balloon-upstream-mutations-test
     paths:
       - 'src/**'
       - 'tests/**'
