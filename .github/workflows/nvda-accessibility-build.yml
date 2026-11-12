@@ -5,6 +5,7 @@ on:
     branches:
       - balloon-accessibility-framework
       - balloon-framework-trap-narration-test
+      - balloon-framework-overmap-notes-test
     paths:
       - 'src/**'
       - 'tests/**'
