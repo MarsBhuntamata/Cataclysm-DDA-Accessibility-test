@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "color.h"
 #include "cursesdef.h"
@@ -388,10 +389,79 @@ void avatar::power_mutations()
         }
     } );
 
+    // Announce the selected mutation as well as the visual active/passive tab.
+    // Keeping the last utterance avoids repeating speech on redraws and timeouts.
+    std::string last_spoken_mutation;
+    bool first_mutation_announcement = true;
     bool exit = false;
     while( !exit ) {
         recalc_max_scroll_position();
         ui_manager::redraw();
+
+        std::string mutation_speech;
+        switch( menu_mode ) {
+            case mutation_menu_mode::activating:
+                mutation_speech = _( "Activation mode." );
+                break;
+            case mutation_menu_mode::examining:
+                mutation_speech = _( "Examine mode." );
+                break;
+            case mutation_menu_mode::reassigning:
+                mutation_speech = _( "Reassign mutation key mode." );
+                break;
+            case mutation_menu_mode::hiding:
+                mutation_speech = _( "Hide or show mutation sprite mode." );
+                break;
+        }
+        const std::vector<trait_id> *selected_list = nullptr;
+        if( tab_mode == mutation_tab_mode::active ) {
+            mutation_speech += " " + std::string( _( "Active mutations." ) );
+            selected_list = &active;
+        } else if( tab_mode == mutation_tab_mode::passive ) {
+            mutation_speech += " " + std::string( _( "Passive mutations." ) );
+            selected_list = &passive;
+        } else {
+            mutation_speech += " " + std::string( _( "No mutations." ) );
+        }
+        if( selected_list != nullptr && cursor >= 0 &&
+            static_cast<size_t>( cursor ) < selected_list->size() ) {
+            const trait_id &selected = ( *selected_list )[cursor];
+            const trait_data &state = cached_mutations[selected];
+            mutation_speech += " " + string_format( _( "%d of %d. %s." ),
+                               cursor + 1, static_cast<int>( selected_list->size() ),
+                               mutation_name( selected ) );
+            if( state.key != ' ' ) {
+                mutation_speech += " " + string_format( _( "Shortcut: %c." ), state.key );
+            }
+            if( tab_mode == mutation_tab_mode::active ) {
+                mutation_speech += state.powered ?
+                                   " " + std::string( _( "Powered on." ) ) :
+                                   " " + std::string( _( "Powered off." ) );
+            }
+            if( !state.show_sprite ) {
+                mutation_speech += " " + std::string( _( "Sprite hidden." ) );
+            }
+            if( menu_mode == mutation_menu_mode::examining ) {
+                mutation_speech += " " + remove_color_tags( mutation_desc( selected ) );
+                if( !purifiable( selected ) ) {
+                    mutation_speech += " " + std::string(
+                                           _( "Intrinsic mutation. Purifier cannot remove it." ) );
+                }
+            }
+        }
+        if( first_mutation_announcement ) {
+            mutation_speech = std::string( _( "Mutations. Up and Down select a mutation. Tab changes between active and passive. Exclamation mark switches examine mode. " ) ) +
+                              mutation_speech;
+        }
+        if( first_mutation_announcement || mutation_speech != last_spoken_mutation ) {
+            get_narration_service().announce( {
+                first_mutation_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed,
+                mutation_speech, true
+            } );
+            last_spoken_mutation = mutation_speech;
+            first_mutation_announcement = false;
+        }
         bool handled = false;
         const std::string action = ctxt.handle_input();
         const input_event evt = ctxt.get_raw_input();
