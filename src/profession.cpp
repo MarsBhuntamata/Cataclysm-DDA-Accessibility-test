@@ -542,7 +542,9 @@ void profession::check_definition() const
 
 bool profession::has_initialized()
 {
-    if( !g || g->new_game ) {
+    // The avatar is constructed before external options are registered.
+    // Do not request the default profession until its option exists.
+    if( !g || g->new_game || !get_options().has_option( "GENERIC_PROFESSION_ID" ) ) {
         return false;
     }
     const string_id<profession> generic_profession_id(
