@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <sstream>
 
 #include "achievement.h"
 #include "addiction.h"
@@ -384,6 +385,23 @@ void profession::load( const JsonObject &jo, std::string_view )
 
 const profession *profession::generic()
 {
+    // Temporary NVDA upstream startup diagnostic. Remove after finding the caller.
+    if( !get_options().has_option( "GENERIC_PROFESSION_ID" ) ) {
+        static bool reported = false;
+        if( !reported ) {
+            reported = true;
+            DebugLog( D_WARNING, D_MAIN ) <<
+                                          "BALLOON PROFESSION DIAGNOSTIC: generic() called before option registration.";
+#if defined(BACKTRACE)
+            std::ostringstream trace;
+            debug_write_backtrace( trace );
+            DebugLog( D_WARNING, D_MAIN ) << "BALLOON PROFESSION CALL STACK: " << trace.str();
+#else
+            DebugLog( D_WARNING, D_MAIN ) <<
+                                          "BALLOON PROFESSION DIAGNOSTIC: BACKTRACE unavailable in this build.";
+#endif
+        }
+    }
     const string_id<profession> generic_profession_id(
         get_option<std::string>( "GENERIC_PROFESSION_ID" ) );
     return &generic_profession_id.obj();
