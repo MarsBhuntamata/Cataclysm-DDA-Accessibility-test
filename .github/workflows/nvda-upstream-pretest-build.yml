@@ -5,6 +5,7 @@ on:
     branches:
       - balloon-upstream-pretest-2026-11-07
       - balloon-upstream-shane-status-port
+      - balloon-upstream-trap-narration-test
     paths:
       - 'src/**'
       - 'tests/**'
