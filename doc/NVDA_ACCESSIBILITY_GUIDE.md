@@ -37,6 +37,7 @@ These apply to the inventory (**i**), drop, pickup, and other item selection lis
 
 - Each row is spoken name first, then a mark count or the reason it is unavailable, then **collapsed** or **expanded** if the row is a container whose contents are listed.
 - **>**: Show or hide the contents of the focused container. The result is always spoken: "Expanded, 4 items", "Collapsed", or the reason nothing changed (for example "Nothing to expand", or "Filter active, all matches shown").
+- The column is spoken once when a list opens and once each time you move to another column with the left and right keys ("Worn gear", "Items", "Nearby items"), followed by the focused row.
 - **F6**: Describe where you are: place in the list, category, and the container the item is in.
 - **;**: Switch between category view and hierarchy view. In category view, a container's contents are listed by category, not under the container. In hierarchy view they are on the rows directly below it.
 - Marking items in drop and pickup lists says "Marked 3 of 5" or "Unmarked".

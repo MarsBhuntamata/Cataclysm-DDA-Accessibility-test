@@ -3590,7 +3590,27 @@ void inventory_selector::announce_inventory_focus( bool opening )
     }
     last_inventory_focus = identity;
     last_inventory_focus_marked = marked;
+    // Name the column when the screen opens and when focus has just moved
+    // into it, not on every row.
+    std::string column_name;
+    if( opening || !inventory_narration_started ||
+        active_column_index != last_inventory_focus_column ) {
+        const inventory_column *const column = &get_active_column();
+        if( column == &own_gear_column ) {
+            column_name = _( "Worn gear" );
+        } else if( column == &own_inv_column ) {
+            column_name = _( "Items" );
+        } else if( column == &map_column ) {
+            column_name = _( "Nearby items" );
+        } else if( !column->allows_selecting() ) {
+            column_name = _( "Selected items" );
+        }
+    }
+    last_inventory_focus_column = active_column_index;
     inventory_narration_started = true;
+    if( !column_name.empty() ) {
+        focus = column_name + ". " + focus;
+    }
     if( opening ) {
         focus = ( title.empty() ? std::string( _( "Inventory" ) ) :
                   remove_color_tags( title ) ) + ". " + focus;

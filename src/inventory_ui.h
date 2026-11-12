@@ -742,6 +742,9 @@ class inventory_selector
         bool inventory_narration_started = false;
         std::string last_inventory_focus;
         size_t last_inventory_focus_marked = 0;
+        // Column that held focus when it was last spoken, so that moving to
+        // another column is announced once, on the switch.
+        size_t last_inventory_focus_column = 0;
         // Confirmation of an action that rearranges the list (filter, view
         // mode).  Spoken together with the focus once the list is laid out.
         std::string pending_inventory_narration;
