@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - balloon-accessibility-framework
+      - balloon-framework-trap-narration-test
     paths:
       - 'src/**'
       - 'tests/**'
