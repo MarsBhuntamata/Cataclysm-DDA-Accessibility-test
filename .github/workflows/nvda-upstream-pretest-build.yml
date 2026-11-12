@@ -8,6 +8,7 @@ on:
       - balloon-upstream-trap-narration-test
       - balloon-upstream-overmap-notes-test
       - balloon-upstream-mutations-test
+      - balloon-upstream-mutations-profession-combined-test
     paths:
       - 'src/**'
       - 'tests/**'
