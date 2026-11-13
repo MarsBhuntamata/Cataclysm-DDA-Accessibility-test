@@ -74,6 +74,7 @@
 #endif
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -1298,7 +1299,7 @@ void inventory_column::set_stack_favorite( inventory_entry &entry,
     entry.make_entry_cell_cache( preset );
 }
 
-void inventory_column::set_collapsed( inventory_entry &entry, const bool collapse )
+bool inventory_column::set_collapsed( inventory_entry &entry, const bool collapse )
 {
     bool collapsed = false;
     if( entry.is_collation_header() ) {
@@ -1320,6 +1321,7 @@ void inventory_column::set_collapsed( inventory_entry &entry, const bool collaps
         paging_is_valid = false;
         entry.make_entry_cell_cache( preset );
     }
+    return collapsed;
 }
 
 void inventory_column::on_input( const inventory_input &input )
@@ -1346,7 +1348,11 @@ void inventory_column::on_input( const inventory_input &input )
             set_stack_favorite( selected, !selected.any_item()->is_favorite );
         } else if( input.action == "SHOW_HIDE_CONTENTS" ) {
             inventory_entry &selected = get_highlighted();
-            selected.collapsed ? set_collapsed( selected, false ) : set_collapsed( selected, true );
+            // Rows without an expander have nothing to show or hide; do not
+            // silently flip the state of pockets that are never listed.
+            if( selected.chevron ) {
+                set_collapsed( selected, !selected.collapsed );
+            }
         }
     }
 
@@ -3480,6 +3486,7 @@ inventory_selector::inventory_selector( Character &u, const inventory_selector_p
     ctxt.register_action( "SELECT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "REPEAT_NARRATION" );
+    ctxt.register_action( "NARRATE_POSITION" );
     ctxt.register_action( "VIEW_CATEGORY_MODE" );
     ctxt.register_action( "TOGGLE_NUMPAD_NAVIGATION" );
     ctxt.register_action( "ANY_INPUT" ); // For invlets
@@ -3557,35 +3564,119 @@ void inventory_selector::announce_inventory_focus( bool opening )
 {
     const inventory_entry &entry = get_highlighted();
     std::string focus;
+    std::string name;
+    std::string identity = std::to_string( active_column_index ) + ":";
+    size_t marked = 0;
+    size_t available = 0;
     if( entry.is_item() ) {
-        focus = make_item_name_narration_text( entry.any_item()->tname() );
-        if( !entry.enabled ) {
-            focus += ". " + std::string( _( "Unavailable" ) );
+        inventory_focus_parts parts;
+        parts.name = preset.get_narration_name( entry );
+        marked = parts.marked = entry.chosen_count;
+        available = parts.available = entry.get_available_count();
+        parts.enabled = entry.is_selectable();
+        if( entry.denial ) {
+            parts.denial = *entry.denial;
         }
+        // Mirror the drawn expander.  entry.collapsed alone is not enough:
+        // it is also set for rows that list no contents, such as loaded guns.
+        parts.has_chevron = entry.chevron;
+        const bool hide_override = uistate.hide_entries_override.has_value() &&
+                                   !entry.is_collation_header() &&
+                                   entry.any_item()->is_container();
+        parts.collapsed = hide_override ? *uistate.hide_entries_override : entry.collapsed;
+        focus = make_inventory_focus_narration( parts );
+        name = parts.name;
+        // The item itself is part of focus identity: two different stacks can
+        // have identical names, and row numbers shift when contents are shown.
+        identity += std::to_string( reinterpret_cast<std::uintptr_t>( entry.any_item().get_item() ) ) + ":";
     } else if( entry.is_category() ) {
-        focus = entry.get_category_ptr()->name_header();
+        focus = name = entry.get_category_ptr()->name_header();
     } else {
-        focus = _( "No item selected." );
+        focus = name = _( "No item selected." );
     }
+    // Marks and expanded state are reported when they change, not as focus.
+    identity += name;
 
-    // The column and row are part of focus identity: two different stacks
-    // can have identical names. Do not announce unchanged input or redraws.
-    const std::string identity = std::to_string( active_column_index ) + ":" +
-                                 std::to_string( get_active_column().get_highlighted_index() ) +
-                                 ":" + focus;
-    if( !opening && identity == last_inventory_focus ) {
+    const bool forced = opening || !pending_inventory_narration.empty();
+    const bool same_row = identity == last_inventory_focus;
+    if( !forced && same_row ) {
+        // Do not announce unchanged input or redraws, but do report marking.
+        if( marked != last_inventory_focus_marked ) {
+            last_inventory_focus_marked = marked;
+            get_narration_service().announce( {
+                narration_event::selection_changed,
+                make_inventory_mark_narration( marked, available ), true
+            } );
+        }
         return;
     }
     last_inventory_focus = identity;
+    last_inventory_focus_marked = marked;
+    // Name the column when the screen opens and when focus has just moved
+    // into it, not on every row.
+    std::string column_name;
+    if( opening || !inventory_narration_started ||
+        active_column_index != last_inventory_focus_column ) {
+        const inventory_column *const column = &get_active_column();
+        if( column == &own_gear_column ) {
+            column_name = _( "Worn gear" );
+        } else if( column == &own_inv_column ) {
+            column_name = _( "Items" );
+        } else if( column == &map_column ) {
+            column_name = _( "Nearby items" );
+        } else if( !column->allows_selecting() ) {
+            column_name = _( "Selected items" );
+        }
+    }
+    last_inventory_focus_column = active_column_index;
     inventory_narration_started = true;
+    if( !column_name.empty() ) {
+        focus = column_name + ". " + focus;
+    }
     if( opening ) {
         focus = ( title.empty() ? std::string( _( "Inventory" ) ) :
                   remove_color_tags( title ) ) + ". " + focus;
+    } else if( !pending_inventory_narration.empty() ) {
+        focus = pending_inventory_narration + ". " + focus;
     }
+    pending_inventory_narration.clear();
     get_narration_service().announce( {
         opening ? narration_event::ui_opened : narration_event::selection_changed,
         focus, true
     } );
+}
+
+void inventory_selector::announce_inventory_position()
+{
+    const inventory_entry &entry = get_highlighted();
+    if( !entry.is_item() ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help, _( "No item selected." ), true
+        } );
+        return;
+    }
+    const std::vector<inventory_entry *> rows = get_active_column().get_entries( return_item );
+    const auto found = std::find( rows.begin(), rows.end(), &entry );
+    std::string text;
+    if( found != rows.end() ) {
+        text = string_format( _( "%1$d of %2$d" ),
+                              static_cast<int>( std::distance( rows.begin(), found ) ) + 1,
+                              static_cast<int>( rows.size() ) );
+    }
+    const auto append = [&text]( const std::string & part ) {
+        if( !part.empty() ) {
+            text += ( text.empty() ? "" : ". " ) + part;
+        }
+    };
+    append( remove_color_tags( entry.get_category_ptr()->name_header() ) );
+    const item_location &loc = entry.any_item();
+    if( loc.has_parent() ) {
+        tname::segment_bitset segs( tname::unprefixed_tname );
+        segs.set( tname::segments::CONTENTS, false );
+        append( string_format( _( "In %s" ),
+                               remove_color_tags( loc.parent_item()->tname( 1, segs ) ) ) );
+    }
+    get_narration_service().announce( { narration_event::contextual_help, text, true } );
 }
 
 inventory_input inventory_selector::get_input()
@@ -3683,6 +3774,8 @@ void inventory_selector::on_input( const inventory_input &input )
 {
     if( input.action == "REPEAT_NARRATION" ) {
         get_narration_service().repeat_last();
+    } else if( input.action == "NARRATE_POSITION" ) {
+        announce_inventory_position();
     } else if( input.action == "CATEGORY_SELECTION" ) {
         toggle_navigation_mode();
     } else if( input.action == "PREV_COLUMN" ) {
@@ -3718,16 +3811,71 @@ void inventory_selector::on_input( const inventory_input &input )
             action_examine( sitem );
         }
     } else if( input.action == "INVENTORY_FILTER" ) {
+        const std::string old_filter = filter;
         query_set_filter();
+        if( filter != old_filter ) {
+            pending_inventory_narration = filter.empty() ? std::string( _( "Filter cleared" ) ) :
+                                          string_format( _( "Filter: %s" ), filter );
+        }
         ui.lock()->mark_resize();
     } else if( input.action == "RESET_FILTER" ) {
+        if( !filter.empty() ) {
+            pending_inventory_narration = _( "Filter cleared" );
+        }
         set_filter( "" );
         ui.lock()->mark_resize();
     } else if( input.action == "TOGGLE_SKIP_UNSELECTABLE" ) {
         toggle_skip_unselectable();
     } else {
+        // Describe the row the show/hide key acts on before the columns
+        // change it, so the outcome can be spoken afterwards.
+        const bool toggling = input.action == "SHOW_HIDE_CONTENTS";
+        inventory_entry *const toggled = toggling && !get_active_column().empty() ?
+                                         &get_active_column().get_highlighted() : nullptr;
+        const bool was_collapsed = toggled != nullptr && toggled->collapsed;
         for( inventory_column *elem : columns ) {
             elem->on_input( input );
+        }
+        if( toggling ) {
+            inventory_toggle_result result = inventory_toggle_result::nothing_to_expand;
+            int revealed = 0;
+            if( toggled != nullptr && toggled->is_item() && toggled->chevron ) {
+                const bool header = toggled->is_collation_header();
+                if( toggled->collapsed == was_collapsed ) {
+                    result = inventory_toggle_result::cannot_collapse;
+                } else if( !header && !filter.empty() ) {
+                    result = inventory_toggle_result::filter_active;
+                } else if( !header && uistate.hide_entries_override.has_value() &&
+                           toggled->any_item()->is_container() ) {
+                    result = *uistate.hide_entries_override ?
+                             inventory_toggle_result::overridden_hide_all :
+                             inventory_toggle_result::overridden_show_all;
+                } else if( toggled->collapsed ) {
+                    result = inventory_toggle_result::collapsed;
+                } else {
+                    result = inventory_toggle_result::expanded;
+                    const auto is_revealed = [toggled, header]( const inventory_entry & e ) {
+                        if( !e.is_item() ) {
+                            return false;
+                        }
+                        if( header ) {
+                            return e.is_collation_entry() &&
+                                   e.collation_meta == toggled->collation_meta;
+                        }
+                        const item_location &child = e.any_item();
+                        return child.has_parent() &&
+                               std::find( toggled->locations.begin(), toggled->locations.end(),
+                                          child.parent_item() ) != toggled->locations.end();
+                    };
+                    for( const inventory_column *col : columns ) {
+                        revealed += static_cast<int>( col->get_entries( is_revealed, true ).size() );
+                    }
+                }
+            }
+            get_narration_service().announce( {
+                narration_event::selection_changed,
+                make_inventory_toggle_narration( result, revealed ), true
+            } );
         }
         refresh_active_column(); // Columns can react to actions by losing their activation capacity
         if( input.action == "TOGGLE_FAVORITE" ) {
@@ -3741,6 +3889,10 @@ void inventory_selector::on_input( const inventory_input &input )
             for( inventory_column *col : columns ) {
                 col->cycle_hide_override();
             }
+            pending_inventory_narration = !uistate.hide_entries_override.has_value() ?
+                                          _( "Contents shown per container" ) :
+                                          *uistate.hide_entries_override ? _( "All contents hidden" ) :
+                                          _( "All contents shown" );
         }
         if( input.action == "SHOW_HIDE_CONTENTS" || input.action == "SHOW_HIDE_CONTENTS_ALL" ) {
             shared_ptr_fast<ui_adaptor> current_ui = ui.lock();
@@ -3755,8 +3907,11 @@ void inventory_selector::on_input( const inventory_input &input )
         }
     }
     // The column handlers have completed navigation; announce new focus
-    // only if the highlighted entry actually changed.
-    announce_inventory_focus( false );
+    // only if the highlighted entry actually changed.  A pending confirmation
+    // waits for get_input(), when the rearranged list has been laid out.
+    if( pending_inventory_narration.empty() ) {
+        announce_inventory_focus( false );
+    }
 }
 
 void inventory_selector::on_change( const inventory_entry &entry )
@@ -3897,6 +4052,7 @@ void inventory_selector::toggle_categorize_contained()
             _categorize( *col );
         }
         _uimode = uimode::categories;
+        pending_inventory_narration = _( "Category view" );
     } else {
         // move all entries into one big gear column and turn into hierarchy
         own_inv_column.move_entries_to( own_gear_column );
@@ -3904,6 +4060,7 @@ void inventory_selector::toggle_categorize_contained()
             _uncategorize( *col );
         }
         _uimode = uimode::hierarchy;
+        pending_inventory_narration = _( "Hierarchy view" );
     }
 
     if( !highlighted.empty() ) {
@@ -4841,6 +4998,13 @@ void inventory_multiselector::on_input( const inventory_input &input )
     }
     if( input.action == "TOGGLE_NON_FAVORITE" ) {
         toggle_entries( count, toggle_mode::NON_FAVORITE_NON_WORN );
+        // Many rows change at once; report the total, not just the focused row.
+        last_inventory_focus_marked = get_highlighted().chosen_count;
+        get_narration_service().announce( {
+            narration_event::selection_changed,
+            string_format( n_gettext( "%d stack marked", "%d stacks marked", to_use.size() ),
+                           static_cast<int>( to_use.size() ) ), true
+        } );
     } else if( input.action == "MARK_WITH_COUNT" ) { // Set count and mark selected with specific key
         int query_result = query_count();
         if( query_result >= 0 ) {
@@ -5116,15 +5280,7 @@ drop_locations pickup_selector::execute()
         } else if( input.action == "QUIT" ) {
             return drop_locations();
         } else {
-            const size_t previously_selected = to_use.size();
             on_input( input );
-            if( to_use.size() != previously_selected ) {
-                get_narration_service().announce( {
-                    narration_event::selection_changed,
-                    string_format( _( "%d item stacks selected." ),
-                                   static_cast<int>( to_use.size() ) ), true
-                } );
-            }
         }
     }
     drop_locations dropped_pos_and_qty;
@@ -5484,6 +5640,8 @@ void trade_selector::execute()
     while( !exit ) {
         _ui->invalidate_ui();
         ui_manager::redraw_invalidated();
+        // This loop does not go through get_input(), so speak focus here.
+        announce_inventory_focus( !inventory_narration_started );
         std::string const &action = _ctxt_trade.handle_input();
         if( action == ACTION_SWITCH_PANES ) {
             _parent->pushevent( trade_ui::event::SWITCH );

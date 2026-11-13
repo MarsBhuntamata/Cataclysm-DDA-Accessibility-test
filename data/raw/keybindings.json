@@ -5750,13 +5750,24 @@
     "type": "keybinding",
     "id": "READ_ITEM_DESCRIPTION",
     "name": "Read entire item or recipe description (F8)",
-    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+    "bindings": [
+      { "input_method": "keyboard_any", "key": "F8" }
+    ]
   },
   {
     "type": "keybinding",
     "id": "REPEAT_NARRATION",
     "name": "Repeat last narration (F7)",
     "bindings": [ { "input_method": "keyboard_any", "key": "F7" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "NARRATE_POSITION",
+    "name": "Describe place in inventory list (F6)",
+    "category": "INVENTORY",
+    "bindings": [
+      { "input_method": "keyboard_any", "key": "F6" }
+    ]
   },
   {
     "type": "keybinding",

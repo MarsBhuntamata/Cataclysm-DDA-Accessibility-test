@@ -1255,6 +1255,8 @@ void uilist::set_category( const std::string &key )
         return pair.first == key;
     } );
     current_category = std::distance( categories.begin(), it );
+    // The tab bar selects whichever tab switch_to_category names on the
+    // next frame, so it must agree or the first tab wins when the menu opens.
     switch_to_category = current_category;
 }
 

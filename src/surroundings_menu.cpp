@@ -1252,10 +1252,8 @@ void surroundings_menu::execute()
                 }
                 if( monster_data.selected_entry ) {
                     const Creature *critter = monster_data.selected_entry->get_selected_entity();
-                    report += ". " + remove_color_tags(
-                                  monster_data.selected_entry->get_selected_entity()->disp_name() ) +
-                              ". " + spoken_distance( remove_color_tags(
-                                                          monster_data.selected_entry->get_selected_distance_string() ) );
+                    report += ". " + remove_color_tags( monster_data.selected_entry->get_selected_entity()->disp_name() ) +
+                              ". " + spoken_distance( remove_color_tags( monster_data.selected_entry->get_selected_distance_string() ) );
                     const Character &observer = get_player_character();
                     if( observer.has_trait( trait_INATTENTIVE ) ) {
                         report += ". " + std::string( _( "Awareness unknown." ) );

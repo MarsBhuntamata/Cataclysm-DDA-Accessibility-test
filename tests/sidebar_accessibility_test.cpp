@@ -69,8 +69,7 @@ TEST_CASE( "sidebar colour bands become words", "[sidebar_accessibility][accessi
     CHECK( severity_word_for_color( c_white ).empty() );
 }
 
-TEST_CASE( "numeric sidebar widgets speak their normal band",
-           "[sidebar_accessibility][accessibility]" )
+TEST_CASE( "numeric sidebar widgets speak their normal band", "[sidebar_accessibility][accessibility]" )
 {
     avatar &ava = get_avatar();
     clear_avatar();
@@ -233,8 +232,7 @@ TEST_CASE( "layouts are read in sidebar order with labels merged",
     SECTION( "coloured limb name merges into the hit point row beside it" ) {
         const bodypart_id arm( "arm_l" );
         ava.add_effect( effect_bite, 1_minutes, arm );
-        const std::vector<status_row> rows = accessible_widget_rows( widget_status_hpg_layout_larm, ava,
-                                             11 );
+        const std::vector<status_row> rows = accessible_widget_rows( widget_status_hpg_layout_larm, ava, 11 );
         REQUIRE( rows.size() == 1 );
         CHECK( rows[0].label == "Left arm" );
         CHECK( contains( rows[0].value, " of " ) );
@@ -243,8 +241,7 @@ TEST_CASE( "layouts are read in sidebar order with labels merged",
     }
 }
 
-TEST_CASE( "compass and glance describe visible creatures",
-           "[sidebar_accessibility][accessibility]" )
+TEST_CASE( "compass and glance describe visible creatures", "[sidebar_accessibility][accessibility]" )
 {
     const map &here = get_map();
     avatar &ava = get_avatar();

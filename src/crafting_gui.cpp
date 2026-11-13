@@ -2820,8 +2820,8 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                                         data.get_item_name(), data.get_type_name(),
                                         data.get_item_display() );
         const recipe &selected_recipe = *current[line];
-        const temp_crafting_inventory &crafting_inv = available[line].inv_override ?
-                *available[line].inv_override : crafter->crafting_inventory();
+        const inventory &crafting_inv = available[line].inv_override ?
+                                        *available[line].inv_override : crafter->crafting_inventory();
         const auto &component_groups = selected_recipe.simple_requirements().get_components();
         if( component_groups.empty() ) {
             recipe_speech += ". " + std::string( _( "No item components required." ) );
@@ -2909,7 +2909,7 @@ void crafting_ui_impl::process_action( const std::string &action_in,
             for( const recipe_proficiency &prof : recipe_proficiencies ) {
                 const bool known = crafter->has_proficiency( prof.id ) ||
                                    std::any_of( helpers.begin(), helpers.end(),
-                [&prof]( const Character * helper ) {
+                [&prof]( const Character *helper ) {
                     return helper->has_proficiency( prof.id );
                 } );
                 recipe_speech += " " + prof.id->name();
@@ -2925,7 +2925,7 @@ void crafting_ui_impl::process_action( const std::string &action_in,
         recipe_speech += " " + std::string( _( "Estimated crafting time:" ) ) + " " +
                          approx_craft_time( expected_turns ) + ".";
         recipe_speech += " " + string_format( _( "Success chance: %.1f percent." ),
-                                              100.f * crafter->recipe_success_chance( selected_recipe ) );
+                                             100.f * crafter->recipe_success_chance( selected_recipe ) );
         data.accessibility_narration = recipe_speech;
         iteminfo_window info_window( data,
                                      point::north_west, info_width, info_height );

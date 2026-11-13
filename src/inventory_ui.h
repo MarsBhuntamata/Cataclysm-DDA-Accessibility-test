@@ -259,6 +259,10 @@ class inventory_selector_preset
         virtual nc_color get_color( const inventory_entry &entry ) const;
 
         std::string get_denial( const inventory_entry &entry ) const;
+        /** Row name for speech: the caption with its stack size, without capacity figures. */
+        std::string get_narration_name( const inventory_entry &entry ) const {
+            return get_caption( entry );
+        }
         /** Text in the cell. */
         std::string get_cell_text( const inventory_entry &entry, size_t cell_index ) const;
         /** @return Whether the cell is a stub. */
@@ -428,7 +432,8 @@ class inventory_column
         void clear();
         void set_stack_favorite( inventory_entry &entry, bool favorite );
 
-        void set_collapsed( inventory_entry &entry, bool collapse );
+        /** @return whether the entry's collapsed state could be changed. */
+        bool set_collapsed( inventory_entry &entry, bool collapse );
 
         /** Highlight the specified location. */
         bool highlight( const item_location &loc, bool front_only = false );
@@ -736,7 +741,16 @@ class inventory_selector
         // Last spoken inventory focus, kept separate from visual redraw state.
         bool inventory_narration_started = false;
         std::string last_inventory_focus;
+        size_t last_inventory_focus_marked = 0;
+        // Column that held focus when it was last spoken, so that moving to
+        // another column is announced once, on the switch.
+        size_t last_inventory_focus_column = 0;
+        // Confirmation of an action that rearranges the list (filter, view
+        // mode).  Spoken together with the focus once the list is laid out.
+        std::string pending_inventory_narration;
         void announce_inventory_focus( bool opening );
+        // Spoken on request only: place in list, category and container.
+        void announce_inventory_position();
 
         const item_category *naturalize_category( const item_category &category,
                 const tripoint_bub_ms &pos );

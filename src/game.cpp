@@ -2444,6 +2444,12 @@ int game::inventory_item_menu( item_location locThisItem,
                     for( item_pocket *pocket : oThisItem.get_standard_pockets() ) {
                         pocket->settings.set_collapse( cMenu == '>' );
                     }
+                    // In this menu the keys are one-way, unlike the toggle in
+                    // the inventory list, so say which way the contents went.
+                    get_narration_service().announce( {
+                        narration_event::status_changed,
+                        cMenu == '>' ? _( "Collapsed" ) : _( "Expanded" ), true
+                    } );
                     break;
                 default:
                     break;
@@ -2586,6 +2592,9 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
     }
 
     std::string description = here.name( tile );
+    if( here.has_furn( tile ) ) {
+        description += ". " + std::string( _( "Furniture, not an electrical appliance." ) );
+    }
     // The normal map display shows detected traps.  Narrate only traps the
     // character can actually recognize, not concealed or unknown hazards.
     if( here.can_see_trap_at( tile, observer ) ) {
@@ -2622,8 +2631,8 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             if( const monster *mon = dynamic_cast<const monster *>( critter );
                 mon != nullptr && !observer.has_trait( trait_id( "INATTENTIVE" ) ) ) {
                 description += ". " + std::string( mon->sees( here, observer ) ?
-                                                   _( "Can see to your current location." ) :
-                                                   _( "Can't see to your current location." ) );
+                    _( "Can see to your current location." ) :
+                    _( "Can't see to your current location." ) );
             }
             // Describe visible injury in look-cursor and map survey narration,
             // consistent with firearm and throwing target narration.
@@ -2648,13 +2657,16 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             if( const std::optional<vpart_reference> appliance =
                     vp->part_with_feature( VPFLAG_APPLIANCE, false ) ) {
                 description += ". " + string_format( _( "Appliance: %s." ),
-                                                     appliance->info().name() );
+                                                    appliance->info().name() );
             } else {
                 description += ". " + string_format( _( "Power grid appliance: %s." ),
-                                                     vp->vehicle().name );
+                                                    vp->vehicle().name );
             }
+            // The appliance menu offers a Plug action for this position.
+            // A connectable appliance is not necessarily already powered.
+            description += " " + std::string( _( "Cable connectable." ) );
             if( vp->vehicle().is_powergrid() ) {
-                description += " " + std::string( _( "Power grid segment." ) );
+                description += " " + std::string( _( "Grid component here." ) );
             }
         } else {
             description += ". " + string_format( _( "Vehicle: %s." ), vp->vehicle().name );
@@ -5737,9 +5749,18 @@ void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
             description += " " + terrain_text;
         }
         if( here.has_furn( examp ) ) {
+            description += " " + std::string( _( "Furniture, not an electrical appliance." ) );
             const std::string furniture_text = here.furn( examp ).obj().description.translated();
             if( !furniture_text.empty() ) {
                 description += " " + furniture_text;
+            }
+        }
+        if( const optional_vpart_position vp = here.veh_at( examp ) ) {
+            if( vp->vehicle().is_appliance() ) {
+                description += " " + std::string( _( "Cable connectable." ) );
+                if( vp->vehicle().is_powergrid() ) {
+                    description += " " + std::string( _( "Grid component here." ) );
+                }
             }
         }
         get_narration_service().announce( {
@@ -6448,7 +6469,7 @@ look_around_result game::look_around(
                 relative += string_format( _( ", level offset %d" ), lp.z() - home.z() );
             }
             std::string speech = string_format( "%s. %s", relative,
-                                                accessibility_describe_local_tile( lp ) );
+                                                 accessibility_describe_local_tile( lp ) );
             if( peeking ) {
                 speech = std::string( _( "Peeking. " ) ) + speech;
             }

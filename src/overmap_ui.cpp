@@ -2296,6 +2296,18 @@ static tripoint_abs_omt display()
             if( overmap_buffer.is_marked_dangerous( curs ) ) {
                 report += ". " + std::string( _( "Marked dangerous." ) );
             }
+            for( const point_of_interest &poi : get_avatar().get_points_of_interest() ) {
+                if( poi.pos == curs ) {
+                    report += ". " + string_format( _( "Point of interest: %s" ), poi.text );
+                }
+            }
+            const tripoint_abs_omt objective_pos = get_avatar().get_active_mission_target();
+            if( !objective_pos.is_invalid() && objective_pos == curs ) {
+                const mission *objective = get_avatar().get_active_mission();
+                const std::string objective_name = objective != nullptr ? objective->name() :
+                                                   get_avatar().get_active_point_of_interest().text;
+                report += ". " + string_format( _( "Current objective location: %s" ), objective_name );
+            }
             if( !last_spoken_map_position || curs != *last_spoken_map_position ||
                 report != last_spoken_map_description ) {
                 const bool opening = !last_spoken_map_position;
@@ -2346,6 +2358,11 @@ static tripoint_abs_omt display()
             if( overmap_buffer.is_marked_dangerous( curs ) ) {
                 description += ". " + std::string( _( "Danger marker present." ) );
             }
+            for( const point_of_interest &poi : viewer.get_points_of_interest() ) {
+                if( poi.pos == curs ) {
+                    description += ". " + string_format( _( "Point of interest: %s" ), poi.text );
+                }
+            }
             if( ( uistate.overmap_visible_weather || uistate.overmap_debug_weather ) &&
                 ( uistate.overmap_debug_weather ||
                   viewer.overmap_los( curs, viewer.overmap_modified_sight_range(
@@ -2359,7 +2376,13 @@ static tripoint_abs_omt display()
                 const std::string name = objective != nullptr ? objective->name() :
                                          viewer.get_active_point_of_interest().text;
                 description += ". " + string_format( _( "Objective: %s. %d map tiles away." ),
-                                                     name, rl_dist( curs, target ) );
+                                                    name, rl_dist( curs, target ) );
+                if( target.x() != curs.x() ) {
+                    description += target.x() > curs.x() ? _( " East." ) : _( " West." );
+                }
+                if( target.y() != curs.y() ) {
+                    description += target.y() > curs.y() ? _( " South." ) : _( " North." );
+                }
                 const int dz = target.z() - curs.z();
                 if( dz > 0 ) {
                     description += ". " + std::string( _( "Objective above current level." ) );

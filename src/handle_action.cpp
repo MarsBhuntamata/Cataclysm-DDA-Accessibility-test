@@ -3058,7 +3058,7 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
                     sky_description += _( "Nighttime." );
                 }
                 sky_description += " " + string_format( _( "Weather: %s." ),
-                                                        get_weather().weather_id->name.translated() );
+                                   get_weather().weather_id->name.translated() );
                 get_narration_service().announce( {
                     narration_event::contextual_help, sky_description, true
                 } );
@@ -3326,6 +3326,8 @@ bool game::handle_action()
                "Press slash to open Advanced Inventory Management and move items "
                "between your inventory and nearby tiles. Most cupboards are storage "
                "tiles, not containers you must open first. "
+               "In item lists, the greater than key shows or hides a container's "
+               "contents, and F6 describes your place in the list. "
                "Question mark opens standard game help or keybindings. "
                "The written guide is also in doc/NVDA_ACCESSIBILITY_GUIDE.md. "
                "These commands provide information, not automatic gameplay decisions." ),
