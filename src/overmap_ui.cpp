@@ -2293,6 +2293,9 @@ static tripoint_abs_omt display()
             if( overmap_buffer.has_note( curs ) ) {
                 report += ". " + string_format( _( "Note: %s" ), overmap_buffer.note( curs ) );
             }
+            if( get_avatar().map_revealed_omts.count( curs ) != 0 ) {
+                report += ". " + std::string( _( "Location revealed by a map." ) );
+            }
             if( overmap_buffer.is_marked_dangerous( curs ) ) {
                 report += ". " + std::string( _( "Marked dangerous." ) );
             }
@@ -2354,6 +2357,9 @@ static tripoint_abs_omt display()
                            ". " + std::string( _( "Not marked explored." ) );
             if( overmap_buffer.has_note( curs ) ) {
                 description += ". " + string_format( _( "Note: %s" ), overmap_buffer.note( curs ) );
+            }
+            if( viewer.map_revealed_omts.count( curs ) != 0 ) {
+                description += ". " + std::string( _( "Map-revealed location. Marked on your roadmap." ) );
             }
             if( overmap_buffer.is_marked_dangerous( curs ) ) {
                 description += ". " + std::string( _( "Danger marker present." ) );
