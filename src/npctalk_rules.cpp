@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "auto_pickup.h"
 #include "cata_imgui.h"
 #include "character.h"
@@ -133,6 +134,18 @@ bool follower_rules_ui_impl::setup_table_button( int &button_num, std::string &l
 void follower_rules_ui_impl::set_npc_pointer_to( npc *new_guy )
 {
     guy = new_guy;
+}
+
+void follower_rules_ui_impl::announce_rule_focus( const std::string &report, bool changed )
+{
+    if( !changed && ( !ImGui::IsItemFocused() || report == last_spoken_rule ) ) {
+        return;
+    }
+    get_narration_service().announce( {
+        changed ? narration_event::status_changed : narration_event::selection_changed,
+        report, true
+    } );
+    last_spoken_rule = report;
 }
 
 std::string follower_rules_ui_impl::get_parsed( std::string initial_string )
@@ -302,15 +315,21 @@ void follower_rules_ui_impl::checkbox( int rule_number, const T &this_rule,
         guy->rules.toggle_flag( this_rule.rule );
         guy->rules.toggle_specific_override_state( this_rule.rule, rule_enabled );
     }
+    const std::string rule_label = get_parsed( rule_enabled ? this_rule.rule_true_text :
+                                   this_rule.rule_false_text );
+    announce_rule_focus( string_format( _( "%s. %s." ), rule_label,
+                                        rule_enabled ? _( "Enabled" ) : _( "Disabled" ) ), changed );
     ImGui::SameLine();
     auto label = _( "Default" );
     auto x = ImGui::GetWindowWidth() - ImGui::GetStyle().ScrollbarSize -
              ImGui::GetStyle().WindowPadding.x - ImGui::CalcTextSize( label, nullptr, true ).x;
     ImGui::SetCursorPosX( x );
-    if( ImGui::Button( label ) ) {
+    const bool reset = ImGui::Button( label );
+    if( reset ) {
         guy->rules.clear_flag( this_rule.rule );
         guy->rules.clear_override( this_rule.rule );
     }
+    announce_rule_focus( string_format( _( "Reset %s to default." ), rule_label ), reset );
     ImGui::PopID();
 }
 
@@ -329,9 +348,13 @@ void follower_rules_ui_impl::radio_group( const std::string &header_id, const ch
     for( const std::pair<const T, std::string> &value : values ) {
         std::string rule_text = get_parsed( value.second );
         ImGui::SetCursorPosX( x );
-        if( ImGui::RadioButton( rule_text.c_str(), *rule == value.first ) ) {
+        const bool selected = ImGui::RadioButton( rule_text.c_str(), *rule == value.first );
+        if( selected ) {
             *rule = value.first;
         }
+        announce_rule_focus( string_format( _( "%s: %s. %s." ), title, rule_text,
+                                            *rule == value.first ? _( "Selected" ) : _( "Not selected" ) ),
+                             selected );
     }
 }
 
@@ -367,6 +390,14 @@ void follower_rules_ui_impl::draw_controls()
 
     static bool exporting_rules = false;
     static bool in_popup = false;
+    if( !rules_announced ) {
+        get_narration_service().announce( {
+            narration_event::ui_opened,
+            string_format( _( "Rules for your follower, %s. Use arrows or rule hotkeys. Enter changes the focused option." ),
+                           guy->disp_name() ), true
+        } );
+        rules_announced = true;
+    }
     if( in_popup ) {
         rules_transfer_popup( exporting_rules, in_popup );
         return;
@@ -382,14 +413,22 @@ void follower_rules_ui_impl::draw_controls()
                                   guy->disp_name() ) );
     ImGui::Separator();
 
-    if( ImGui::Button( _( "Import settings from follower" ) ) ) {
+    const bool import_clicked = ImGui::Button( _( "Import settings from follower" ) );
+    if( import_clicked ) {
         exporting_rules = false;
         in_popup = true;
+    }
+    announce_rule_focus( _( "Import settings from follower" ), import_clicked );
+    if( import_clicked ) {
         return;
     }
-    if( ImGui::Button( _( "Export settings to follower" ) ) ) {
+    const bool export_clicked = ImGui::Button( _( "Export settings to follower" ) );
+    if( export_clicked ) {
         exporting_rules = true;
         in_popup = true;
+    }
+    announce_rule_focus( _( "Export settings to follower" ), export_clicked );
+    if( export_clicked ) {
         return;
     }
 
@@ -398,13 +437,16 @@ void follower_rules_ui_impl::draw_controls()
 
 
     print_hotkey( assigned_hotkey );
-    if( ImGui::Button( _( "Default ALL" ) ) || pressed_key == assigned_hotkey ) {
+    const bool default_all_clicked = ImGui::Button( _( "Default ALL" ) );
+    const bool default_all = default_all_clicked || pressed_key == assigned_hotkey;
+    if( default_all ) {
         ImGui::SetKeyboardFocusHere( -1 );
         // TODO: use query_yn here as a safeguard against fatfingering. Can't use it right now,
         // it destructs the imgui instance(?!) which obviously causes us to crash
         npc_follower_rules default_values; //Call the constructor and let *it* tell us what the default is
         guy->rules = default_values;
     }
+    announce_rule_focus( _( "Reset all follower rules to defaults." ), default_all );
     ImGui::NewLine();
 
     int rule_number = 0;
