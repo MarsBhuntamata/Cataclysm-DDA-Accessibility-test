@@ -1,0 +1,33 @@
+name: Integrate full NVDA working branch into upstream pretest
+on:
+  push:
+    branches: [balloon-upstream-pretest-2026-11-07]
+    paths: [.github/workflows/merge-balloon-working-into-upstream.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: merge-balloon-working-upstream
+  cancel-in-progress: false
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: balloon-upstream-pretest-2026-11-07
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Merge all NVDA working branch changes, preferring them on content conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin balloon-accessibility-framework
+          git merge --no-ff --no-edit -X theirs origin/balloon-accessibility-framework || {
+            echo "::error::Automatic merge failed. Conflicted files:"
+            git status --short
+            exit 1
+          }
+          git push origin HEAD:balloon-upstream-pretest-2026-11-07
