@@ -53,8 +53,6 @@ input_context get_default_mode_input_context();
 // Semantic local-map information used by movement, surveying and look-cursor speech.
 // Never announce details on a tile that the avatar cannot currently see.
 std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile );
-// Optional low-noise terrain announcements. Disabled by default.
-bool &accessibility_auto_terrain_announcements();
 
 enum quit_status {
     QUIT_NO = 0,    // Still playing

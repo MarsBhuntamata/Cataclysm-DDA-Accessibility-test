@@ -5742,6 +5742,16 @@
   },
   {
     "type": "keybinding",
+    "id": "TOGGLE_RADAR",
+    "name": "Toggle surroundings radar: doors, windows, stairs and walls coming into view (Ctrl+B)",
+    "category": "DEFAULTMODE",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+B" },
+      { "input_method": "keyboard_code", "key": "b", "mod": [ "ctrl" ] }
+    ]
+  },
+  {
+    "type": "keybinding",
     "id": "READ_ARMOR_DETAILS",
     "name": "Read complete armor protection and properties",
     "category": "SORT_ARMOR",

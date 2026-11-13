@@ -2656,12 +2656,6 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
     return description;
 }
 
-bool &accessibility_auto_terrain_announcements()
-{
-    static bool enabled = false;
-    return enabled;
-}
-
 input_context get_default_mode_input_context()
 {
     static input_context default_ctxt = [] {
@@ -2715,11 +2709,13 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "REPEAT_NARRATION", to_translation( "Repeat last narration" ) );
         ctxt.register_action( "ACCESSIBILITY_GUIDE", to_translation( "NVDA accessibility controls guide" ) );
         ctxt.register_action( "SURVEY_SURROUNDINGS", to_translation( "Describe eight nearby tiles" ) );
-        ctxt.register_action( "DESCRIBE_SCENE", to_translation( "Describe the scene in view" ) );        ctxt.register_action( "DESCRIBE_STATUS", to_translation( "Speak status glance" ) );
+        ctxt.register_action( "DESCRIBE_SCENE", to_translation( "Describe the scene in view" ) );
+        ctxt.register_action( "DESCRIBE_STATUS", to_translation( "Speak status glance" ) );
         ctxt.register_action( "STATUS_BROWSER", to_translation( "Open spoken status browser" ) );
         ctxt.register_action( "READ_RECENT_MESSAGES", to_translation( "Read recent game messages" ) );
         ctxt.register_action( "TOGGLE_TERRAIN_NARRATION",
                               to_translation( "Toggle automatic terrain-change speech" ) );
+        ctxt.register_action( "TOGGLE_RADAR", to_translation( "Toggle surroundings radar" ) );
         ctxt.register_action( "peek" );
         ctxt.register_action( "listitems" );
         ctxt.register_action( "zones" );
@@ -8325,7 +8321,7 @@ bool game::walk_move( const tripoint_bub_ms &dest_loc, const bool via_ramp,
 
     // This is deliberately opt-in, and speaks only when the terrain name
     // changes, rather than once per step through identical floor/road tiles.
-    if( accessibility_auto_terrain_announcements() ) {
+    if( get_option<bool>( "A11Y_TERRAIN_CUE" ) ) {
         const std::string new_terrain_name = here.name( u.pos_bub() );
         if( new_terrain_name != old_terrain_name ) {
             get_narration_service().announce( {

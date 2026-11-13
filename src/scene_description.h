@@ -6,10 +6,12 @@
 #include <string>
 #include <vector>
 
+#include "coordinates.h"
 #include "creature.h"
 #include "lightmap.h"
 
 class avatar;
+class map;
 
 /**
  * Spoken overview of everything the avatar can currently see.
@@ -107,6 +109,14 @@ std::string render_scene( const scene_snapshot &scene );
 
 /** gather_scene followed by render_scene. */
 std::string describe_scene( const avatar &ava );
+
+// Helpers shared with the surroundings radar.
+/** "north" to "northwest" for 0-7, "here" otherwise. */
+std::string scene_direction_word( int direction );
+/** True for doors (open or closed), windows, stairs, ladders and ramps. */
+bool scene_is_exit_tile( const map &here, const tripoint_bub_ms &p );
+/** Displayed name of an exit tile; stairs and ramps say which way they lead. */
+std::string scene_exit_name( map &here, const tripoint_bub_ms &p );
 
 // Helpers exposed for unit tests.
 /** 0-7 clockwise from north for an offset, or scene_direction_here for none. */
