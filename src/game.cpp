@@ -6349,6 +6349,38 @@ look_around_result game::look_around(
     std::optional<tripoint_bub_ms> last_spoken_look_position;
     look_around_result result;
 
+    // Diagnostic sampling only: all NVDA narration stays enabled. Summaries
+    // are written every 20 look movements and when the look screen closes.
+    using look_clock = std::chrono::steady_clock;
+    int look_samples = 0;
+    long long redraw_total_us = 0;
+    long long redraw_peak_us = 0;
+    long long description_total_us = 0;
+    long long description_peak_us = 0;
+    long long speech_total_us = 0;
+    long long speech_peak_us = 0;
+    int descriptions = 0;
+    const auto look_session_start = look_clock::now();
+    const bool profile_look = show_window && !select_zone && !is_moving_zone;
+    if( profile_look ) {
+        record_look_profiler_sample( "LOOK_BEGIN" );
+    }
+    auto flush_look_profile = [&]( const char *phase ) {
+        if( !profile_look ) {
+            return;
+        }
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    look_clock::now() - look_session_start ).count();
+        record_look_profiler_sample( string_format(
+                                        "%s elapsed_ms=%lld redraws=%d redraw_total_us=%lld redraw_max_us=%lld "
+                                        "descriptions=%d description_total_us=%lld description_max_us=%lld "
+                                        "speech_total_us=%lld speech_max_us=%lld",
+                                        phase, static_cast<long long>( elapsed_ms ), look_samples,
+                                        redraw_total_us, redraw_peak_us, descriptions,
+                                        description_total_us, description_peak_us,
+                                        speech_total_us, speech_peak_us ) );
+    };
+
     shared_ptr_fast<draw_callback_t> ter_indicator_cb;
 
     if( show_window && ui ) {
@@ -6446,7 +6478,15 @@ look_around_result game::look_around(
         tilecontext->set_draw_cache_dirty();
 #endif
         invalidate_main_ui_adaptor();
+        const auto redraw_start = look_clock::now();
         ui_manager::redraw();
+        const auto redraw_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                   look_clock::now() - redraw_start ).count();
+        if( profile_look ) {
+            ++look_samples;
+            redraw_total_us += redraw_us;
+            redraw_peak_us = std::max( redraw_peak_us, static_cast<long long>( redraw_us ) );
+        }
 
         if( ( ( show_window && !select_zone && !is_moving_zone ) ||
               select_zone || is_moving_zone ) &&
@@ -6471,8 +6511,17 @@ look_around_result game::look_around(
             if( lp.z() != home.z() ) {
                 relative += string_format( _( ", level offset %d" ), lp.z() - home.z() );
             }
-            std::string speech = string_format( "%s. %s", relative,
-                                                 accessibility_describe_local_tile( lp ) );
+            const auto description_start = look_clock::now();
+            const std::string tile_description = accessibility_describe_local_tile( lp );
+            const auto description_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                            look_clock::now() - description_start ).count();
+            if( profile_look ) {
+                ++descriptions;
+                description_total_us += description_us;
+                description_peak_us = std::max( description_peak_us,
+                                                static_cast<long long>( description_us ) );
+            }
+            std::string speech = string_format( "%s. %s", relative, tile_description );
             if( peeking ) {
                 speech = std::string( _( "Peeking. " ) ) + speech;
             }
@@ -6482,10 +6531,20 @@ look_around_result game::look_around(
             } else if( is_moving_zone ) {
                 speech = std::string( _( "Move zone. " ) ) + speech;
             }
+            const auto speech_start = look_clock::now();
             get_narration_service().announce( {
                 narration_event::selection_changed, speech, true
             } );
+            const auto speech_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                       look_clock::now() - speech_start ).count();
+            if( profile_look ) {
+                speech_total_us += speech_us;
+                speech_peak_us = std::max( speech_peak_us, static_cast<long long>( speech_us ) );
+            }
             last_spoken_look_position = lp;
+            if( profile_look && descriptions % 20 == 0 ) {
+                flush_look_profile( "LOOK_SAMPLE" );
+            }
         }
 
         if( ( select_zone && has_first_point ) || is_moving_zone ) {
@@ -6609,6 +6668,8 @@ look_around_result game::look_around(
         }
     } while( action != "QUIT" && action != "CONFIRM" && action != "SELECT" && action != "TRAVEL_TO" &&
              action != "throw_blind" && action != "throw_blind_wielded" );
+
+    flush_look_profile( "LOOK_END" );
 
     if( center.z() != old_levz ) {
         here.invalidate_map_cache( old_levz );
