@@ -2352,6 +2352,12 @@ static tripoint_abs_omt display()
                                          viewer.get_active_point_of_interest().text;
                 description += ". " + string_format( _( "Objective: %s. %d map tiles away." ),
                                                     name, rl_dist( curs, target ) );
+                if( target.x() != curs.x() ) {
+                    description += target.x() > curs.x() ? _( " East." ) : _( " West." );
+                }
+                if( target.y() != curs.y() ) {
+                    description += target.y() > curs.y() ? _( " South." ) : _( " North." );
+                }
                 const int dz = target.z() - curs.z();
                 if( dz > 0 ) {
                     description += ". " + std::string( _( "Objective above current level." ) );
