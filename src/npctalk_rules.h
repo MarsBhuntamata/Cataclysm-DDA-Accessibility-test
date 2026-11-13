@@ -35,6 +35,9 @@ class follower_rules_ui_impl : public cataimgui::window
 
     private:
         npc *guy = nullptr;
+        std::string last_spoken_rule;
+        bool rules_announced = false;
+        void announce_rule_focus( const std::string &report, bool changed = false );
         std::string get_parsed( std::string initial_string );
         void print_hotkey( input_event &hotkey );
         void rules_transfer_popup( bool &exporting_rules, bool &still_in_popup );
