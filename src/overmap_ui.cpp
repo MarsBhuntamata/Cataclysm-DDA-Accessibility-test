@@ -1368,6 +1368,13 @@ static bool create_note( const tripoint_abs_omt &curs, std::optional<std::string
     std::string title = _( "Note:" );
 
     std::string new_note = old_note;
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        old_note.empty() ?
+        _( "Create overmap note. Type a note, then press Enter to save or Escape to cancel." ) :
+        string_format( _( "Edit overmap note. Current note: %s. Press Enter to save or Escape to cancel." ),
+                       old_note ), true
+    } );
     auto map_around = get_overmap_neighbors( curs );
 
     catacurses::window w_preview;
@@ -1421,10 +1428,17 @@ static bool create_note( const tripoint_abs_omt &curs, std::optional<std::string
     if( !esc_pressed && new_note.empty() && !old_note.empty() ) {
         if( query_yn( _( "Really delete note?" ) ) ) {
             overmap_buffer.delete_note( curs );
+            get_narration_service().announce( {
+                narration_event::selection_changed, _( "Overmap note deleted." ), true
+            } );
             return true;
         }
     } else if( !esc_pressed && old_note != new_note ) {
         overmap_buffer.add_note( curs, new_note );
+        get_narration_service().announce( {
+            narration_event::selection_changed,
+            string_format( _( "Overmap note saved: %s" ), new_note ), true
+        } );
         return true;
     }
     return false;
@@ -1435,6 +1449,11 @@ static bool create_point_of_interest( const tripoint_abs_omt &curs )
     std::string context = _( "Add a Point of Interest entry to the Mission UI" );
     std::string title = _( "Description:" );
     std::string new_note;
+    get_narration_service().announce( {
+        narration_event::ui_opened,
+        _( "Create point of interest. Enter a description, then press Enter to save or Escape to cancel." ),
+        true
+    } );
 
     catacurses::window w_preview;
     catacurses::window w_preview_title;
@@ -1482,6 +1501,10 @@ static bool create_point_of_interest( const tripoint_abs_omt &curs )
 
     if( !esc_pressed && !new_note.empty() ) {
         get_avatar().add_point_of_interest( {curs, new_note} );
+        get_narration_service().announce( {
+            narration_event::selection_changed,
+            string_format( _( "Point of interest saved: %s" ), new_note ), true
+        } );
         return true;
     }
     return false;
