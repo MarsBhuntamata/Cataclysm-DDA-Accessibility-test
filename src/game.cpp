@@ -782,6 +782,9 @@ bool game::start_game()
 
     seed = rng_bits();
     new_game = true;
+    // Map discoveries belong to the current character/world. Keep older
+    // roadmaps within one game, but never carry their markers into a new game.
+    u.map_revealed_omts.clear();
     start_calendar();
     weather.nextweather = calendar::turn;
     safe_mode = SAFE_MODE_ON;
