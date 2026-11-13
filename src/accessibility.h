@@ -80,4 +80,9 @@ void shutdown_accessibility();
 /// Persist startup and shutdown checkpoints to help diagnose Windows crashes.
 void record_accessibility_checkpoint( const std::string &stage );
 
+// Low-frequency look-mode performance records, independent of NVDA speech.
+// On Windows, writes look-profiler.txt next to the executable.
+void record_look_profiler_sample( const std::string &message );
+
+
 #endif // CATA_SRC_ACCESSIBILITY_H
