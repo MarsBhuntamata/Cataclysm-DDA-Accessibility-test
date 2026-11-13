@@ -106,7 +106,8 @@ void follower_rules_ui_impl::multi_rule_header( const std::string &id, T &rule,
     }
 }
 
-bool follower_rules_ui_impl::setup_button( int &button_num, std::string &label, bool should_color )
+bool follower_rules_ui_impl::setup_button( int &button_num, const std::string &label, bool should_color,
+        const std::string &speech )
 {
     bool was_clicked = false;
     ImGui::PushID( button_num );
@@ -117,6 +118,7 @@ bool follower_rules_ui_impl::setup_button( int &button_num, std::string &label, 
     if( ImGui::Button( label.c_str() ) ) {
         was_clicked = true;
     }
+    announce_rule_focus( speech );
     ImGui::PopID();
     if( should_color ) {
         ImGui::PopStyleColor();
@@ -124,11 +126,11 @@ bool follower_rules_ui_impl::setup_button( int &button_num, std::string &label, 
     return was_clicked;
 }
 
-bool follower_rules_ui_impl::setup_table_button( int &button_num, std::string &label,
-        bool should_color )
+bool follower_rules_ui_impl::setup_table_button( int &button_num, const std::string &label,
+        bool should_color, const std::string &speech )
 {
     ImGui::TableNextColumn();
-    return setup_button( button_num, label, should_color );
+    return setup_button( button_num, label, should_color, speech );
 }
 
 void follower_rules_ui_impl::set_npc_pointer_to( npc *new_guy )
@@ -169,6 +171,17 @@ void follower_rules_ui_impl::print_hotkey( input_event &hotkey )
 
 void follower_rules_ui_impl::rules_transfer_popup( bool &exporting_rules, bool &still_in_popup )
 {
+    if( !transfer_announced || last_transfer_exporting != exporting_rules ) {
+        get_narration_service().announce( {
+            narration_event::ui_opened,
+            string_format( exporting_rules ?
+                           _( "Export rules from %s to another follower." ) :
+                           _( "Import rules to %s from another follower." ), guy->disp_name() ), true
+        } );
+        transfer_announced = true;
+        last_transfer_exporting = exporting_rules;
+        last_spoken_rule.clear();
+    }
     std::string toggle_label;
     if( exporting_rules ) {
         cataimgui::draw_colored_text( string_format( _( "Exporting rules from <color_white>%s</color>" ),
@@ -183,18 +196,26 @@ void follower_rules_ui_impl::rules_transfer_popup( bool &exporting_rules, bool &
     }
     // Not ideal but leaves plenty of room for even verbose languages. Really anywhere top-right-ish is fine
     ImGui::SameLine( ImGui::GetWindowWidth() * 0.7 );
-    if( ImGui::Button( _( "Return to rules settings" ) ) ) {
+    const bool return_clicked = ImGui::Button( _( "Return to rules settings" ) );
+    announce_rule_focus( _( "Return to rules settings." ) );
+    if( return_clicked ) {
         still_in_popup = false;
+        transfer_announced = false;
+        announce_rule_focus( _( "Returned to follower rules settings." ), true );
         return;
     }
     if( g->get_follower_list().size() < 2 ) {
         cataimgui::draw_colored_text( string_format(
                                           _( "Functions unavailable.  %s is your only follower." ),
                                           guy->disp_name() ), c_red );
+        announce_rule_focus( _( "No other followers available for rule transfer." ), true );
         return;
     }
-    if( ImGui::Button( _( "Toggle export/import" ) ) ) {
+    const bool toggle_clicked = ImGui::Button( _( "Toggle export/import" ) );
+    announce_rule_focus( _( "Toggle import or export mode." ) );
+    if( toggle_clicked ) {
         exporting_rules = !exporting_rules;
+        transfer_announced = false;
     }
     ImGui::NewLine();
     cataimgui::draw_colored_text( string_format(
@@ -235,35 +256,39 @@ void follower_rules_ui_impl::rules_transfer_popup( bool &exporting_rules, bool &
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 cataimgui::draw_colored_text( role_model.disp_name() );
-                /*Flags and overrides*/
-                do_flags_overrides = setup_table_button( button_number, toggle_label,
-                                     role_model.rules.flags == guy->rules.flags );
-                /*Aim rule*/
-                do_aim = setup_table_button( button_number, toggle_label,
-                                             role_model.rules.aim == guy->rules.aim );
-                /*Engagement rule*/
-                do_engagement = setup_table_button( button_number, toggle_label,
-                                                    role_model.rules.engagement == guy->rules.engagement );
-                /*CBM recharge rule*/
-                do_cbm_recharge = setup_table_button( button_number, toggle_label,
-                                                      role_model.rules.cbm_recharge == guy->rules.cbm_recharge );
-                /*CBM reserve rule*/
-                do_cbm_reserve = setup_table_button( button_number, toggle_label,
-                                                     role_model.rules.cbm_reserve == guy->rules.cbm_reserve );
-                /*Pickup whitelist rule*/
-
-                // This is not correct if both have rules and both have *different* rules, but comparison is expensive
-                // if( role_model.rules.pickup_whitelist->empty() == guy->rules.pickup_whitelist->empty() )
-                do_pickup = setup_table_button( button_number, toggle_label,
-                                                role_model.rules.pickup_whitelist->empty() == guy->rules.pickup_whitelist->empty() );
-                /*The ALL button*/
-                do_all = setup_table_button( button_number, toggle_label,
-                                             role_model.rules.flags == guy->rules.flags &&
-                                             role_model.rules.aim == guy->rules.aim &&
-                                             role_model.rules.engagement == guy->rules.engagement &&
-                                             role_model.rules.cbm_recharge == guy->rules.cbm_recharge &&
-                                             role_model.rules.cbm_reserve == guy->rules.cbm_reserve &&
-                                             role_model.rules.pickup_whitelist->empty() == guy->rules.pickup_whitelist->empty() );
+                const std::string follower_name = role_model.disp_name();
+                const auto transfer_speech = [&]( const char *category, bool matching ) {
+                    return string_format( _( "%s. %s. %s. %s." ), follower_name, category,
+                                          exporting_rules ? _( "Export" ) : _( "Import" ),
+                                          matching ? _( "Already matching" ) : _( "Different settings" ) );
+                };
+                const bool flags_match = role_model.rules.flags == guy->rules.flags &&
+                                         role_model.rules.overrides == guy->rules.overrides &&
+                                         role_model.rules.override_enable == guy->rules.override_enable;
+                const bool aim_match = role_model.rules.aim == guy->rules.aim;
+                const bool engagement_match = role_model.rules.engagement == guy->rules.engagement;
+                const bool recharge_match = role_model.rules.cbm_recharge == guy->rules.cbm_recharge;
+                const bool reserve_match = role_model.rules.cbm_reserve == guy->rules.cbm_reserve;
+                const bool pickup_state_match = role_model.rules.pickup_whitelist->empty() ==
+                                                guy->rules.pickup_whitelist->empty();
+                const bool all_match = flags_match && aim_match && engagement_match &&
+                                       recharge_match && reserve_match && pickup_state_match;
+                do_flags_overrides = setup_table_button( button_number, toggle_label, flags_match,
+                                     transfer_speech( _( "Behaviors" ), flags_match ) );
+                do_aim = setup_table_button( button_number, toggle_label, aim_match,
+                                             transfer_speech( _( "Aiming" ), aim_match ) );
+                do_engagement = setup_table_button( button_number, toggle_label, engagement_match,
+                                                    transfer_speech( _( "Engagement" ), engagement_match ) );
+                do_cbm_recharge = setup_table_button( button_number, toggle_label, recharge_match,
+                                                     transfer_speech( _( "CBM recharge" ), recharge_match ) );
+                do_cbm_reserve = setup_table_button( button_number, toggle_label, reserve_match,
+                                                    transfer_speech( _( "CBM reserve" ), reserve_match ) );
+                // The UI only compares whether the pickup lists are empty, not their contents.
+                do_pickup = setup_table_button( button_number, toggle_label, pickup_state_match,
+                                                string_format( _( "%s. Pickup list. %s. Contents not compared." ),
+                                                        follower_name, exporting_rules ? _( "Export" ) : _( "Import" ) ) );
+                do_all = setup_table_button( button_number, toggle_label, all_match,
+                                             transfer_speech( _( "All rules" ), all_match ) );
                 /*The great swap*/
                 // To make this slightly easier...
                 npc *guy_with_same = exporting_rules ? guy : &role_model;
@@ -287,6 +312,18 @@ void follower_rules_ui_impl::rules_transfer_popup( bool &exporting_rules, bool &
                 }
                 if( do_pickup || do_all ) {
                     guy_with_new->rules.pickup_whitelist = guy_with_same->rules.pickup_whitelist;
+                }
+                if( do_flags_overrides || do_aim || do_engagement || do_cbm_recharge ||
+                    do_cbm_reserve || do_pickup || do_all ) {
+                    const std::string category = do_all ? _( "All rules" ) :
+                                                 do_flags_overrides ? _( "Behaviors" ) :
+                                                 do_aim ? _( "Aiming" ) :
+                                                 do_engagement ? _( "Engagement" ) :
+                                                 do_cbm_recharge ? _( "CBM recharge" ) :
+                                                 do_cbm_reserve ? _( "CBM reserve" ) : _( "Pickup list" );
+                    announce_rule_focus( string_format( _( "Copied %s from %s to %s." ), category,
+                                                        guy_with_same->disp_name(),
+                                                        guy_with_new->disp_name() ), true );
                 }
             }
         }
