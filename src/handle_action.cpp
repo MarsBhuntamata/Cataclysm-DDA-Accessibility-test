@@ -91,6 +91,7 @@
 #include "sdl_gamepad.h"
 #endif
 #include "scene_description.h"
+#include "scene_radar.h"
 #include "sidebar_accessibility.h"
 #include "sleep.h"
 #include "sounds.h"
@@ -3407,6 +3408,10 @@ bool game::handle_action()
                "Control plus R or F10 reads the last five game messages. "
                "F7 repeats the previous narration. "
                "F11 toggles automatic terrain change announcements. "
+               "Control plus B toggles the surroundings radar, which speaks when "
+               "doors, windows, stairs or walls come into view and when the area "
+               "opens out or narrows. Its settings are on the Accessibility page "
+               "of the options menu. "
                "To store items on a nearby cupboard, shelf, or other furniture tile, "
                "press Shift plus D to drop items on an adjacent tile, choose the "
                "direction of the furniture, then choose the items to place there. "
@@ -3482,12 +3487,26 @@ bool game::handle_action()
         return false;
     }
     if( action == "TOGGLE_TERRAIN_NARRATION" ) {
-        bool &enabled = accessibility_auto_terrain_announcements();
-        enabled = !enabled;
+        // Saved with the other options, so the choice survives a restart.
+        get_options().get_option( "A11Y_TERRAIN_CUE" ).setNext();
+        get_options().save();
         get_narration_service().announce( {
             narration_event::contextual_help,
-            enabled ? std::string( _( "Automatic terrain-change speech on." ) ) :
-                      std::string( _( "Automatic terrain-change speech off." ) ), true
+            get_option<bool>( "A11Y_TERRAIN_CUE" ) ?
+            std::string( _( "Automatic terrain-change speech on." ) ) :
+            std::string( _( "Automatic terrain-change speech off." ) ), true
+        } );
+        return false;
+    }
+    if( action == "TOGGLE_RADAR" ) {
+        get_options().get_option( "A11Y_RADAR" ).setNext();
+        get_options().save();
+        // Start from a fresh snapshot rather than one from before the pause.
+        radar_reset();
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            get_option<bool>( "A11Y_RADAR" ) ? std::string( _( "Radar on." ) ) :
+            std::string( _( "Radar off." ) ), true
         } );
         return false;
     }

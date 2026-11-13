@@ -333,6 +333,21 @@ std::string list_sentence( const std::string &label, const std::vector<std::stri
 
 } // namespace
 
+std::string scene_direction_word( int direction )
+{
+    return direction_word( direction );
+}
+
+bool scene_is_exit_tile( const map &here, const tripoint_bub_ms &p )
+{
+    return is_exit_tile( here, p );
+}
+
+std::string scene_exit_name( map &here, const tripoint_bub_ms &p )
+{
+    return exit_name( here, p );
+}
+
 int scene_direction_index( int dx, int dy )
 {
     if( dx == 0 && dy == 0 ) {

@@ -16,7 +16,32 @@ This fork aims to make the ordinary CDDA game accessible through NVDA. It does *
 - **Ctrl+F**: Describe the scene in view. Speaks, in order: indoors or outdoors and the kind of place, the light on your tile, hostile creatures grouped by kind and direction with whether they see you, friendly and neutral creatures, how far you can go in each of the eight directions and what stops you, the nearest doors, windows and stairs, any visible hazards such as fire or spotted traps, then furniture, vehicles, and how many tiles hold items. Costs no game time.
 - **Ctrl+L** or **F8**: Describe the eight tiles adjacent to your character.
 - **F6**: Describe the tile underfoot.
-- **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration.
+- **F11**: Toggle automatic announcement when the terrain underfoot changes. Off by default to avoid needless narration. The choice is saved with your options.
+- **Ctrl+B**: Toggle the surroundings radar, described below. Off by default.
+
+## Surroundings radar
+
+The radar speaks short notices after each action when what you can see changes: "Door, 3 east." when a door comes into view, "Opens east, 8." when you pass a side corridor, "Area opens out." when you step from a corridor into a room. It reports only what your character can currently see, and costs no game time.
+
+- Walking towards a wall or along a wall is silent; only a real change in the shape of the space is spoken.
+- A door that opens or closes in view is reported: "Now open wood door, 3 north."
+- If the light goes and your view shrinks, the radar says "Sight reduced." instead of listing everything that left view.
+- It is silent on the first action after changing level or being moved a long way. Use **Ctrl+F** for the full scene.
+
+The settings are on the **Accessibility** page of the options menu (Escape, Options). Each setting's description is spoken after its name and value.
+
+- **Surroundings radar**: the master switch, same as Ctrl+B.
+- **Doors**, **windows**, **stairs, ladders and ramps**, **walls and openings**, **area opens out or narrows**, **hazards**: switch each kind of notice on or off. Hazards are off by default.
+- **Announce features when**: entering view, leaving view, or both.
+- **Range in tiles**: ignore anything farther away. Default 12.
+- **Wall change threshold**: how many tiles the open distance must change before it is mentioned. Higher is quieter. Default 3.
+- **Wall directions**: four cardinal directions, or all eight.
+- **Wording**: short ("Door") or the game's full name ("Closed wood door").
+- **Most notices per step**: after this many, the radar says how many more there were. Default 3.
+- **Outdoors**: everything, exits only, or nothing. Trees make wall changes noisy outside, so the default is exits only.
+- **Speak during auto-travel and driving**: off by default.
+
+The same page holds **Announce terrain changes underfoot**, the setting F11 toggles.
 
 ## Putting items into cupboards and other furniture
 
