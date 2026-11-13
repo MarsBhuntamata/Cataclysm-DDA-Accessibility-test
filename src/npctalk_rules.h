@@ -37,12 +37,16 @@ class follower_rules_ui_impl : public cataimgui::window
         npc *guy = nullptr;
         std::string last_spoken_rule;
         bool rules_announced = false;
+        bool transfer_announced = false;
+        bool last_transfer_exporting = false;
         void announce_rule_focus( const std::string &report, bool changed = false );
         std::string get_parsed( std::string initial_string );
         void print_hotkey( input_event &hotkey );
         void rules_transfer_popup( bool &exporting_rules, bool &still_in_popup );
-        bool setup_button( int &button_num, std::string &label, bool should_color );
-        bool setup_table_button( int &button_num, std::string &label, bool should_color );
+        bool setup_button( int &button_num, const std::string &label, bool should_color,
+                           const std::string &speech );
+        bool setup_table_button( int &button_num, const std::string &label, bool should_color,
+                                 const std::string &speech );
 
         float window_width = std::clamp( float( str_width_to_pixels( EVEN_MINIMUM_TERM_WIDTH ) ),
                                          ImGui::GetMainViewport()->Size.x / 2,
