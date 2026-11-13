@@ -249,7 +249,30 @@ void mission_ui_impl::draw_controls()
     // This action needs to be after umissions is populated
     if( last_action == "CONFIRM" ) {
         if( selected_tab == mission_ui_tab_enum::ACTIVE && !umissions.empty() ) {
-            get_avatar().set_active_mission( *umissions[selected_mission] );
+            mission &chosen = *umissions[selected_mission];
+            get_avatar().set_active_mission( chosen );
+            std::string confirmation = string_format( _( "Current mission selected: %s." ),
+                                        chosen.name() );
+            const tripoint_abs_omt target = get_avatar().get_active_mission_target();
+            if( !target.is_invalid() ) {
+                const tripoint_abs_omt here = get_avatar().pos_abs_omt();
+                confirmation += " " + string_format( _( "Target is %d overmap tiles away." ),
+                                                   rl_dist( here, target ) );
+                if( target.x() != here.x() ) {
+                    confirmation += " " + std::string( target.x() > here.x() ? _( "East." ) : _( "West." ) );
+                }
+                if( target.y() != here.y() ) {
+                    confirmation += " " + std::string( target.y() > here.y() ? _( "South." ) : _( "North." ) );
+                }
+                if( target.z() != here.z() ) {
+                    confirmation += " " + std::string( target.z() > here.z() ? _( "Above." ) : _( "Below." ) );
+                }
+            } else {
+                confirmation += " " + std::string( _( "No map target available for this mission." ) );
+            }
+            get_narration_service().announce( {
+                narration_event::status_changed, confirmation, true
+            } );
         } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST &&
                    !upoints_of_interest.empty() ) {
             get_avatar().add_point_of_interest( upoints_of_interest[selected_mission] );
