@@ -275,7 +275,20 @@ void mission_ui_impl::draw_controls()
             } );
         } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST &&
                    !upoints_of_interest.empty() ) {
-            get_avatar().add_point_of_interest( upoints_of_interest[selected_mission] );
+            const point_of_interest &chosen = upoints_of_interest[selected_mission];
+            get_avatar().set_active_point_of_interest( chosen );
+            const tripoint_abs_omt here = get_avatar().pos_abs_omt();
+            std::string confirmation = string_format( _( "Current point of interest selected: %s. %d overmap tiles away." ),
+                                       chosen.text, rl_dist( here, chosen.pos ) );
+            if( chosen.pos.x() != here.x() ) {
+                confirmation += chosen.pos.x() > here.x() ? _( " East." ) : _( " West." );
+            }
+            if( chosen.pos.y() != here.y() ) {
+                confirmation += chosen.pos.y() > here.y() ? _( " South." ) : _( " North." );
+            }
+            get_narration_service().announce( {
+                narration_event::status_changed, confirmation, true
+            } );
         }
     }
 
@@ -308,6 +321,15 @@ void mission_ui_impl::draw_controls()
     } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ) {
         const point_of_interest &poi = upoints_of_interest[selected_mission];
         mission_report += ". " + poi.text;
+        const tripoint_abs_omt here = get_avatar().pos_abs_omt();
+        mission_report += ". " + string_format( _( "%d overmap tiles away." ),
+                                               rl_dist( here, poi.pos ) );
+        if( poi.pos.x() != here.x() ) {
+            mission_report += poi.pos.x() > here.x() ? _( " East." ) : _( " West." );
+        }
+        if( poi.pos.y() != here.y() ) {
+            mission_report += poi.pos.y() > here.y() ? _( " South." ) : _( " North." );
+        }
         if( get_avatar().get_active_point_of_interest().pos == poi.pos ) {
             mission_report += ". " + std::string( _( "Current destination." ) );
         }
