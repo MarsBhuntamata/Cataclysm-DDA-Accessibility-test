@@ -516,7 +516,11 @@ void mission_ui_impl::draw_point_of_interest_names( const std::vector<point_of_i
                                    ImGuiSelectableFlags_AllowDoubleClick ) ) {
                 selected_mission = i;
                 if( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) ) {
-                    get_avatar().set_active_point_of_interest( points_of_interest[selected_mission] );
+                    if( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
+                        get_avatar().add_point_of_interest( points_of_interest[selected_mission] );
+                    } else {
+                        get_avatar().set_active_point_of_interest( points_of_interest[selected_mission] );
+                    }
                 }
             }
 
