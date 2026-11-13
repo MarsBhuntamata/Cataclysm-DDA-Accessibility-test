@@ -2820,7 +2820,7 @@ void crafting_ui_impl::process_action( const std::string &action_in,
                                         data.get_item_name(), data.get_type_name(),
                                         data.get_item_display() );
         const recipe &selected_recipe = *current[line];
-        const inventory &crafting_inv = available[line].inv_override ?
+        const temp_crafting_inventory &crafting_inv = available[line].inv_override ?
                                         *available[line].inv_override : crafter->crafting_inventory();
         const auto &component_groups = selected_recipe.simple_requirements().get_components();
         if( component_groups.empty() ) {
