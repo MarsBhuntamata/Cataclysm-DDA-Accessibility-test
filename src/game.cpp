@@ -2631,8 +2631,11 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
                 description += ". " + string_format( _( "Power grid appliance: %s." ),
                                                     vp->vehicle().name );
             }
+            // The appliance menu offers a Plug action for this position.
+            // A connectable appliance is not necessarily already powered.
+            description += " " + std::string( _( "Cable connectable." ) );
             if( vp->vehicle().is_powergrid() ) {
-                description += " " + std::string( _( "Power grid segment." ) );
+                description += " " + std::string( _( "Grid component here." ) );
             }
         } else {
             description += ". " + string_format( _( "Vehicle: %s." ), vp->vehicle().name );
@@ -5715,6 +5718,14 @@ void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
             const std::string furniture_text = here.furn( examp ).obj().description.translated();
             if( !furniture_text.empty() ) {
                 description += " " + furniture_text;
+            }
+        }
+        if( const optional_vpart_position vp = here.veh_at( examp ) ) {
+            if( vp->vehicle().is_appliance() ) {
+                description += " " + std::string( _( "Cable connectable." ) );
+                if( vp->vehicle().is_powergrid() ) {
+                    description += " " + std::string( _( "Grid component here." ) );
+                }
             }
         }
         get_narration_service().announce( {
