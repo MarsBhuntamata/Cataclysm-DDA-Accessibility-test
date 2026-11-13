@@ -208,7 +208,9 @@ void follower_rules_ui_impl::rules_transfer_popup( bool &exporting_rules, bool &
         cataimgui::draw_colored_text( string_format(
                                           _( "Functions unavailable.  %s is your only follower." ),
                                           guy->disp_name() ), c_red );
-        announce_rule_focus( _( "No other followers available for rule transfer." ), true );
+        if( last_spoken_rule != _( "No other followers available for rule transfer." ) ) {
+            announce_rule_focus( _( "No other followers available for rule transfer." ), true );
+        }
         return;
     }
     const bool toggle_clicked = ImGui::Button( _( "Toggle export/import" ) );
