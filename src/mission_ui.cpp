@@ -86,11 +86,11 @@ class mission_ui_impl : public cataimgui::window
     private:
         void draw_mission_names( std::vector<mission *> missions, int &selected_mission,
                                  bool &need_adjust ) const;
-        void draw_point_of_interest_names( std::vector<point_of_interest> points_of_interest,
+        void draw_point_of_interest_names( const std::vector<point_of_interest> &points_of_interest,
                                            int &selected_mission,
                                            bool &need_adjust ) const;
         void draw_selected_description( std::vector<mission *> missions, int &selected_mission );
-        void draw_selected_description( std::vector<point_of_interest> points_of_interest,
+        void draw_selected_description( const std::vector<point_of_interest> &points_of_interest,
                                         const int &selected_mission ) const;
         void draw_label_with_value( const std::string &label, const std::string &value ) const;
         void draw_location( const std::string &label, const tripoint_abs_omt &loc ) const;
@@ -99,6 +99,10 @@ class mission_ui_impl : public cataimgui::window
         mission_ui_tab_enum switch_tab = mission_ui_tab_enum::num_tabs;
         std::string last_spoken_mission;
         bool mission_screen_announced = false;
+        // Roadmap terrain names and distance ordering are only computed once
+        // per mission-screen opening, not on every ImGui redraw.
+        bool discoveries_loaded = false;
+        std::vector<point_of_interest> discovered_locations;
 
         float window_width = std::clamp( float( str_width_to_pixels( EVEN_MINIMUM_TERM_WIDTH ) ),
                                          ImGui::GetMainViewport()->Size.x / 2,
@@ -228,15 +232,17 @@ void mission_ui_impl::draw_controls()
         }
         if( ImGui::BeginTabItem( _( "MAP DISCOVERIES" ), nullptr, flags ) ) {
             selected_tab = mission_ui_tab_enum::MAP_DISCOVERIES;
-            const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
-            for( const tripoint_abs_omt &pos : get_avatar().map_revealed_omts ) {
+            if( !discoveries_loaded ) {
+                const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
+                discovered_locations.reserve( get_avatar().map_revealed_omts.size() );
+                for( const tripoint_abs_omt &pos : get_avatar().map_revealed_omts ) {
                 const om_vision_level vision = overmap_buffer.seen( pos );
                 const std::string name = vision == om_vision_level::unseen ?
                                          _( "Map-revealed location" ) :
                                          overmap_buffer.ter( pos )->get_name( vision );
-                upoints_of_interest.push_back( { pos, name } );
-            }
-            std::sort( upoints_of_interest.begin(), upoints_of_interest.end(),
+                    discovered_locations.push_back( { pos, name } );
+                }
+                std::sort( discovered_locations.begin(), discovered_locations.end(),
             [&player_pos]( const point_of_interest & lhs, const point_of_interest & rhs ) {
                 const int lhs_dist = rl_dist( player_pos, lhs.pos );
                 const int rhs_dist = rl_dist( player_pos, rhs.pos );
@@ -250,16 +256,20 @@ void mission_ui_impl::draw_controls()
                     return lhs.pos.y() < rhs.pos.y();
                 }
                 return lhs.pos.z() < rhs.pos.z();
-            } );
+                } );
+                discoveries_loaded = true;
+            }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
     }
 
+    const std::vector<point_of_interest> &visible_points =
+        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ? discovered_locations : upoints_of_interest;
     size_t num_entries = umissions.size();
     if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
         selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
-        num_entries = upoints_of_interest.size();
+        num_entries = visible_points.size();
     }
     const int last_entry = num_entries == 0 ? 0 : ( static_cast<int>( num_entries ) - 1 );
     const int previous_selected_mission = selected_mission;
@@ -310,8 +320,8 @@ void mission_ui_impl::draw_controls()
             } );
         } else if( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
                      selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) &&
-                   !upoints_of_interest.empty() ) {
-            const point_of_interest &chosen = upoints_of_interest[selected_mission];
+                   !visible_points.empty() ) {
+            const point_of_interest &chosen = visible_points[selected_mission];
             if( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
                 // A roadmap discovery is not automatically a mission POI. Save
                 // only the selected discovery as a POI so it can be targeted.
@@ -335,8 +345,8 @@ void mission_ui_impl::draw_controls()
     }
 
     if( last_action == "DELETE_POINT_OF_INTEREST" &&
-        selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST && !upoints_of_interest.empty() ) {
-        get_avatar().delete_point_of_interest( upoints_of_interest[selected_mission].pos );
+        selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST && !visible_points.empty() ) {
+        get_avatar().delete_point_of_interest( visible_points[selected_mission].pos );
     }
 
     // ImGui mission lists are not exposed to NVDA by ordinary keyboard focus.
@@ -365,7 +375,7 @@ void mission_ui_impl::draw_controls()
         mission_report += ". " + std::string( _( "No entries." ) );
     } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
                selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
-        const point_of_interest &poi = upoints_of_interest[selected_mission];
+        const point_of_interest &poi = visible_points[selected_mission];
         mission_report += ". " + poi.text;
         const tripoint_abs_omt here = get_avatar().pos_abs_omt();
         mission_report += ". " + string_format( _( "%d overmap tiles away." ),
@@ -402,7 +412,7 @@ void mission_ui_impl::draw_controls()
     if( ( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
           selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES && umissions.empty() ) ||
         ( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
-            selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) && upoints_of_interest.empty() ) ) {
+            selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) && visible_points.empty() ) ) {
         static const std::map< mission_ui_tab_enum, translation > nope = {
             { mission_ui_tab_enum::ACTIVE, to_translation( "You have no active missions!" ) },
             { mission_ui_tab_enum::COMPLETED, to_translation( "You haven't completed any missions!" ) },
@@ -442,14 +452,14 @@ void mission_ui_impl::draw_controls()
             selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
             draw_mission_names( umissions, selected_mission, adjust_selected );
         } else {
-            draw_point_of_interest_names( upoints_of_interest, selected_mission, adjust_selected );
+            draw_point_of_interest_names( visible_points, selected_mission, adjust_selected );
         }
         ImGui::TableNextColumn();
         if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
             selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
             draw_selected_description( umissions, selected_mission );
         } else {
-            draw_selected_description( upoints_of_interest, selected_mission );
+            draw_selected_description( visible_points, selected_mission );
         }
         ImGui::EndTable();
     }
@@ -485,7 +495,7 @@ void mission_ui_impl::draw_mission_names( std::vector<mission *> missions, int &
     }
 }
 
-void mission_ui_impl::draw_point_of_interest_names( std::vector<point_of_interest>
+void mission_ui_impl::draw_point_of_interest_names( const std::vector<point_of_interest> &
         points_of_interest, int &selected_mission,
         bool &need_adjust ) const
 {
@@ -493,10 +503,16 @@ void mission_ui_impl::draw_point_of_interest_names( std::vector<point_of_interes
 
     if( ImGui::BeginListBox( "##LISTBOX", ImVec2( table_column_width * 0.75,
                              ImGui::GetContentRegionAvail().y ) ) ) {
-        for( int i = 0; i < num_missions; i++ ) {
-            const bool is_selected = selected_mission == i;
-            ImGui::PushID( i );
-            if( ImGui::Selectable( points_of_interest[i].text.c_str(), is_selected,
+        ImGuiListClipper clipper;
+        clipper.Begin( num_missions );
+        if( num_missions > 0 ) {
+            clipper.IncludeItemsByIndex( selected_mission, selected_mission + 1 );
+        }
+        while( clipper.Step() ) {
+            for( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ ) {
+                const bool is_selected = selected_mission == i;
+                ImGui::PushID( i );
+                if( ImGui::Selectable( points_of_interest[i].text.c_str(), is_selected,
                                    ImGuiSelectableFlags_AllowDoubleClick ) ) {
                 selected_mission = i;
                 if( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) ) {
@@ -508,7 +524,8 @@ void mission_ui_impl::draw_point_of_interest_names( std::vector<point_of_interes
                 ImGui::SetScrollHereY();
                 ImGui::SetItemDefaultFocus();
             }
-            ImGui::PopID();
+                ImGui::PopID();
+            }
         }
         ImGui::EndListBox();
     }
@@ -613,7 +630,7 @@ void mission_ui_impl::draw_selected_description( std::vector<mission *> missions
     }
 }
 
-void mission_ui_impl::draw_selected_description( std::vector<point_of_interest> points_of_interest,
+void mission_ui_impl::draw_selected_description( const std::vector<point_of_interest> &points_of_interest,
         const int &selected_mission ) const
 {
     const point_of_interest &selected_point_of_interest = points_of_interest[selected_mission];
