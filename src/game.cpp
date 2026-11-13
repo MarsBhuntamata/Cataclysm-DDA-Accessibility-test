@@ -2561,6 +2561,9 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
     }
 
     std::string description = here.name( tile );
+    if( here.has_furn( tile ) ) {
+        description += ". " + std::string( _( "Furniture, not an electrical appliance." ) );
+    }
     // The normal map display shows detected traps.  Narrate only traps the
     // character can actually recognize, not concealed or unknown hazards.
     if( here.can_see_trap_at( tile, observer ) ) {
@@ -5708,6 +5711,7 @@ void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
             description += " " + terrain_text;
         }
         if( here.has_furn( examp ) ) {
+            description += " " + std::string( _( "Furniture, not an electrical appliance." ) );
             const std::string furniture_text = here.furn( examp ).obj().description.translated();
             if( !furniture_text.empty() ) {
                 description += " " + furniture_text;
