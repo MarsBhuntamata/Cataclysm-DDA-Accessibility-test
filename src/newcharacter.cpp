@@ -2791,7 +2791,7 @@ void character_creator_ui_impl::draw_controls()
         if( current_uilist ) {
             if( !current_uilist->desired_bounds ||
                 current_uilist->desired_bounds->y != cursor_pos.y ||
-                current_uilist->desired_bounds->w != uilist_reset_desired_bounds().w ) {
+                current_uilist->desired_bounds->w != tabbed_listinfo_ui::uilist_reset_desired_bounds().w ) {
                 ui_parent->update_uilist_position( cursor_pos );
             }
         }
