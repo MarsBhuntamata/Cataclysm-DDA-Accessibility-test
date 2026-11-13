@@ -21,6 +21,7 @@
 #include "npc.h"
 #include "faction.h"
 #include "output.h"
+#include "overmapbuffer.h"
 #include "point.h"
 #include "string_formatter.h"
 #include "talker.h"
@@ -42,6 +43,7 @@ enum class mission_ui_tab_enum : int {
     COMPLETED,
     FAILED,
     POINTS_OF_INTEREST,
+    MAP_DISCOVERIES,
     num_tabs
 };
 } // namespace
@@ -219,11 +221,44 @@ void mission_ui_impl::draw_controls()
             upoints_of_interest = get_avatar().get_points_of_interest();
             ImGui::EndTabItem();
         }
+        flags = ImGuiTabItemFlags_None;
+        if( switch_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
+            flags = ImGuiTabItemFlags_SetSelected;
+            switch_tab = mission_ui_tab_enum::num_tabs;
+        }
+        if( ImGui::BeginTabItem( _( "MAP DISCOVERIES" ), nullptr, flags ) ) {
+            selected_tab = mission_ui_tab_enum::MAP_DISCOVERIES;
+            const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
+            for( const tripoint_abs_omt &pos : get_avatar().map_revealed_omts ) {
+                const om_vision_level vision = overmap_buffer.seen( pos );
+                const std::string name = vision == om_vision_level::unseen ?
+                                         _( "Map-revealed location" ) :
+                                         overmap_buffer.ter( pos )->get_name( vision );
+                upoints_of_interest.push_back( { pos, name } );
+            }
+            std::sort( upoints_of_interest.begin(), upoints_of_interest.end(),
+            [&player_pos]( const point_of_interest & lhs, const point_of_interest & rhs ) {
+                const int lhs_dist = rl_dist( player_pos, lhs.pos );
+                const int rhs_dist = rl_dist( player_pos, rhs.pos );
+                if( lhs_dist != rhs_dist ) {
+                    return lhs_dist < rhs_dist;
+                }
+                if( lhs.pos.x() != rhs.pos.x() ) {
+                    return lhs.pos.x() < rhs.pos.x();
+                }
+                if( lhs.pos.y() != rhs.pos.y() ) {
+                    return lhs.pos.y() < rhs.pos.y();
+                }
+                return lhs.pos.z() < rhs.pos.z();
+            } );
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 
     size_t num_entries = umissions.size();
-    if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+    if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
+        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
         num_entries = upoints_of_interest.size();
     }
     const int last_entry = num_entries == 0 ? 0 : ( static_cast<int>( num_entries ) - 1 );
@@ -273,10 +308,17 @@ void mission_ui_impl::draw_controls()
             get_narration_service().announce( {
                 narration_event::status_changed, confirmation, true
             } );
-        } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST &&
+        } else if( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
+                     selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) &&
                    !upoints_of_interest.empty() ) {
             const point_of_interest &chosen = upoints_of_interest[selected_mission];
-            get_avatar().set_active_point_of_interest( chosen );
+            if( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
+                // A roadmap discovery is not automatically a mission POI. Save
+                // only the selected discovery as a POI so it can be targeted.
+                get_avatar().add_point_of_interest( chosen );
+            } else {
+                get_avatar().set_active_point_of_interest( chosen );
+            }
             const tripoint_abs_omt here = get_avatar().pos_abs_omt();
             std::string confirmation = string_format( _( "Current point of interest selected: %s. %d overmap tiles away." ),
                                        chosen.text, rl_dist( here, chosen.pos ) );
@@ -313,12 +355,16 @@ void mission_ui_impl::draw_controls()
         case mission_ui_tab_enum::POINTS_OF_INTEREST:
             mission_report = _( "Points of interest" );
             break;
+        case mission_ui_tab_enum::MAP_DISCOVERIES:
+            mission_report = _( "Map discoveries. Nearest first" );
+            break;
         default:
             break;
     }
     if( num_entries == 0 ) {
         mission_report += ". " + std::string( _( "No entries." ) );
-    } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+    } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
+               selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
         const point_of_interest &poi = upoints_of_interest[selected_mission];
         mission_report += ". " + poi.text;
         const tripoint_abs_omt here = get_avatar().pos_abs_omt();
@@ -353,13 +399,16 @@ void mission_ui_impl::draw_controls()
         mission_screen_announced = true;
     }
 
-    if( ( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST && umissions.empty() ) ||
-        ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST && upoints_of_interest.empty() ) ) {
+    if( ( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
+          selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES && umissions.empty() ) ||
+        ( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
+            selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) && upoints_of_interest.empty() ) ) {
         static const std::map< mission_ui_tab_enum, translation > nope = {
             { mission_ui_tab_enum::ACTIVE, to_translation( "You have no active missions!" ) },
             { mission_ui_tab_enum::COMPLETED, to_translation( "You haven't completed any missions!" ) },
             { mission_ui_tab_enum::FAILED, to_translation( "You haven't failed any missions!" ) },
-            { mission_ui_tab_enum::POINTS_OF_INTEREST, to_translation( "You don't have any points of interest.  Add those from the overmap." ) }
+            { mission_ui_tab_enum::POINTS_OF_INTEREST, to_translation( "You don't have any points of interest.  Add those from the overmap." ) },
+            { mission_ui_tab_enum::MAP_DISCOVERIES, to_translation( "No map discoveries. Read a roadmap to reveal locations." ) }
         };
         ImGui::TextWrapped( "%s", nope.at( selected_tab ).translated().c_str() );
         return;
@@ -376,24 +425,28 @@ void mission_ui_impl::draw_controls()
     if( ImGui::BeginTable( "##MISSION_TABLE", 2, ImGuiTableFlags_None,
                            ImGui::GetContentRegionAvail() ) ) {
         // Missions selection is purposefully thinner than the description, it has less to convey.
-        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
             ImGui::TableSetupColumn( _( "Missions" ), ImGuiTableColumnFlags_WidthStretch,
                                      table_column_width * 0.8 );
         } else {
-            ImGui::TableSetupColumn( _( "Points of Interest" ), ImGuiTableColumnFlags_WidthStretch,
+            ImGui::TableSetupColumn( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ?
+                                     _( "Map Discoveries" ) : _( "Points of Interest" ), ImGuiTableColumnFlags_WidthStretch,
                                      table_column_width * 0.8 );
         }
         ImGui::TableSetupColumn( _( "Description" ), ImGuiTableColumnFlags_WidthStretch,
                                  table_column_width * 1.2 );
         ImGui::TableHeadersRow();
         ImGui::TableNextColumn();
-        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
             draw_mission_names( umissions, selected_mission, adjust_selected );
         } else {
             draw_point_of_interest_names( upoints_of_interest, selected_mission, adjust_selected );
         }
         ImGui::TableNextColumn();
-        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST ) {
+        if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
             draw_selected_description( umissions, selected_mission );
         } else {
             draw_selected_description( upoints_of_interest, selected_mission );
@@ -564,7 +617,9 @@ void mission_ui_impl::draw_selected_description( std::vector<point_of_interest> 
         const int &selected_mission ) const
 {
     const point_of_interest &selected_point_of_interest = points_of_interest[selected_mission];
-    ImGui::TextWrapped( _( "Point of Interest: %s" ), selected_point_of_interest.text.c_str() );
+    ImGui::TextWrapped( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ?
+                       _( "Map discovery: %s" ) : _( "Point of Interest: %s" ),
+                       selected_point_of_interest.text.c_str() );
     ImGui::Separator();
     draw_location( _( "Target:" ), selected_point_of_interest.pos );
 }
