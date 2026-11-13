@@ -5637,6 +5637,15 @@
   },
   {
     "type": "keybinding",
+    "id": "NARRATE_POSITION",
+    "name": "Describe place in inventory list (F6)",
+    "category": "INVENTORY",
+    "bindings": [
+      { "input_method": "keyboard_any", "key": "F6" }
+    ]
+  },
+  {
+    "type": "keybinding",
     "id": "DESCRIBE_LOCATION",
     "name": "Describe terrain underfoot (F6)",
     "category": "DEFAULTMODE",

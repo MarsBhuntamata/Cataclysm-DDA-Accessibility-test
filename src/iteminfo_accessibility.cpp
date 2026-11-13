@@ -187,3 +187,70 @@ std::string make_item_narration_text( const std::string &item_name,
 
     return result;
 }
+
+std::string make_inventory_mark_narration( const size_t marked, const size_t available )
+{
+    if( marked == 0 ) {
+        return _( "Unmarked" );
+    }
+    if( available <= 1 ) {
+        return _( "Marked" );
+    }
+    return string_format( _( "Marked %1$d of %2$d" ), static_cast<int>( marked ),
+                          static_cast<int>( available ) );
+}
+
+std::string make_inventory_focus_narration( const inventory_focus_parts &parts )
+{
+    // Order is priority: speech is interrupted when the player moves on, so
+    // whatever comes first is what gets heard while scanning a list.
+    std::string result = make_item_name_narration_text( parts.name );
+    const auto append = [&result]( const std::string & part ) {
+        if( part.empty() ) {
+            return;
+        }
+        if( !result.empty() ) {
+            result += ". ";
+        }
+        result += part;
+    };
+
+    if( parts.marked > 0 ) {
+        append( make_inventory_mark_narration( parts.marked, parts.available ) );
+    }
+    if( !parts.enabled ) {
+        const std::string denial = remove_color_tags( parts.denial );
+        append( denial.empty() ? std::string( _( "Unavailable" ) ) :
+                string_format( _( "Unavailable: %s" ), denial ) );
+    }
+    if( parts.has_chevron ) {
+        append( parts.collapsed ? _( "collapsed" ) : _( "expanded" ) );
+    }
+    return result;
+}
+
+std::string make_inventory_toggle_narration( const inventory_toggle_result result,
+        const int count )
+{
+    switch( result ) {
+        case inventory_toggle_result::expanded:
+            if( count <= 0 ) {
+                return _( "Expanded" );
+            }
+            return string_format( n_gettext( "Expanded, %d item", "Expanded, %d items", count ),
+                                  count );
+        case inventory_toggle_result::collapsed:
+            return _( "Collapsed" );
+        case inventory_toggle_result::nothing_to_expand:
+            return _( "Nothing to expand" );
+        case inventory_toggle_result::cannot_collapse:
+            return _( "Cannot collapse" );
+        case inventory_toggle_result::filter_active:
+            return _( "Filter active, all matches shown" );
+        case inventory_toggle_result::overridden_show_all:
+            return _( "Overridden by show all contents" );
+        case inventory_toggle_result::overridden_hide_all:
+            return _( "Overridden by hide all contents" );
+    }
+    return {};
+}

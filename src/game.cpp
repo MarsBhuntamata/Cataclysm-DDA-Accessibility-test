@@ -2420,6 +2420,12 @@ int game::inventory_item_menu( item_location locThisItem,
                     for( item_pocket *pocket : oThisItem.get_standard_pockets() ) {
                         pocket->settings.set_collapse( cMenu == '>' );
                     }
+                    // In this menu the keys are one-way, unlike the toggle in
+                    // the inventory list, so say which way the contents went.
+                    get_narration_service().announce( {
+                        narration_event::status_changed,
+                        cMenu == '>' ? _( "Collapsed" ) : _( "Expanded" ), true
+                    } );
                     break;
                 default:
                     break;
