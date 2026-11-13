@@ -2586,6 +2586,11 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
     }
 
     std::string description = here.name( tile );
+    // The normal map display shows detected traps.  Narrate only traps the
+    // character can actually recognize, not concealed or unknown hazards.
+    if( here.can_see_trap_at( tile, observer ) ) {
+        description += ". " + string_format( _( "Trap: %s" ), here.tr_at( tile ).name() );
+    }
     if( tile != observer.pos_bub() ) {
         const Creature *critter = get_creature_tracker().creature_at( tile, true );
         if( critter != nullptr && observer.sees( here, *critter ) ) {
