@@ -1426,15 +1426,16 @@ std::optional<int> reveal_map_actor::use( Character *p, item &it, map *,
 
     const tripoint_abs_omt center( project_to<coords::omt>( closest_city.abs_sm_pos ) );
 
-    // Clear highlight on previously revealed OMTs before revealing new ones
-    p->map_revealed_omts.clear();
+    // Retain previously discovered map locations so that the overmap
+    // Map Discoveries list remains useful after reading additional maps.
+    const size_t discoveries_before = p->map_revealed_omts.size();
     for( const auto &omt : omt_types ) {
         for( int z = -OVERMAP_DEPTH; z <= OVERMAP_HEIGHT; z++ ) {
             reveal_targets( tripoint_abs_omt( center.xy(), z ), omt, 0 );
         }
     }
 
-    if( p->map_revealed_omts.empty() ) {
+    if( p->map_revealed_omts.size() == discoveries_before ) {
         p->add_msg_if_player( _( "You didn't learn anything new from the %s." ), it.tname() );
     } else if( !message.empty() ) {
         p->add_msg_if_player( m_good, "%s", message );
