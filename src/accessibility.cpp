@@ -9,6 +9,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <psapi.h>
 
 #include <filesystem>
 #include <fstream>
@@ -328,6 +329,60 @@ void record_accessibility_checkpoint( const std::string &stage )
     log_accessibility_diagnostic( "LIFECYCLE: " + stage );
 #else
     static_cast<void>( stage );
+#endif
+}
+
+void record_look_profiler_sample( const std::string &message )
+{
+#if defined(_WIN32)
+    // Keep look diagnostics separate from the regular NVDA speech trace.
+    static std::ofstream *file = []() -> std::ofstream * {
+        std::vector<wchar_t> path( 32768, L'\0' );
+        const DWORD len = GetModuleFileNameW( nullptr, path.data(),
+                          static_cast<DWORD>( path.size() ) );
+        if( len == 0 || len >= path.size() ) {
+            return nullptr;
+        }
+        const std::filesystem::path exe( std::wstring( path.data(), len ) );
+        auto *out = new std::ofstream( exe.parent_path() / L"look-profiler.txt",
+                                      std::ios::out | std::ios::app );
+        if( !*out ) {
+            delete out;
+            return nullptr;
+        }
+        *out << "LOOK PROFILER START (new game process)\n";
+        out->flush();
+        return out;
+    }();
+    if( file == nullptr || !*file ) {
+        return;
+    }
+
+    // Dynamic lookup avoids an additional psapi.lib dependency in Windows builds.
+    using memory_info_fn = BOOL( WINAPI * )( HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD );
+    static memory_info_fn get_memory_info = []() -> memory_info_fn {
+        const HMODULE kernel = GetModuleHandleW( L"kernel32.dll" );
+        if( kernel == nullptr ) {
+            return nullptr;
+        }
+        return reinterpret_cast<memory_info_fn>(
+                   GetProcAddress( kernel, "K32GetProcessMemoryInfo" ) );
+    }();
+    std::string memory_text = "memory unavailable";
+    if( get_memory_info != nullptr ) {
+        PROCESS_MEMORY_COUNTERS_EX mem = {};
+        mem.cb = sizeof( mem );
+        if( get_memory_info( GetCurrentProcess(),
+                             reinterpret_cast<PPROCESS_MEMORY_COUNTERS>( &mem ), sizeof( mem ) ) ) {
+            memory_text = "working_set_MiB=" + std::to_string( mem.WorkingSetSize / ( 1024 * 1024 ) ) +
+                          " private_MiB=" + std::to_string( mem.PrivateUsage / ( 1024 * 1024 ) ) +
+                          " peak_working_set_MiB=" + std::to_string( mem.PeakWorkingSetSize / ( 1024 * 1024 ) );
+        }
+    }
+    *file << message << " " << memory_text << '\n';
+    file->flush();
+#else
+    static_cast<void>( message );
 #endif
 }
 
