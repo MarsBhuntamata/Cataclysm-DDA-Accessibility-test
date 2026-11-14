@@ -90,6 +90,8 @@
 #if defined(TILES)
 #include "sdl_gamepad.h"
 #endif
+#include "scene_description.h"
+#include "scene_radar.h"
 #include "sidebar_accessibility.h"
 #include "sleep.h"
 #include "sounds.h"
@@ -3394,6 +3396,9 @@ bool game::handle_action()
                "Lowercase x opens the look cursor; use direction keys to inspect tiles. "
                "Shift plus X peeks around a corner; choose a direction, then use the look cursor. "
                "Peeking costs moves and its spoken feedback is still being improved. "
+               "Control plus F describes the scene: where you are, the light, "
+               "creatures in view, how far you can go in each direction, exits, "
+               "hazards, furniture, vehicles, and items. "
                "Control plus L or F8 describes the eight adjacent tiles. "
                "F6 describes your current tile. Control plus S speaks a status glance: "
                "creatures in view, then anything the sidebar would highlight. "
@@ -3403,6 +3408,10 @@ bool game::handle_action()
                "Control plus R or F10 reads the last five game messages. "
                "F7 repeats the previous narration. "
                "F11 toggles automatic terrain change announcements. "
+               "Control plus B toggles the surroundings radar, which speaks when "
+               "doors, windows, stairs or walls come into view and when the area "
+               "opens out or narrows. Its settings are on the Accessibility page "
+               "of the options menu. "
                "To store items on a nearby cupboard, shelf, or other furniture tile, "
                "press Shift plus D to drop items on an adjacent tile, choose the "
                "direction of the furniture, then choose the items to place there. "
@@ -3445,6 +3454,15 @@ bool game::handle_action()
         get_narration_service().announce( { narration_event::contextual_help, report, true } );
         return false;
     }
+    if( action == "DESCRIBE_SCENE" ) {
+        // Everything in view, most urgent first: setting, creatures, the
+        // shape of the space, exits, hazards, then furniture, vehicles
+        // and items.
+        get_narration_service().announce( {
+            narration_event::contextual_help, describe_scene( player_character ), true
+        } );
+        return false;
+    }
     if( action == "DESCRIBE_STATUS" ) {
         // A quick glance at the sidebar: visible creatures, then only the
         // values a sighted player would see highlighted.
@@ -3469,12 +3487,26 @@ bool game::handle_action()
         return false;
     }
     if( action == "TOGGLE_TERRAIN_NARRATION" ) {
-        bool &enabled = accessibility_auto_terrain_announcements();
-        enabled = !enabled;
+        // Saved with the other options, so the choice survives a restart.
+        get_options().get_option( "A11Y_TERRAIN_CUE" ).setNext();
+        get_options().save();
         get_narration_service().announce( {
             narration_event::contextual_help,
-            enabled ? std::string( _( "Automatic terrain-change speech on." ) ) :
-                      std::string( _( "Automatic terrain-change speech off." ) ), true
+            get_option<bool>( "A11Y_TERRAIN_CUE" ) ?
+            std::string( _( "Automatic terrain-change speech on." ) ) :
+            std::string( _( "Automatic terrain-change speech off." ) ), true
+        } );
+        return false;
+    }
+    if( action == "TOGGLE_RADAR" ) {
+        get_options().get_option( "A11Y_RADAR" ).setNext();
+        get_options().save();
+        // Start from a fresh snapshot rather than one from before the pause.
+        radar_reset();
+        get_narration_service().announce( {
+            narration_event::contextual_help,
+            get_option<bool>( "A11Y_RADAR" ) ? std::string( _( "Radar on." ) ) :
+            std::string( _( "Radar off." ) ), true
         } );
         return false;
     }

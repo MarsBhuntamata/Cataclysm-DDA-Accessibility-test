@@ -222,6 +222,7 @@ options_manager::options_manager()
 {
     pages_.emplace_back( "general", to_translation( "General" ) );
     pages_.emplace_back( "interface", to_translation( "Interface" ) );
+    pages_.emplace_back( "accessibility", to_translation( "Accessibility" ) );
     pages_.emplace_back( "graphics", to_translation( "Graphics" ) );
     // when sharing maps only admin is allowed to change these.
     if( !MAP_SHARING::isCompetitive() || MAP_SHARING::isAdmin() ) {
@@ -1496,6 +1497,7 @@ void options_manager::init()
 
     add_options_general();
     add_options_interface();
+    add_options_accessibility();
     add_options_graphics();
     add_options_world_default();
     add_options_debug();
@@ -2313,6 +2315,116 @@ void options_manager::add_options_interface()
              to_translation( "Display up to this many entries in the list of 'other' (not largest/longest) spaces.  0 will disable the list completely." ),
              0, 5, 0
            );
+    } );
+}
+
+void options_manager::add_options_accessibility()
+{
+    const std::string page = "accessibility";
+
+    add( "A11Y_TERRAIN_CUE", page, to_translation( "Announce terrain changes underfoot" ),
+         to_translation( "If true, speaks the name of the terrain you step onto whenever it differs from the terrain you left.  F11 toggles this while playing." ),
+         false
+       );
+
+    add_empty_line( page );
+
+    add_option_group( page, Group( "a11y_radar_opts", to_translation( "Surroundings radar" ),
+                                   to_translation( "Spoken notices when what you can see around you changes." ) ),
+    [&]( const std::string & page_id ) {
+        const auto needs_radar = [&]( const std::string & name ) {
+            get_option( name ).setPrerequisite( "A11Y_RADAR" );
+        };
+
+        add( "A11Y_RADAR", page_id, to_translation( "Surroundings radar" ),
+             to_translation( "If true, speaks after each action when doors, windows, stairs or walls come into view, and when the space around you opens out or narrows.  Control plus B toggles this while playing." ),
+             false
+           );
+
+        add( "A11Y_RADAR_DOORS", page_id, to_translation( "Radar: doors" ),
+             to_translation( "If true, the radar announces doors, including doors that open or close." ),
+             true
+           );
+        needs_radar( "A11Y_RADAR_DOORS" );
+
+        add( "A11Y_RADAR_WINDOWS", page_id, to_translation( "Radar: windows" ),
+             to_translation( "If true, the radar announces windows." ),
+             true
+           );
+        needs_radar( "A11Y_RADAR_WINDOWS" );
+
+        add( "A11Y_RADAR_STAIRS", page_id, to_translation( "Radar: stairs, ladders and ramps" ),
+             to_translation( "If true, the radar announces stairs, ladders and ramps, and whether they lead up or down." ),
+             true
+           );
+        needs_radar( "A11Y_RADAR_STAIRS" );
+
+        add( "A11Y_RADAR_WALLS", page_id, to_translation( "Radar: walls and openings" ),
+             to_translation( "If true, the radar announces when the way in a direction opens up or closes in, such as passing a side corridor or leaving a room." ),
+             true
+           );
+        needs_radar( "A11Y_RADAR_WALLS" );
+
+        add( "A11Y_RADAR_AREA", page_id, to_translation( "Radar: area opens out or narrows" ),
+             to_translation( "If true, the radar says when the amount of open floor in view grows or shrinks by half or more." ),
+             true
+           );
+        needs_radar( "A11Y_RADAR_AREA" );
+
+        add( "A11Y_RADAR_HAZARDS", page_id, to_translation( "Radar: hazards" ),
+             to_translation( "If true, the radar announces a dangerous field such as fire, or a trap you have spotted, when that kind of hazard first comes into view." ),
+             false
+           );
+        needs_radar( "A11Y_RADAR_HAZARDS" );
+
+        add( "A11Y_RADAR_ANNOUNCE", page_id, to_translation( "Radar: announce features when" ),
+             to_translation( "Whether doors, windows and stairs are announced as they come into view, as they pass out of view, or both." ),
+        { { "enter", to_translation( "Entering view" ) }, { "leave", to_translation( "Leaving view" ) }, { "both", to_translation( "Both" ) } },
+        "enter" );
+        needs_radar( "A11Y_RADAR_ANNOUNCE" );
+
+        add( "A11Y_RADAR_RANGE", page_id, to_translation( "Radar: range in tiles" ),
+             to_translation( "The radar ignores anything farther away than this many tiles." ),
+             1, 60, 12
+           );
+        needs_radar( "A11Y_RADAR_RANGE" );
+
+        add( "A11Y_RADAR_WALL_THRESHOLD", page_id, to_translation( "Radar: wall change threshold" ),
+             to_translation( "The open distance in a direction must change by at least this many tiles before the radar mentions it.  Higher values are quieter." ),
+             1, 10, 3
+           );
+        needs_radar( "A11Y_RADAR_WALL_THRESHOLD" );
+
+        add( "A11Y_RADAR_DIRECTIONS", page_id, to_translation( "Radar: wall directions" ),
+             to_translation( "Whether wall and opening changes are tracked in the four cardinal directions or in all eight." ),
+        { { "four", to_translation( "Four" ) }, { "eight", to_translation( "Eight" ) } },
+        "four" );
+        needs_radar( "A11Y_RADAR_DIRECTIONS" );
+
+        add( "A11Y_RADAR_WORDING", page_id, to_translation( "Radar: wording" ),
+             to_translation( "Short says \"Door, 3 east\".  Full uses the game's own name, such as \"closed wooden door, 3 east\"." ),
+        { { "short", to_translation( "Short" ) }, { "full", to_translation( "Full" ) } },
+        "short" );
+        needs_radar( "A11Y_RADAR_WORDING" );
+
+        add( "A11Y_RADAR_MAX_ITEMS", page_id, to_translation( "Radar: most notices per step" ),
+             to_translation( "After this many notices in one step the radar says how many more there were instead of reading them." ),
+             1, 10, 3
+           );
+        needs_radar( "A11Y_RADAR_MAX_ITEMS" );
+
+        add( "A11Y_RADAR_OUTDOORS", page_id, to_translation( "Radar: outdoors" ),
+             to_translation( "What the radar reports while you are outside, where trees and bushes make wall changes noisy: everything, only doors, windows, stairs and hazards, or nothing." ),
+        { { "all", to_translation( "Everything" ) }, { "exits", to_translation( "Exits only" ) }, { "off", to_translation( "Nothing" ) } },
+        "exits" );
+        needs_radar( "A11Y_RADAR_OUTDOORS" );
+
+        add( "A11Y_RADAR_TRAVEL", page_id,
+             to_translation( "Radar: speak during auto-travel and driving" ),
+             to_translation( "If false, the radar stays silent while auto-travelling or driving a vehicle." ),
+             false
+           );
+        needs_radar( "A11Y_RADAR_TRAVEL" );
     } );
 }
 
@@ -3737,6 +3849,11 @@ std::string options_manager::show( bool ingame, const bool world_options_only, b
                     focus += opt.getMenuText() + ". " + opt.getValueName();
                     if( opt.hasPrerequisite() && !opt.checkPrerequisite() ) {
                         focus += ". " + std::string( _( "Unavailable; prerequisite not met." ) );
+                    }
+                    // The description comes last, so moving on cuts it short.
+                    const std::string tooltip = remove_color_tags( opt.getTooltip() );
+                    if( !tooltip.empty() ) {
+                        focus += ". " + tooltip;
                     }
                     break;
                 }

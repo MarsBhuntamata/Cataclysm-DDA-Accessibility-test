@@ -5666,6 +5666,16 @@
   },
   {
     "type": "keybinding",
+    "id": "DESCRIBE_SCENE",
+    "name": "Describe the scene in view: setting, creatures, open space, exits and objects (Ctrl+F)",
+    "category": "DEFAULTMODE",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+F" },
+      { "input_method": "keyboard_code", "key": "f", "mod": [ "ctrl" ] }
+    ]
+  },
+  {
+    "type": "keybinding",
     "id": "DESCRIBE_STATUS",
     "name": "Speak status glance: creatures and highlighted sidebar values (Ctrl+S)",
     "category": "DEFAULTMODE",
@@ -5729,6 +5739,16 @@
     "name": "Toggle terrain-change speech (F11)",
     "category": "DEFAULTMODE",
     "bindings": [ { "input_method": "keyboard_any", "key": "F11" } ]
+  },
+  {
+    "type": "keybinding",
+    "id": "TOGGLE_RADAR",
+    "name": "Toggle surroundings radar: doors, windows, stairs and walls coming into view (Ctrl+B)",
+    "category": "DEFAULTMODE",
+    "bindings": [
+      { "input_method": "keyboard_char", "key": "CTRL+B" },
+      { "input_method": "keyboard_code", "key": "b", "mod": [ "ctrl" ] }
+    ]
   },
   {
     "type": "keybinding",
