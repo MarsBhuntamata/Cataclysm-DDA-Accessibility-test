@@ -1,4 +1,5 @@
 name: NVDA upstream pre-test build
+# Trigger 2026-11-14 integration verification build; no build behavior changed.
 
 on:
   push:
