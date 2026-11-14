@@ -12,6 +12,7 @@
 #include <memory>
 #include <unordered_set>
 
+#include "accessibility.h"
 #include "action.h"
 #include "activity_actor_definitions.h"
 #include "activity_handlers.h"
@@ -4310,9 +4311,12 @@ std::optional<int> place_trap_actor::use( Character *p, item &it, map *here,
     if( p->cant_do_mounted() ) {
         return std::nullopt;
     }
-    const std::optional<tripoint_bub_ms> pos_ = choose_adjacent( string_format(
-                _( "Place %s where?" ),
-                it.tname() ) );
+    const std::string placement_prompt = string_format( _( "Place %s where?" ), it.tname() );
+    get_narration_service().announce( {
+        narration_event::contextual_help,
+        placement_prompt + " " + _( "Choose an adjacent tile with a direction key." ), true
+    } );
+    const std::optional<tripoint_bub_ms> pos_ = choose_adjacent( placement_prompt );
     if( !pos_ ) {
         return std::nullopt;
     }
