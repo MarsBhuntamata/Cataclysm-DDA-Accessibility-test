@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <variant>
 
+#include "accessibility.h"
 #include "action.h"
 #include "avatar.h"
 #include "cached_options.h"
@@ -597,6 +598,14 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
         return;
     }
 
+    const bool profile = look_profiler_active();
+    const auto render_start = std::chrono::steady_clock::now();
+    static unsigned int profiled_draw_count = 0;
+    const bool sample = profile && ( ++profiled_draw_count % 20 == 1 );
+    if( sample ) {
+        record_look_profiler_sample( "LOOK2_TILES_BEGIN z=" + std::to_string( center.z() ) );
+    }
+
 #if defined(__ANDROID__)
     // Attempted bugfix for Google Play crash - prevent divide-by-zero if no tile
     // width/height specified
@@ -719,10 +728,19 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
     here.prev_bottom_right = bottom_right;
     here.prev_o = o;
 
+    const auto map_memory_start = std::chrono::steady_clock::now();
     you.prepare_map_memory_region(
         here.get_abs( tripoint_bub_ms( min_mm_reg.x, min_mm_reg.y, center.z() ) ),
         here.get_abs( tripoint_bub_ms( max_mm_reg.x, max_mm_reg.y, center.z() ) )
     );
+    const auto map_memory_done = std::chrono::steady_clock::now();
+    const long long map_memory_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                        map_memory_done - map_memory_start ).count();
+    if( sample || ( profile && map_memory_us >= 50000 ) ) {
+        record_look_profiler_sample(
+            "LOOK2_MAP_MEMORY z=" + std::to_string( center.z() ) +
+            " duration_us=" + std::to_string( map_memory_us ) );
+    }
 
     //set up a default tile for the edges outside the render area
     visibility_type offscreen_type = visibility_type::HIDDEN;
@@ -763,6 +781,7 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
     }
 
     const bool draw_points_rebuilt = here.draw_points_cache_dirty;
+    const bool rebuild_draw_points = here.draw_points_cache_dirty;
     if( here.draw_points_cache_dirty ) {
         here.draw_points_cache_dirty = false;
         // overlay_strings and color_blocks are generated with draw_points and thus are cleared together
@@ -1641,6 +1660,17 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             display_buffer_scope_signal_recovery_required();
             throw std::runtime_error(
                 "cata_tiles::draw: variant_pass flush failed at end of frame; renderer in undefined state" );
+        }
+    }
+    if( profile ) {
+        const long long total_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                       std::chrono::steady_clock::now() - render_start ).count();
+        if( sample || total_us >= 50000 ) {
+            record_look_profiler_sample(
+                "LOOK2_TILES_END z=" + std::to_string( center.z() ) +
+                " total_us=" + std::to_string( total_us ) +
+                " map_memory_us=" + std::to_string( map_memory_us ) +
+                " rebuilt_draw_points=" + std::to_string( static_cast<int>( rebuild_draw_points ) ) );
         }
     }
 }
