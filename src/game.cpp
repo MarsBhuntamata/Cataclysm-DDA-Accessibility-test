@@ -6482,10 +6482,10 @@ look_around_result game::look_around(
             //NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
             zone_blink = blink;
         }
-#if defined(TILES)
-        // Mark cata_tiles draw caches as dirty
-        tilecontext->set_draw_cache_dirty();
-#endif
+        // The tile renderer already invalidates cached draw points when the
+        // viewport origin or dimensions change.  Avoid forcing an additional
+        // cache rebuild on every look-loop iteration, including idle redraws.
+        // Vertical cursor moves retain the explicit invalidation below.
         invalidate_main_ui_adaptor();
         const auto redraw_start = look_clock::now();
         ui_manager::redraw();
@@ -6606,6 +6606,11 @@ look_around_result game::look_around(
             add_msg_debug( debugmode::DF_GAME, "levx: %d, levy: %d, levz: %d",
                            here.get_abs_sub().x(), here.get_abs_sub().y(), center.z() );
             u.view_offset.z() = center.z() - u.posz();
+#if defined(TILES)
+            // A z-only change need not move the XY viewport, so refresh the
+            // draw-point cache explicitly when changing viewed floors.
+            tilecontext->set_draw_cache_dirty();
+#endif
             here.invalidate_map_cache( center.z() );
             // Fix player character not visible from above
             here.build_map_cache( u.posz() );
