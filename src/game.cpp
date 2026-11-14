@@ -6315,7 +6315,16 @@ look_around_result game::look_around(
     const int min_levz = std::max( old_levz - fov_3d_z_range, -OVERMAP_DEPTH );
     const int max_levz = std::min( old_levz + fov_3d_z_range, OVERMAP_HEIGHT );
 
+    // Include the initial visibility update in the second profiler.
+    const bool profile_look_mode = show_window && !select_zone && !is_moving_zone;
+    if( profile_look_mode ) {
+        set_look_profiler_active( true );
+        record_look_profiler_sample( "LOOK2_INITIAL_VISIBILITY_BEGIN" );
+    }
     here.update_visibility_cache( old_levz );
+    if( profile_look_mode ) {
+        record_look_profiler_sample( "LOOK2_INITIAL_VISIBILITY_END" );
+    }
     const visibility_variables &cache = here.get_visibility_variables_cache();
 
     bool blink = true;
@@ -6563,6 +6572,10 @@ look_around_result game::look_around(
             }
         } else if( action == "LEVEL_UP" || action == "LEVEL_DOWN" ) {
             const int dz = action == "LEVEL_UP" ? 1 : -1;
+            if( profile_look ) {
+                record_look_profiler_sample( string_format( "LOOK2_Z_CHANGE_BEGIN from_z=%d delta=%d", lz, dz ) );
+            }
+            const auto z_change_start = look_clock::now();
             lz = clamp( lz + dz, min_levz, max_levz );
             center.z() = clamp( center.z() + dz, min_levz, max_levz );
 
@@ -6573,6 +6586,13 @@ look_around_result game::look_around(
             // Fix player character not visible from above
             here.build_map_cache( u.posz() );
             here.invalidate_visibility_cache();
+            if( profile_look ) {
+                record_look_profiler_sample( string_format(
+                                                "LOOK2_Z_CHANGE_END to_z=%d duration_us=%lld",
+                                                lz, static_cast<long long>(
+                                                    std::chrono::duration_cast<std::chrono::microseconds>(
+                                                        look_clock::now() - z_change_start ).count() ) ) );
+            }
         } else if( action == "TRAVEL_TO" ) {
             const std::optional<std::vector<tripoint_bub_ms>> try_route = safe_route_to( u, lp,
             0,  []( const std::string & msg ) {
@@ -6645,6 +6665,9 @@ look_around_result game::look_around(
              action != "throw_blind" && action != "throw_blind_wielded" );
 
     flush_look_profile( "LOOK_END" );
+    if( profile_look_mode ) {
+        set_look_profiler_active( false );
+    }
 
     if( center.z() != old_levz ) {
         here.invalidate_map_cache( old_levz );
