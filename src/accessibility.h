@@ -84,4 +84,8 @@ void record_accessibility_checkpoint( const std::string &stage );
 // On Windows, writes look-profiler.txt next to the executable.
 void record_look_profiler_sample( const std::string &message );
 
+// Enabled only during a player look session, so normal gameplay is unaffected.
+void set_look_profiler_active( bool enabled );
+bool look_profiler_active();
+
 #endif // CATA_SRC_ACCESSIBILITY_H
