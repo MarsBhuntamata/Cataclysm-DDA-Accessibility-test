@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <climits>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <optional>
@@ -13,6 +14,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "accessibility.h"
 #include "active_item_cache.h"
 #include "ammo.h"
 #include "ammo_effect.h"
@@ -7530,6 +7532,8 @@ void map::update_submaps_with_active_items()
 
 void map::update_visibility_cache( const int zlev )
 {
+    const bool profile = look_profiler_active();
+    const auto start = std::chrono::steady_clock::now();
     Character &player_character = get_player_character();
     const tripoint_bub_ms pos = player_character.pos_bub( *this );
 
@@ -7591,6 +7595,14 @@ void map::update_visibility_cache( const int zlev )
 
     visibility_variables_cache.last_pos = pos;
     visibility_variables_cache.visibility_cache_dirty = false;
+    if( profile ) {
+        const long long elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                         std::chrono::steady_clock::now() - start ).count();
+        if( elapsed_us >= 50000 ) {
+            record_look_profiler_sample( string_format(
+                                            "LOOK2_VISIBILITY z=%d elapsed_us=%lld", zlev, elapsed_us ) );
+        }
+    }
 }
 
 void map::invalidate_visibility_cache()
@@ -10590,6 +10602,9 @@ void map::do_vehicle_caching( int z )
 
 void map::build_map_cache( const int zlev, bool skip_lightmap )
 {
+    using profiler_clock = std::chrono::steady_clock;
+    const bool profile = look_profiler_active();
+    const auto start = profiler_clock::now();
     const int minz = zlevels ? -OVERMAP_DEPTH : zlev;
     const int maxz = zlevels ? OVERMAP_HEIGHT : zlev;
     bool seen_cache_dirty = false;
@@ -10601,14 +10616,17 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
         seen_cache_dirty |= floor_cache_was_dirty;
         seen_cache_dirty |= get_cache( z ).seen_cache_dirty;
     }
+    const auto terrain_done = profiler_clock::now();
     // needs a separate pass as it changes the caches on neighbour z-levels (e.g. floor_cache);
     // otherwise such changes might be overwritten by main cache-building logic
     for( int z = minz; z <= maxz; z++ ) {
         do_vehicle_caching( z );
     }
+    const auto vehicles_done = profiler_clock::now();
     for( int z = minz; z <= maxz; z++ ) {
         seen_cache_dirty |= build_vision_transparency_cache( z );
     }
+    const auto transparency_done = profiler_clock::now();
 
     if( seen_cache_dirty ) {
         skew_vision_cache.clear();
@@ -10652,6 +10670,7 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
             }
         }
     }
+    const auto seen_done = profiler_clock::now();
     // Detect character/NPC light changes reactively.
     // Covers equipment, effects, trade/dialogue mutations, and position changes.
     {
@@ -10694,8 +10713,30 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
         }
     }
 
+    const auto light_state_done = profiler_clock::now();
     if( !skip_lightmap ) {
         generate_lightmap( zlev );
+    }
+    const auto done = profiler_clock::now();
+    if( profile ) {
+        const auto us = []( const auto &a, const auto &b ) {
+            return static_cast<long long>(
+                       std::chrono::duration_cast<std::chrono::microseconds>( b - a ).count() );
+        };
+        // Keep logging rare even when the renderer rebuilds multiple caches.
+        const long long total_us = us( start, done );
+        if( total_us >= 50000 ) {
+            record_look_profiler_sample( string_format(
+                                            "LOOK2_MAP_CACHE z=%d levels=%d total_us=%lld terrain_us=%lld "
+                                            "vehicles_us=%lld transparency_us=%lld seen_us=%lld "
+                                            "light_state_us=%lld lightmap_us=%lld dirty_seen=%d",
+                                            zlev, maxz - minz + 1, total_us,
+                                            us( start, terrain_done ), us( terrain_done, vehicles_done ),
+                                            us( vehicles_done, transparency_done ),
+                                            us( transparency_done, seen_done ),
+                                            us( seen_done, light_state_done ), us( light_state_done, done ),
+                                            static_cast<int>( seen_cache_dirty ) ) );
+        }
     }
 }
 
