@@ -390,6 +390,25 @@ void record_look_profiler_sample( const std::string &message )
 #endif
 }
 
+void set_look_profiler_active( bool enabled )
+{
+    static_cast<void>( enabled );
+    // Accessed only by the main game's look and render thread.
+    extern bool &look_profiler_enabled_storage();
+    look_profiler_enabled_storage() = enabled;
+}
+
+bool &look_profiler_enabled_storage()
+{
+    static bool enabled = false;
+    return enabled;
+}
+
+bool look_profiler_active()
+{
+    return look_profiler_enabled_storage();
+}
+
 void shutdown_accessibility()
 {
 #if defined(_WIN32)
