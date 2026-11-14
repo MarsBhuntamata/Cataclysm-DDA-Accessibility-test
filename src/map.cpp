@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <climits>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <optional>
@@ -14,6 +15,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "accessibility.h"
 #include "active_item_cache.h"
 #include "ammo.h"
 #include "ammo_effect.h"
@@ -7764,6 +7766,8 @@ void map::update_submaps_with_active_items()
 
 void map::update_visibility_cache( const int zlev )
 {
+    const bool profile = look_profiler_active();
+    const auto visibility_start = std::chrono::steady_clock::now();
     Character &player_character = get_player_character();
     const avatar &u = get_avatar();
     const tripoint_bub_ms pos = player_character.pos_bub( *this );
@@ -7854,6 +7858,14 @@ void map::update_visibility_cache( const int zlev )
         set_variables( visibility_keys[zlev + OVERMAP_DEPTH] );
     }
     visibility_variables_cache.variables_set = true; // Not used yet
+    if( profile ) {
+        const long long elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                         std::chrono::steady_clock::now() - visibility_start ).count();
+        if( elapsed_us >= 50000 ) {
+            record_look_profiler_sample( string_format(
+                                            "LOOK2_VISIBILITY z=%d duration_us=%lld", zlev, elapsed_us ) );
+        }
+    }
 }
 
 bool map::level_reads_as_blank( const int zlev, const int clairvoyance ) const
@@ -10972,9 +10984,13 @@ std::vector<int> map::vision_parts_key( const tripoint_bub_ms &origin,
 
 void map::build_map_cache( const int zlev, bool skip_lightmap )
 {
+    using profiler_clock = std::chrono::steady_clock;
+    const bool profile = look_profiler_active();
+    const auto start = profiler_clock::now();
     const int minz = zlevels ? -OVERMAP_DEPTH : zlev;
     const int maxz = zlevels ? OVERMAP_HEIGHT : zlev;
     build_scene_caches();
+    const auto scene_done = profiler_clock::now();
     bool seen_cache_dirty = false;
     bool camera_cache_dirty = false;
     for( int z = minz; z <= maxz; z++ ) {
@@ -10982,6 +10998,7 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
         seen_cache_dirty |= build_vision_transparency_cache( z );
     }
 
+    const auto transparency_done = profiler_clock::now();
     avatar &u = get_avatar();
     const Character::moncam_cache_t mcache = u.get_active_moncams();
     // a camera's cast reads its position, range and eye height for ledges; kept
@@ -11042,6 +11059,7 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
             }
         }
     }
+    const auto seen_done = profiler_clock::now();
     // Light sources that change with no notice to the lightmap: characters,
     // glowing or burning monsters, and vehicle lamps that lose power or break.
     // A level relights only if its own sources changed.
@@ -11120,9 +11138,11 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
         }
     }
 
+    const auto sources_done = profiler_clock::now();
     if( seen_cache_dirty ) {
         refresh_vision_levels();
     }
+    const auto levels_done = profiler_clock::now();
     if( !skip_lightmap ) {
         update_sunlight();
         generate_lightmap( zlev );
@@ -11136,6 +11156,24 @@ void map::build_map_cache( const int zlev, bool skip_lightmap )
                 std::find( vision_levels_list.begin(), vision_levels_list.end(), z ) == vision_levels_list.end() ) {
                 set_sunlight_only( z );
             }
+        }
+    }
+    const auto done = profiler_clock::now();
+    if( profile ) {
+        const auto us = []( const auto &a, const auto &b ) {
+            return static_cast<long long>(
+                       std::chrono::duration_cast<std::chrono::microseconds>( b - a ).count() );
+        };
+        const long long total_us = us( start, done );
+        if( total_us >= 50000 ) {
+            record_look_profiler_sample( string_format(
+                                            "LOOK2_MAP_CACHE z=%d levels=%d total_us=%lld scene_us=%lld "
+                                            "transparency_us=%lld seen_us=%lld sources_us=%lld "
+                                            "vision_levels_us=%lld lighting_us=%lld dirty_seen=%d",
+                                            zlev, maxz - minz + 1, total_us, us( start, scene_done ),
+                                            us( scene_done, transparency_done ), us( transparency_done, seen_done ),
+                                            us( seen_done, sources_done ), us( sources_done, levels_done ),
+                                            us( levels_done, done ), static_cast<int>( seen_cache_dirty ) ) );
         }
     }
 }
