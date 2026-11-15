@@ -6,6 +6,7 @@ on:
     branches:
       - balloon-upstream-pretest-2026-11-07
       - balloon-upstream-integration-2026-11-14
+      - balloon-upstream-merge-workbench-2026-11-16
       - balloon-upstream-shane-status-port
     paths:
       - 'src/**'
