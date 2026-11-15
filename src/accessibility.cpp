@@ -1,7 +1,10 @@
 #include "accessibility.h"
 
+#include <chrono>
+#include <deque>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -240,6 +243,31 @@ void narration_service::announce( const narration_request &request )
 {
     if( request.text.empty() ) {
         return;
+    }
+
+    // Prevent per-turn status/game-message loops (including temperature effects)
+    // from flooding an attached screen reader during long activities.
+    // This does not change the game's message log, or suppress menu navigation.
+    if( request.event == narration_event::game_message ||
+        request.event == narration_event::status_changed ) {
+        using clock = std::chrono::steady_clock;
+        static std::deque<std::pair<std::string, clock::time_point>> recent_speech;
+        const auto now = clock::now();
+        const auto silence_window = std::chrono::seconds( 5 );
+        while( !recent_speech.empty() && now - recent_speech.front().second > silence_window ) {
+            recent_speech.pop_front();
+        }
+        const std::string key = std::to_string( static_cast<int>( request.event ) ) +
+                                ":" + request.text;
+        for( auto &previous : recent_speech ) {
+            if( previous.first == key ) {
+                return;
+            }
+        }
+        recent_speech.emplace_back( key, now );
+        if( recent_speech.size() > 64 ) {
+            recent_speech.pop_front();
+        }
     }
 
     last_request = request;
