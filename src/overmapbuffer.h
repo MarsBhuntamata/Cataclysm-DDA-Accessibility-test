@@ -275,6 +275,11 @@ class overmapbuffer
         int get_horde_size( const tripoint_abs_omt &p, int filter = horde_map_flavors::active |
                             horde_map_flavors::idle | horde_map_flavors::dormant | horde_map_flavors::immobile );
         std::vector<om_vehicle> get_vehicle( const tripoint_abs_omt &p );
+        // Enumerate tracked vehicles in overmaps already loaded in memory.
+        // Does not generate terrain or scan the world on disk.
+        using t_tracked_vehicle = std::pair<tripoint_abs_omt, std::string>;
+        std::vector<t_tracked_vehicle> get_loaded_tracked_vehicles() const;
+
         std::string get_vehicle_ter_sym( const tripoint_abs_omt &omt );
         std::string get_vehicle_tile_id( const tripoint_abs_omt &omt );
         const region_settings &get_settings( const tripoint_abs_omt &p );
