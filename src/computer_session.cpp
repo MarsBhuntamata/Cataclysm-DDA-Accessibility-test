@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "calendar.h"
 #include "character.h"
@@ -1728,6 +1729,7 @@ bool computer_session::query_any( const std::string &text, Args &&... args )
 bool computer_session::query_any()
 {
     ui_manager::redraw();
+    narrate_terminal_screen();
     inp_mngr.wait_for_any_key();
     return true;
 }
@@ -1754,6 +1756,7 @@ computer_session::ynq computer_session::query_ynq( const std::string &text, Args
                          ctxt.describe_key_and_name( "NO", allow_key ),
                          ctxt.describe_key_and_name( "QUIT", allow_key ) );
 
+    narrate_terminal_screen();
     do {
         ui_manager::redraw();
         const std::string action = ctxt.handle_input();
@@ -1767,6 +1770,29 @@ computer_session::ynq computer_session::query_ynq( const std::string &text, Args
             }
         }
     } while( true );
+}
+
+void computer_session::narrate_terminal_screen() const
+{
+    // This computer draws its own curses text rather than using an accessible
+    // menu. Read the actual on-screen output before requesting input, including
+    // login status, hacking warnings, multiline logs and Y/N/Q key hints.
+    std::string announcement;
+    for( const auto &line : lines ) {
+        const std::string clean = remove_color_tags( line.second );
+        if( clean.empty() ) {
+            continue;
+        }
+        if( !announcement.empty() ) {
+            announcement += " ";
+        }
+        announcement += clean;
+    }
+    if( !announcement.empty() ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help, announcement, true
+        } );
+    }
 }
 
 void computer_session::refresh()
