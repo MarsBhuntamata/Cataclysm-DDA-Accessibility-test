@@ -2648,6 +2648,14 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             }
         } else {
             description += ". " + string_format( _( "Vehicle: %s." ), vp->vehicle().name );
+            // A vehicle spans multiple map tiles. Name the openable part at
+            // this specific tile so NVDA users can locate doors in look mode.
+            if( const std::optional<vpart_reference> door =
+                    vp->part_with_feature( VPFLAG_OPENABLE, false ) ) {
+                description += " " + string_format( _( "%s: %s." ),
+                                                    door->info().name(),
+                                                    door->part().open ? _( "open" ) : _( "closed" ) );
+            }
         }
     }
     if( here.sees_some_items( tile, observer ) ) {
