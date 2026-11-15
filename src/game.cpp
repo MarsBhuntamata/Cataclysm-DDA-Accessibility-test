@@ -2648,6 +2648,58 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
             }
         } else {
             description += ". " + string_format( _( "Vehicle: %s." ), vp->vehicle().name );
+            // Name the parts mounted on this exact map tile. A vehicle can
+            // cover many tiles, so announcing only its name hides doors,
+            // seats, controls and storage from screen-reader users.
+            std::set<size_t> described_parts;
+            const auto describe_part = [&]( const std::optional<vpart_reference> &part,
+                                            const std::string &role ) {
+                if( !part ) {
+                    return;
+                }
+                // A combined part can have more than one feature. Announce
+                // each useful role, but only repeat its physical name once.
+                const bool first_mention = described_parts.insert( part->part_index() ).second;
+                description += " " + role + ":";
+                if( first_mention ) {
+                    description += " " + part->info().name();
+                    if( part->part().is_broken() ) {
+                        description += " " + std::string( _( "(broken)" ) );
+                    }
+                } else {
+                    description += " " + std::string( _( "here" ) );
+                }
+                description += ".";
+            };
+            if( const std::optional<vpart_reference> door =
+                    vp->part_with_feature( VPFLAG_OPENABLE, false ) ) {
+                describe_part( door, _( "Openable part" ) );
+                description += " " + std::string( door->part().open ? _( "Open." ) : _( "Closed." ) );
+                if( door->part().locked ) {
+                    description += " " + std::string( _( "Locked." ) );
+                }
+            }
+            describe_part( vp->part_with_feature( VPFLAG_CONTROLS, false ), _( "Driving controls" ) );
+            describe_part( vp->part_with_feature( VPFLAG_BOARDABLE, false ), _( "Boardable seat or space" ) );
+            describe_part( vp->part_with_feature( VPFLAG_AISLE, false ), _( "Aisle" ) );
+            describe_part( vp->part_with_feature( VPFLAG_CARGO, false ), _( "Storage" ) );
+            describe_part( vp->part_with_feature( VPFLAG_ENGINE, false ), _( "Engine" ) );
+            describe_part( vp->part_with_feature( VPFLAG_WHEEL, false ), _( "Wheel" ) );
+            describe_part( vp->part_with_feature( VPFLAG_FLUIDTANK, false ), _( "Fluid tank" ) );
+            describe_part( vp->part_with_feature( VPFLAG_BATTERY, false ), _( "Battery" ) );
+            describe_part( vp->part_with_feature( VPFLAG_WINDOW, false ), _( "Window" ) );
+            describe_part( vp->part_with_feature( VPFLAG_TURRET_CONTROLS, false ), _( "Turret controls" ) );
+            describe_part( vp->part_with_feature( VPFLAG_ROOF, false ), _( "Roof" ) );
+            describe_part( vp->part_with_feature( VPFLAG_SOLAR_PANEL, false ), _( "Solar panel" ) );
+            describe_part( vp->part_with_feature( VPFLAG_FRIDGE, false ), _( "Refrigerator" ) );
+            describe_part( vp->part_with_feature( VPFLAG_FREEZER, false ), _( "Freezer" ) );
+            // Also describe less-common or purely structural components
+            // displayed on the map that don't have a role listed above.
+            if( const std::optional<vpart_reference> displayed = vp->part_displayed() ) {
+                if( described_parts.count( displayed->part_index() ) == 0 ) {
+                    describe_part( displayed, _( "Vehicle part" ) );
+                }
+            }
         }
     }
     if( here.sees_some_items( tile, observer ) ) {
