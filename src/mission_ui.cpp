@@ -44,6 +44,7 @@ enum class mission_ui_tab_enum : int {
     FAILED,
     POINTS_OF_INTEREST,
     MAP_DISCOVERIES,
+    REMEMBERED_VEHICLES,
     num_tabs
 };
 } // namespace
@@ -156,6 +157,7 @@ void mission_ui_impl::draw_controls()
     ImGui::SetWindowSize( ImVec2( window_width, window_height ), ImGuiCond_Once );
     std::vector<mission *> umissions;
     std::vector<point_of_interest> upoints_of_interest;
+    std::vector<point_of_interest> remembered_vehicles;
 
     static int selected_mission = 0;
     bool adjust_selected = false;
@@ -261,14 +263,39 @@ void mission_ui_impl::draw_controls()
             }
             ImGui::EndTabItem();
         }
+        flags = ImGuiTabItemFlags_None;
+        if( switch_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
+            flags = ImGuiTabItemFlags_SetSelected;
+            switch_tab = mission_ui_tab_enum::num_tabs;
+        }
+        if( ImGui::BeginTabItem( _( "REMEMBERED VEHICLES" ), nullptr, flags ) ) {
+            selected_tab = mission_ui_tab_enum::REMEMBERED_VEHICLES;
+            const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
+            for( const auto &tracked : overmap_buffer.get_loaded_tracked_vehicles() ) {
+                remembered_vehicles.push_back( { tracked.first, tracked.second } );
+            }
+            std::sort( remembered_vehicles.begin(), remembered_vehicles.end(),
+            [&player_pos]( const point_of_interest &lhs, const point_of_interest &rhs ) {
+                const int ldist = rl_dist( player_pos, lhs.pos );
+                const int rdist = rl_dist( player_pos, rhs.pos );
+                if( ldist != rdist ) {
+                    return ldist < rdist;
+                }
+                return lhs.text < rhs.text;
+            } );
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 
     const std::vector<point_of_interest> &visible_points =
-        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ? discovered_locations : upoints_of_interest;
+        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ? discovered_locations :
+        selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ? remembered_vehicles :
+        upoints_of_interest;
     size_t num_entries = umissions.size();
     if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
-        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
+        selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ||
+        selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
         num_entries = visible_points.size();
     }
     const int last_entry = num_entries == 0 ? 0 : ( static_cast<int>( num_entries ) - 1 );
@@ -368,6 +395,9 @@ void mission_ui_impl::draw_controls()
         case mission_ui_tab_enum::MAP_DISCOVERIES:
             mission_report = _( "Map discoveries. Nearest first" );
             break;
+        case mission_ui_tab_enum::REMEMBERED_VEHICLES:
+            mission_report = _( "Remembered vehicles. Nearest first. Loaded overmaps only." );
+            break;
         default:
             break;
     }
@@ -386,7 +416,8 @@ void mission_ui_impl::draw_controls()
         if( poi.pos.y() != here.y() ) {
             mission_report += poi.pos.y() > here.y() ? _( " South." ) : _( " North." );
         }
-        if( get_avatar().get_active_point_of_interest().pos == poi.pos ) {
+        if( selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES &&
+            get_avatar().get_active_point_of_interest().pos == poi.pos ) {
             mission_report += ". " + std::string( _( "Current destination." ) );
         }
     } else {
@@ -410,7 +441,8 @@ void mission_ui_impl::draw_controls()
     }
 
     if( ( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
-          selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES && umissions.empty() ) ||
+          selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES &&
+          selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES && umissions.empty() ) ||
         ( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
             selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) && visible_points.empty() ) ) {
         static const std::map< mission_ui_tab_enum, translation > nope = {
@@ -418,7 +450,8 @@ void mission_ui_impl::draw_controls()
             { mission_ui_tab_enum::COMPLETED, to_translation( "You haven't completed any missions!" ) },
             { mission_ui_tab_enum::FAILED, to_translation( "You haven't failed any missions!" ) },
             { mission_ui_tab_enum::POINTS_OF_INTEREST, to_translation( "You don't have any points of interest.  Add those from the overmap." ) },
-            { mission_ui_tab_enum::MAP_DISCOVERIES, to_translation( "No map discoveries. Read a roadmap to reveal locations." ) }
+            { mission_ui_tab_enum::MAP_DISCOVERIES, to_translation( "No map discoveries. Read a roadmap to reveal locations." ) },
+            { mission_ui_tab_enum::REMEMBERED_VEHICLES, to_translation( "No remembered vehicles in currently loaded overmaps." ) }
         };
         ImGui::TextWrapped( "%s", nope.at( selected_tab ).translated().c_str() );
         return;
@@ -436,12 +469,15 @@ void mission_ui_impl::draw_controls()
                            ImGui::GetContentRegionAvail() ) ) {
         // Missions selection is purposefully thinner than the description, it has less to convey.
         if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
-            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES &&
+            selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
             ImGui::TableSetupColumn( _( "Missions" ), ImGuiTableColumnFlags_WidthStretch,
                                      table_column_width * 0.8 );
         } else {
             ImGui::TableSetupColumn( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ?
-                                     _( "Map Discoveries" ) : _( "Points of Interest" ), ImGuiTableColumnFlags_WidthStretch,
+                                     _( "Map Discoveries" ) :
+                                     selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ?
+                                     _( "Remembered Vehicles" ) : _( "Points of Interest" ), ImGuiTableColumnFlags_WidthStretch,
                                      table_column_width * 0.8 );
         }
         ImGui::TableSetupColumn( _( "Description" ), ImGuiTableColumnFlags_WidthStretch,
@@ -449,14 +485,16 @@ void mission_ui_impl::draw_controls()
         ImGui::TableHeadersRow();
         ImGui::TableNextColumn();
         if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
-            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES &&
+            selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
             draw_mission_names( umissions, selected_mission, adjust_selected );
         } else {
             draw_point_of_interest_names( visible_points, selected_mission, adjust_selected );
         }
         ImGui::TableNextColumn();
         if( selected_tab != mission_ui_tab_enum::POINTS_OF_INTEREST &&
-            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES ) {
+            selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES &&
+            selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
             draw_selected_description( umissions, selected_mission );
         } else {
             draw_selected_description( visible_points, selected_mission );
@@ -515,7 +553,8 @@ void mission_ui_impl::draw_point_of_interest_names( const std::vector<point_of_i
                 if( ImGui::Selectable( points_of_interest[i].text.c_str(), is_selected,
                                    ImGuiSelectableFlags_AllowDoubleClick ) ) {
                 selected_mission = i;
-                if( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) ) {
+                if( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) &&
+                    selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
                     if( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
                         get_avatar().add_point_of_interest( points_of_interest[selected_mission] );
                     } else {
@@ -639,7 +678,9 @@ void mission_ui_impl::draw_selected_description( const std::vector<point_of_inte
 {
     const point_of_interest &selected_point_of_interest = points_of_interest[selected_mission];
     ImGui::TextWrapped( selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ?
-                       _( "Map discovery: %s" ) : _( "Point of Interest: %s" ),
+                       _( "Map discovery: %s" ) :
+                       selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ?
+                       _( "Remembered vehicle: %s" ) : _( "Point of Interest: %s" ),
                        selected_point_of_interest.text.c_str() );
     ImGui::Separator();
     draw_location( _( "Target:" ), selected_point_of_interest.pos );
