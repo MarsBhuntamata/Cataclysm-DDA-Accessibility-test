@@ -1,0 +1,63 @@
+name: Sync complete NVDA working branch into upstream integration
+
+on:
+  push:
+    branches:
+      - balloon-accessibility-framework
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: balloon-sync-working-upstream
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out upstream integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: balloon-upstream-integration-2026-11-14
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Merge full working history without discarding conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin balloon-accessibility-framework balloon-upstream-integration-2026-11-14
+          git checkout -B balloon-upstream-integration-2026-11-14 origin/balloon-upstream-integration-2026-11-14
+          if git merge-base --is-ancestor origin/balloon-accessibility-framework HEAD; then
+            echo "Upstream integration already contains every working commit."
+            exit 0
+          fi
+          if ! git merge --no-ff --no-commit origin/balloon-accessibility-framework; then
+            # These three conflicts were reviewed against both sources.
+            # Upstream owns its redesigned tile renderer and map/vision caches;
+            # working owns the Remembered Vehicles mission tab and its narration.
+            # Any other conflict means something changed: stop rather than guess.
+            mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
+            actual="$(printf '%s\\n' "${unresolved[@]}" | sort)"
+            expected="$(printf '%s\\n' src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp | sort)"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error::Unexpected merge conflicts; refusing to discard changes."
+              git status --short
+              git merge --abort || true
+              exit 1
+            fi
+            git checkout --ours -- src/cata_tiles.cpp src/map.cpp
+            git checkout --theirs -- src/mission_ui.cpp
+            git add src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp
+            if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+              echo "::error::Unresolved conflicts remain."
+              git merge --abort || true
+              exit 1
+            fi
+            echo "Resolved reviewed conflicts: upstream renderer/map, working mission UI."
+          fi
+          git commit -m "Integrate all cumulative NVDA accessibility fixes from working branch"
+          git push origin HEAD:balloon-upstream-integration-2026-11-14

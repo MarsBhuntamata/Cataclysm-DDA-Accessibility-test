@@ -53,6 +53,8 @@ class computer_session
         void reset_terminal();
         // Actually displaying the terminal window
         void refresh();
+        // Speak visible terminal output before the player must respond.
+        void narrate_terminal_screen() const;
         // Move the cursor to the beginning of the next line
         void print_newline();
         // Do the actual printing

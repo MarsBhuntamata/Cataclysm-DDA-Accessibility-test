@@ -2239,6 +2239,42 @@ static tripoint_abs_omt display()
     std::optional<tripoint_abs_omt> last_spoken_map_position;
     std::string last_spoken_map_description;
 
+    // The visual objective marker is not useful without spoken navigation.
+    // Always calculate this relative to the player, not the map cursor.
+    const auto describe_active_objective = []() {
+        const avatar &viewer = get_avatar();
+        const tripoint_abs_omt target = viewer.get_active_mission_target();
+        if( target.is_invalid() ) {
+            return std::string( _( "No active navigation objective." ) );
+        }
+        const mission *objective = viewer.get_active_mission();
+        const std::string name = objective != nullptr ? objective->name() :
+                                 viewer.get_active_point_of_interest().text;
+        const tripoint_abs_omt here = viewer.pos_abs_omt();
+        const int dx = target.x() - here.x();
+        const int dy = target.y() - here.y();
+        const int dz = target.z() - here.z();
+        std::string result = string_format( _( "Current navigation objective: %s." ), name );
+        if( dx == 0 && dy == 0 && dz == 0 ) {
+            result += " " + std::string( _( "At your current map location." ) );
+            return result;
+        }
+        result += " " + string_format( _( "%d overmap tiles away." ), rl_dist( here, target ) );
+        if( dy != 0 ) {
+            result += " " + string_format( _( "%d %s." ), std::abs( dy ),
+                                          dy < 0 ? _( "north" ) : _( "south" ) );
+        }
+        if( dx != 0 ) {
+            result += " " + string_format( _( "%d %s." ), std::abs( dx ),
+                                          dx < 0 ? _( "west" ) : _( "east" ) );
+        }
+        if( dz != 0 ) {
+            result += " " + string_format( _( "%d levels %s." ), std::abs( dz ),
+                                          dz > 0 ? _( "above" ) : _( "below" ) );
+        }
+        return result;
+    };
+
     ui->on_redraw( [&]( ui_adaptor & ui ) {
         ( void )ui;
         draw( g->overmap_data );
@@ -2316,7 +2352,7 @@ static tripoint_abs_omt display()
                 const bool opening = !last_spoken_map_position;
                 get_narration_service().announce( {
                     opening ? narration_event::ui_opened : narration_event::selection_changed,
-                    opening ? std::string( _( "Overmap. One overmap tile is 24 by 24 local walking tiles. Distances are grid offsets, not exact walking routes. " ) ) + report : report, true
+                    opening ? std::string( _( "Overmap. One overmap tile is 24 by 24 local walking tiles. Distances are grid offsets, not exact walking routes. " ) ) + describe_active_objective() + " " + report : report, true
                 } );
                 last_spoken_map_position = curs;
                 last_spoken_map_description = report;
@@ -2344,6 +2380,7 @@ static tripoint_abs_omt display()
                                            om_vision_level::full : overmap_buffer.seen( curs );
             std::string description = string_format( _( "Overmap details. Coordinates %s." ),
                                       display::overmap_position_text( curs ) );
+            description += " " + describe_active_objective();
             if( vision == om_vision_level::unseen ) {
                 description += ". " + std::string( _( "Unexplored terrain." ) );
             } else {

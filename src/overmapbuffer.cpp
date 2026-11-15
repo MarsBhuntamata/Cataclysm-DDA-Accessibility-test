@@ -562,6 +562,20 @@ std::vector<om_vehicle> overmapbuffer::get_vehicle( const tripoint_abs_omt &p )
     return result;
 }
 
+std::vector<overmapbuffer::t_tracked_vehicle> overmapbuffer::get_loaded_tracked_vehicles() const
+{
+    std::vector<t_tracked_vehicle> result;
+    for( const auto &entry : overmaps ) {
+        const overmap &om = *entry.second;
+        for( const auto &tracked : om.vehicles ) {
+            const om_vehicle &v = tracked.second;
+            const point_abs_omt location = project_combine( om.pos(), v.p.xy() );
+            result.emplace_back( tripoint_abs_omt( location, v.p.z() ), v.name );
+        }
+    }
+    return result;
+}
+
 std::string overmapbuffer::get_vehicle_ter_sym( const tripoint_abs_omt &omt )
 {
     std::string ter_sym;
