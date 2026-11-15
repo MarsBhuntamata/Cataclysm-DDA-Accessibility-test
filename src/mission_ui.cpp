@@ -320,7 +320,14 @@ void mission_ui_impl::draw_controls()
 
     // This action needs to be after umissions is populated
     if( last_action == "CONFIRM" ) {
-        if( selected_tab == mission_ui_tab_enum::ACTIVE && !umissions.empty() ) {
+        if( selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES && !visible_points.empty() ) {
+            const point_of_interest &selected = visible_points[selected_mission];
+            get_narration_service().announce( {
+                narration_event::status_changed,
+                string_format( _( "Remembered vehicle %s. Location %s. This list does not change your active objective." ),
+                               selected.text, display::overmap_position_text( selected.pos ) ), true
+            } );
+        } else if( selected_tab == mission_ui_tab_enum::ACTIVE && !umissions.empty() ) {
             mission &chosen = *umissions[selected_mission];
             get_avatar().set_active_mission( chosen );
             std::string confirmation = string_format( _( "Current mission selected: %s." ),
