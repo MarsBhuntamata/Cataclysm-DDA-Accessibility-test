@@ -891,8 +891,34 @@ void Messages::dialog::run()
         show();
     } );
 
+    bool first_message_announcement = true;
+    size_t last_announced_offset = 0;
+    std::string last_announced_filter;
     while( !errored && !canceled ) {
         ui_manager::redraw();
+        // The message log is a custom curses window. Narrate the focused
+        // message on opening, scrolling and changing the search filter.
+        if( first_message_announcement || offset != last_announced_offset ||
+            filter_str != last_announced_filter ) {
+            std::string speech = first_message_announcement ? _( "Message log. Use up and down to review." ) :
+                                 _( "Message log." );
+            if( folded_filtered.empty() ) {
+                speech += " " + std::string( _( "No matching messages." ) );
+            } else if( offset < folded_filtered.size() ) {
+                const size_t message_line = folded_filtered[offset];
+                speech += " " + string_format( _( "Line %d of %d. " ),
+                                                static_cast<int>( offset + 1 ),
+                                                static_cast<int>( folded_filtered.size() ) );
+                speech += remove_color_tags( folded_all[message_line].second );
+            }
+            get_narration_service().announce( {
+                first_message_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed, speech, true
+            } );
+            first_message_announcement = false;
+            last_announced_offset = offset;
+            last_announced_filter = filter_str;
+        }
         input();
     }
 }
