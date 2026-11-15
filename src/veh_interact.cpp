@@ -1013,6 +1013,7 @@ void veh_interact::do_install( map &here )
     avatar &player_character = get_avatar();
 
     std::vector<const vpart_info *> &tab_vparts = install_info->tab_vparts;
+    std::string last_install_focus;
 
     while( true ) {
         tab = ( tab + tab_list.size() ) % tab_list.size(); // handle tabs rolling under/over
@@ -1024,11 +1025,27 @@ void veh_interact::do_install( map &here )
                          ? tab_vparts[pos] : nullptr;
 
         const bool can_install = update_part_requirements( here );
+        const std::string install_focus = string_format(
+                                              _( "Install part. Category %s. Part %d of %d. %s. %s." ),
+                                              tab_list[tab].name(), tab_vparts.empty() ? 0 : pos + 1,
+                                              static_cast<int>( tab_vparts.size() ),
+                                              sel_vpart_info ? sel_vpart_info->name() : _( "No parts available" ),
+                                              can_install ? _( "Requirements met" ) : _( "Requirements missing" ) ) +
+                                          ( msg ? " " + remove_color_tags( *msg ) : "" );
+        if( install_focus != last_install_focus ) {
+            get_narration_service().announce( {
+                last_install_focus.empty() ? narration_event::ui_opened :
+                narration_event::selection_changed, install_focus, true
+            } );
+            last_install_focus = install_focus;
+        }
         ui_manager::redraw();
 
         const std::string action = main_context.handle_input();
         msg.reset();
-        if( action == "FILTER" ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( action == "FILTER" ) {
             string_input_popup_imgui popup( 34 );
             popup.set_text( _( "Search for part" ) );
             popup.set_description( _( "Filter" ) );
@@ -1155,6 +1172,9 @@ void veh_interact::do_repair( map &here )
     };
 
     if( !can_repair() ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help, msg.value_or( _( "Vehicle repair unavailable." ) ), true
+        } );
         return;
     }
 
@@ -1168,6 +1188,7 @@ void veh_interact::do_repair( map &here )
     restore_on_out_of_scope prev_hilight_part( highlight_part );
 
     avatar &player_character = get_avatar();
+    std::string last_spoken_repair_focus;
     while( true ) {
         vehicle_part &pt = veh->part( parts_here[need_repair[pos]] );
         const vpart_info &vp = pt.info();
@@ -1224,11 +1245,34 @@ void veh_interact::do_repair( map &here )
 
         highlight_part = need_repair[pos];
 
+        // This screen previously only painted its requirements to a curses
+        // window. Read the actual requirements and focused part to NVDA.
+        // Do not repeat the lengthy text on every redraw.
+        const std::string repair_focus = string_format(
+                                             _( "Repair part %d of %d: %s. %s. " ),
+                                             pos + 1, static_cast<int>( need_repair.size() ),
+                                             pt.name(), ok ? _( "Requirements met" ) :
+                                             _( "Requirements missing" ) ) +
+                                         remove_color_tags( nmsg );
+        if( repair_focus != last_spoken_repair_focus ) {
+            get_narration_service().announce( {
+                last_spoken_repair_focus.empty() ? narration_event::ui_opened :
+                narration_event::selection_changed, repair_focus, true
+            } );
+            last_spoken_repair_focus = repair_focus;
+        }
         ui_manager::redraw();
 
         const std::string action = main_context.handle_input();
         msg.reset();
-        if( ( action == "REPAIR" || action == "CONFIRM" ) && ok ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( ( action == "REPAIR" || action == "CONFIRM" ) && !ok ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help,
+                std::string( _( "Cannot repair this part. " ) ) + remove_color_tags( nmsg ), true
+            } );
+        } else if( ( action == "REPAIR" || action == "CONFIRM" ) && ok ) {
             // Modifying a vehicle with rotors will make in not flightworthy (until we've got a better model)
             if( would_prevent_flying ) {
                 // It can only be the player doing this - an npc won't work well with query_yn
@@ -1267,15 +1311,27 @@ void veh_interact::do_mend( map &here )
     switch( cant_do( here, VEHICLE_MEND_FAULTS ) ) {
         case task_reason::LOW_MORALE:
             msg = _( "Your morale is too low to mend…" );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
         case task_reason::LOW_LIGHT:
             msg = _( "It's too dark to see what you are doing…" );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
         case task_reason::INVALID_TARGET:
             msg = _( "No faulty parts require mending." );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
         case task_reason::MOVING_VEHICLE:
             msg = _( "You can't mend stuff while driving." );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
         default:
             break;
@@ -1307,10 +1363,16 @@ void veh_interact::do_refill( map &here )
     switch( cant_do( here, VEHICLE_REFILL ) ) {
         case task_reason::MOVING_VEHICLE:
             msg = _( "You can't refill a moving vehicle." );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
 
         case task_reason::INVALID_TARGET:
             msg = _( "No parts can currently be refilled." );
+            get_narration_service().announce( {
+                narration_event::contextual_help, *msg, true
+            } );
             return;
 
         default:
@@ -1920,6 +1982,7 @@ void veh_interact::do_remove( map &here )
     restore_on_out_of_scope prev_overview_enable( overview_enable );
 
     restore_on_out_of_scope prev_hilight_part( highlight_part );
+    std::string last_remove_focus;
 
     while( true ) {
         int part = parts_here[ pos ];
@@ -1933,12 +1996,30 @@ void veh_interact::do_remove( map &here )
         highlight_part = pos;
 
         calc_overview( here );
+        const std::string remove_focus = string_format(
+                                             _( "Remove part %d of %d: %s. %s." ),
+                                             pos + 1, static_cast<int>( parts_here.size() ),
+                                             veh->part( part ).name(),
+                                             can_remove ? _( "Ready to remove" ) : _( "Cannot remove" ) );
+        if( remove_focus != last_remove_focus ) {
+            get_narration_service().announce( {
+                last_remove_focus.empty() ? narration_event::ui_opened :
+                narration_event::selection_changed, remove_focus, true
+            } );
+            last_remove_focus = remove_focus;
+        }
         ui_manager::redraw();
 
         //read input
         const std::string action = main_context.handle_input();
         msg.reset();
-        if( can_remove && ( action == "REMOVE" || action == "CONFIRM" ) ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( !can_remove && ( action == "REMOVE" || action == "CONFIRM" ) ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help, _( "Cannot remove this part." ), true
+            } );
+        } else if( can_remove && ( action == "REMOVE" || action == "CONFIRM" ) ) {
             switch( reason ) {
                 case task_reason::LOW_MORALE:
                     msg = _( "Your morale is too low to construct…" );
