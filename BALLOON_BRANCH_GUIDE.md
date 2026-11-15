@@ -1,32 +1,34 @@
-# Balloon CDDA branch guide
+# Balloon CDDA: Two main branches
 
-## Build target
+## 1. Working accessibility branch
+`balloon-accessibility-framework`
 
-**Cumulative test build:** `balloon-nvda-combined-fixes-2026-11-15`.
+This is **the** working branch for all NVDA fixes. New accessibility changes are built here. The latest set of cumulative fixes includes:
+- lighthouse/look-mode performance optimization (`78b30c7`)
+- NVDA vehicle parts in look mode and repair/install/remove/maintenance narration
+- Shift+P message log narration
+- computer terminal login/security/output narration
+- active objective direction and distance on overmap opening and F8
+- Remembered Vehicles tab (currently loaded overmaps only)
 
-**Stable known-good:** `balloon-accessibility-framework`. Do not change this until the cumulative build is successfully compiled and tested.
+Note: recent additions may still need Windows compilation and in-game NVDA verification. Older verified commits remain in Git history for rollback.
 
-GitHub Actions: `NVDA accessibility test build` → `Run workflow` → select the cumulative branch.
+## 2. Upstream-integrated accessibility branch
+`balloon-upstream-integration-2026-11-14`
 
-## Cumulative test branch contains
+This branch combines newer CleverRaven CDDA upstream changes **and** our full NVDA working history. The sync workflow `.github/workflows/sync-balloon-working-to-upstream.yml` attempts a normal Git merge when the working branch is pushed, stopping on conflicts instead of silently discarding upstream or accessibility changes. **Verify the sync workflow completed successfully** before assuming this branch includes the very latest working fixes.
 
-- Stable framework fixes, including tested lighthouse/look-mode performance optimization (`78b30c7`).
-- Vehicle look-mode parts, vehicle repair/install/remove/maintenance narration.
-- Shift+P message-log narration.
-- Computer terminal login/security/output narration.
-- Overmap active-objective direction/distance on opening and F8.
-- Remembered Vehicles tab; **currently loaded overmaps only**.
+Build via the GitHub Actions workflow `NVDA upstream pre-test build`.
 
-Source code is committed, but compilation and NVDA runtime testing remain necessary.
+## Other branches
 
-## Historical and experimental branches
+All `balloon-*-test` and `balloon-nvda-combined-fixes-2026-11-15` branches are temporary or historical snapshots, not primary build targets.
 
-The `balloon-vehicle-*-test`, `balloon-computer-terminal-nvda-test`, and `balloon-framework-*-test` branches are historical snapshots, **not** current cumulative builds. Do not build those when testing the latest work.
+The experimental randomizer total-conversion guard on `balloon-randomizer-total-conversion-guard-test` has not yet been integrated into working and remains a separate untested candidate.
 
-`balloon-upstream-integration-2026-11-14` is a separate, significantly diverged upstream integration experiment.
-
-`balloon-randomizer-total-conversion-guard-test` includes an experimental `src/worldfactory.cpp` guard that is **not yet incorporated** into the cumulative branch. Review and test before integration.
-
-## Going forward
-
-New accessibility fixes belong on the cumulative branch. Any temporary experimental branch must be reconciled back into the cumulative branch after review, without altering the stable known-good branch until successful testing. Update this guide when the build branch changes.
+## Rules
+1. Two permanent development targets only: working and upstream-integrated.
+2. Every accepted accessibility change lands in working first and is then merged into upstream.
+3. Never replace whole upstream source files with older working copies merely to settle conflicts.
+4. Keep rollback through Git history; don't discard fixes when upstream changes.
+5. A failed merge or build is reported, never presented as successful.
