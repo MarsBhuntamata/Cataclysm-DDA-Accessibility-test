@@ -1567,6 +1567,51 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
                 const size_t j = static_cast<size_t>( rng( 0, static_cast<int>( i - 1 ) ) );
                 std::swap( candidates[i - 1], candidates[j] );
             }
+            // Only combine total conversions when one explicitly depends on the other.
+            // For example, XedraWood depends on Innawood and is intended to stack with it.
+            // Other unrelated total conversions can generate incompatible worlds.
+            const auto &categories = get_mod_list_categories();
+            const auto total_conversion_it = std::find_if( categories.begin(), categories.end(),
+            []( const auto & category ) {
+                return category.first == "total_conversion";
+            } );
+            const int total_conversion_category = static_cast<int>(
+                    std::distance( categories.begin(), total_conversion_it ) );
+            const auto is_total_conversion = [&]( const mod_id & id ) {
+                return id.is_valid() && total_conversion_it != categories.end() &&
+                       id->category.first == total_conversion_category;
+            };
+            const auto depends_on = []( const mod_id & mod, const mod_id & dependency ) {
+                std::vector<mod_id> pending = mod->dependencies;
+                std::set<mod_id> seen;
+                while( !pending.empty() ) {
+                    const mod_id current = pending.back();
+                    pending.pop_back();
+                    if( current == dependency ) {
+                        return true;
+                    }
+                    if( !current.is_valid() || !seen.insert( current ).second ) {
+                        continue;
+                    }
+                    pending.insert( pending.end(), current->dependencies.begin(),
+                                    current->dependencies.end() );
+                }
+                return false;
+            };
+            const auto has_unrelated_total_conversions = [&]( const std::vector<mod_id> & mods ) {
+                for( size_t i = 0; i < mods.size(); ++i ) {
+                    if( !is_total_conversion( mods[i] ) ) {
+                        continue;
+                    }
+                    for( size_t j = i + 1; j < mods.size(); ++j ) {
+                        if( is_total_conversion( mods[j] ) &&
+                            !depends_on( mods[i], mods[j] ) && !depends_on( mods[j], mods[i] ) ) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
             const int target = rng( 2, 5 );
             int selected = 0;
             for( const mod_id &id : candidates ) {
@@ -1595,6 +1640,9 @@ int worldfactory::show_worldgen_tab_modselection( const catacurses::window &win,
                             break;
                         }
                     }
+                }
+                if( valid && has_unrelated_total_conversions( attempted ) ) {
+                    valid = false;
                 }
                 if( valid && !preview.empty() && !attempted.empty() &&
                     attempted.front() != preview.front() ) {
