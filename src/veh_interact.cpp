@@ -1155,6 +1155,9 @@ void veh_interact::do_repair( map &here )
     };
 
     if( !can_repair() ) {
+        get_narration_service().announce( {
+            narration_event::contextual_help, msg.value_or( _( "Vehicle repair unavailable." ) ), true
+        } );
         return;
     }
 
@@ -1168,6 +1171,7 @@ void veh_interact::do_repair( map &here )
     restore_on_out_of_scope prev_hilight_part( highlight_part );
 
     avatar &player_character = get_avatar();
+    std::string last_spoken_repair_focus;
     while( true ) {
         vehicle_part &pt = veh->part( parts_here[need_repair[pos]] );
         const vpart_info &vp = pt.info();
@@ -1224,11 +1228,34 @@ void veh_interact::do_repair( map &here )
 
         highlight_part = need_repair[pos];
 
+        // This screen previously only painted its requirements to a curses
+        // window. Read the actual requirements and focused part to NVDA.
+        // Do not repeat the lengthy text on every redraw.
+        const std::string repair_focus = string_format(
+                                             _( "Repair part %d of %d: %s. %s. " ),
+                                             pos + 1, static_cast<int>( need_repair.size() ),
+                                             pt.name(), ok ? _( "Requirements met" ) :
+                                             _( "Requirements missing" ) ) +
+                                         remove_color_tags( nmsg );
+        if( repair_focus != last_spoken_repair_focus ) {
+            get_narration_service().announce( {
+                last_spoken_repair_focus.empty() ? narration_event::ui_opened :
+                narration_event::selection_changed, repair_focus, true
+            } );
+            last_spoken_repair_focus = repair_focus;
+        }
         ui_manager::redraw();
 
         const std::string action = main_context.handle_input();
         msg.reset();
-        if( ( action == "REPAIR" || action == "CONFIRM" ) && ok ) {
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+        } else if( ( action == "REPAIR" || action == "CONFIRM" ) && !ok ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help,
+                std::string( _( "Cannot repair this part. " ) ) + remove_color_tags( nmsg ), true
+            } );
+        } else if( ( action == "REPAIR" || action == "CONFIRM" ) && ok ) {
             // Modifying a vehicle with rotors will make in not flightworthy (until we've got a better model)
             if( would_prevent_flying ) {
                 // It can only be the player doing this - an npc won't work well with query_yn
