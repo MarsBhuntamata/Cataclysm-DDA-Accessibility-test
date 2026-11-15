@@ -404,9 +404,13 @@ void mission_ui_impl::draw_controls()
     if( num_entries == 0 ) {
         mission_report += ". " + std::string( _( "No entries." ) );
     } else if( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
-               selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) {
+               selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ||
+               selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
         const point_of_interest &poi = visible_points[selected_mission];
         mission_report += ". " + poi.text;
+        if( selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ) {
+            mission_report += ". " + std::string( _( "Tracked vehicle position." ) );
+        }
         const tripoint_abs_omt here = get_avatar().pos_abs_omt();
         mission_report += ". " + string_format( _( "%d overmap tiles away." ),
                                                rl_dist( here, poi.pos ) );
@@ -415,6 +419,9 @@ void mission_ui_impl::draw_controls()
         }
         if( poi.pos.y() != here.y() ) {
             mission_report += poi.pos.y() > here.y() ? _( " South." ) : _( " North." );
+        }
+        if( poi.pos.z() != here.z() ) {
+            mission_report += poi.pos.z() > here.z() ? _( " Above." ) : _( " Below." );
         }
         if( selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES &&
             get_avatar().get_active_point_of_interest().pos == poi.pos ) {
@@ -444,7 +451,8 @@ void mission_ui_impl::draw_controls()
           selected_tab != mission_ui_tab_enum::MAP_DISCOVERIES &&
           selected_tab != mission_ui_tab_enum::REMEMBERED_VEHICLES && umissions.empty() ) ||
         ( ( selected_tab == mission_ui_tab_enum::POINTS_OF_INTEREST ||
-            selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ) && visible_points.empty() ) ) {
+            selected_tab == mission_ui_tab_enum::MAP_DISCOVERIES ||
+            selected_tab == mission_ui_tab_enum::REMEMBERED_VEHICLES ) && visible_points.empty() ) ) {
         static const std::map< mission_ui_tab_enum, translation > nope = {
             { mission_ui_tab_enum::ACTIVE, to_translation( "You have no active missions!" ) },
             { mission_ui_tab_enum::COMPLETED, to_translation( "You haven't completed any missions!" ) },
