@@ -2933,6 +2933,24 @@ static std::vector<std::string> character_creator_summary_sections( const avatar
     }
     sections.push_back( backgrounds );
 
+    std::string starting_kit = _( "Starting profession benefits." );
+    const profession &prof = *creator.prof;
+    for( const proficiency_id &proficiency : prof.proficiencies() ) {
+        starting_kit += " " + std::string( _( "Proficiency: " ) ) + proficiency->name() + ".";
+    }
+    for( const bionic_id &cbm : prof.CBMs() ) {
+        starting_kit += " " + std::string( _( "Bionic: " ) ) + cbm->name.translated() + ".";
+    }
+    for( const auto &spell : prof.spells() ) {
+        starting_kit += string_format( _( " Spell: %s, level %d." ),
+                                      spell.first->name, spell.second );
+    }
+    if( prof.vehicle() ) {
+        starting_kit += " " + std::string( _( "Vehicle: " ) ) +
+                        prof.vehicle()->name.translated() + ".";
+    }
+    sections.push_back( starting_kit );
+
     std::string location = _( "Starting location." );
     location += " " + ( creator.random_start_location ? std::string( _( "Random." ) ) :
                         creator.start_location.obj().name() + "." );
