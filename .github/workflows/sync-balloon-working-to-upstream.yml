@@ -49,9 +49,12 @@ jobs:
               exit 1
             fi
             # Never replace newer upstream scenario/rating/portrait logic.
-            if ! grep -q 'character_creator_summary_sections' src/newcharacter.cpp ||
-               ! git show HEAD:src/newcharacter.cpp | grep -q 'CHARACTER_CREATION_HARD_LIMIT' ||
-               ! git show HEAD:src/newcharacter.cpp | grep -q 'Starting location selected'; then
+            # Read once into a file so pipefail cannot mistake grep -q's early
+            # exit for a failed git show on this large source file.
+            git show HEAD:src/newcharacter.cpp > "$RUNNER_TEMP/upstream-newcharacter.cpp"
+            if ! grep -q 'character_creator_summary_sections' "$RUNNER_TEMP/upstream-newcharacter.cpp" ||
+               ! grep -q 'CHARACTER_CREATION_HARD_LIMIT' "$RUNNER_TEMP/upstream-newcharacter.cpp" ||
+               ! grep -q 'Starting location selected' "$RUNNER_TEMP/upstream-newcharacter.cpp"; then
               echo "::error::Reviewed accessibility changes missing from upstream."
               git merge --abort || true
               exit 1
