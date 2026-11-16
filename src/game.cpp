@@ -2581,7 +2581,7 @@ std::string accessibility_describe_local_tile( const tripoint_bub_ms &tile )
     if( tile != observer.pos_bub() ) {
         const Creature *critter = get_creature_tracker().creature_at( tile, true );
         if( critter != nullptr && observer.sees( here, *critter ) ) {
-            description += ". " + string_format( _( "Creature: %s" ), critter->disp_name() );
+            description = critter->disp_name() + ". " + description;
             // Match the creature scanner's unknown-attitude handling for
             // inattentive characters, and use the creature's disposition
             // toward the player rather than the player's toward the creature.
@@ -6557,7 +6557,8 @@ look_around_result game::look_around(
                 description_peak_us = std::max( description_peak_us,
                                                 static_cast<long long>( description_us ) );
             }
-            std::string speech = string_format( "%s. %s", relative, tile_description );
+            // Lead with the tile itself; direction is secondary navigation context.
+            std::string speech = string_format( "%s. %s", tile_description, relative );
             if( peeking ) {
                 speech = std::string( _( "Peeking. " ) ) + speech;
             }
