@@ -3091,6 +3091,23 @@ bool character_creator_ui::display()
                     focus += ". " + std::string( _( "Starting money: " ) ) +
                              format_money( *prof.starting_cash() );
                 }
+                // Reuse the preview inventory already computed for the visible
+                // profession rather than rerolling item groups for speech.
+                for( const item &it : cc_uistate.cached_profession_inventory ) {
+                    const std::string role = it.has_flag( json_flag_no_auto_equip ) ?
+                                             _( "Carried" ) : it.has_flag( json_flag_auto_wield ) ?
+                                             _( "Wielded" ) : it.is_armor() ?
+                                             _( "Worn" ) : _( "Carried" );
+                    focus += ". " + role + ": " + remove_color_tags( it.display_name() );
+                }
+                for( const addiction &a : prof.addictions() ) {
+                    focus += string_format( _( ". Starting addiction: %s, intensity %d" ),
+                                            a.type->get_name().translated(), a.intensity );
+                }
+                for( const mission_type_id mission_id : prof.missions() ) {
+                    focus += ". " + std::string( _( "Profession mission: " ) ) +
+                             mission_type::get( mission_id )->tname();
+                }
             } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
                 const profession &hobby = cc_uistate.sorted_hobbies[selected_index].obj();
@@ -3110,6 +3127,14 @@ bool character_creator_ui::display()
                 for( const auto &spell : hobby.spells() ) {
                     focus += string_format( _( ". Background spell: %s, level %d" ),
                                             spell.first->name, spell.second );
+                }
+                for( const addiction &a : hobby.addictions() ) {
+                    focus += string_format( _( ". Background addiction: %s, intensity %d" ),
+                                            a.type->get_name().translated(), a.intensity );
+                }
+                for( const mission_type_id mission_id : hobby.missions() ) {
+                    focus += ". " + std::string( _( "Background mission: " ) ) +
+                             mission_type::get( mission_id )->tname();
                 }
             }
             if( !entry.desc.empty() ) {
