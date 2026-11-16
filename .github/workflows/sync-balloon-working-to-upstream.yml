@@ -36,28 +36,34 @@ jobs:
             exit 0
           fi
           if ! git merge --no-ff --no-commit origin/balloon-accessibility-framework; then
-            # These three conflicts were reviewed against both sources.
-            # Upstream owns its redesigned tile renderer and map/vision caches;
-            # working owns the Remembered Vehicles mission tab and its narration.
-            # Any other conflict means something changed: stop rather than guess.
+            # The new chargen conflict was reviewed and its accessibility
+            # additions were ported to upstream's newer character creator.
+            # Refuse any other conflict set rather than risking game changes.
             mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
             actual="$(printf '%s\\n' "${unresolved[@]}" | sort)"
-            expected="$(printf '%s\\n' src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp | sort)"
+            expected="src/newcharacter.cpp"
             if [[ "$actual" != "$expected" ]]; then
               echo "::error::Unexpected merge conflicts; refusing to discard changes."
               git status --short
               git merge --abort || true
               exit 1
             fi
-            git checkout --ours -- src/cata_tiles.cpp src/map.cpp
-            git checkout --theirs -- src/mission_ui.cpp
-            git add src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp
+            # Never replace newer upstream scenario/rating/portrait logic.
+            if ! grep -q 'character_creator_summary_sections' src/newcharacter.cpp ||
+               ! git show HEAD:src/newcharacter.cpp | grep -q 'CHARACTER_CREATION_HARD_LIMIT' ||
+               ! git show HEAD:src/newcharacter.cpp | grep -q 'Starting location selected'; then
+              echo "::error::Reviewed accessibility changes missing from upstream."
+              git merge --abort || true
+              exit 1
+            fi
+            git checkout --ours -- src/newcharacter.cpp
+            git add src/newcharacter.cpp
             if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
               echo "::error::Unresolved conflicts remain."
               git merge --abort || true
               exit 1
             fi
-            echo "Resolved reviewed conflicts: upstream renderer/map, working mission UI."
+            echo "Resolved reviewed conflict: upstream chargen retained with NVDA changes."
           fi
           git commit -m "Integrate all cumulative NVDA accessibility fixes from working branch"
           git push origin HEAD:balloon-upstream-integration-2026-11-14
