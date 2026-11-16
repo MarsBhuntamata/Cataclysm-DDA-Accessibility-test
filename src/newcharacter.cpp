@@ -3782,6 +3782,10 @@ bool character_creator_ui::handle_action( const std::string &action )
         // We don't need to check at the top as you won't be able to edit the name
         if( !MAP_SHARING::isSharing() ) {
             you.pick_name();
+            get_narration_service().announce( {
+                narration_event::status_changed,
+                string_format( _( "New character name: %s." ), you.name ), true
+            } );
         }
     } else if( action == "RANDOMIZE_CHAR_DESCRIPTION" ) {
         bool gender_selection = one_in( 2 );
@@ -3798,6 +3802,11 @@ bool character_creator_ui::handle_action( const std::string &action )
         you.randomize_height();
         you.randomize_blood();
         you.randomize_heartrate();
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            std::string( _( "Character description randomized." ) ) + " " +
+            character_creator_summary_sections( you ).front(), true
+        } );
     } else if( action == "REROLL_CHARACTER" ) {
         cc_uistate.reset();
         you.randomize( true );
