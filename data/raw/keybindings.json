@@ -2002,7 +2002,7 @@
     "type": "keybinding",
     "id": "CHOOSE_LOCATION",
     "name": "Choose character starting location",
-    "bindings": [ { "input_method": "keyboard_any", "key": ":" } ]
+    "bindings": [ { "input_method": "keyboard_any", "key": ":" }, { "input_method": "keyboard_any", "key": "/" } ]
   },
   {
     "type": "keybinding",
