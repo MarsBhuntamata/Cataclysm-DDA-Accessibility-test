@@ -2435,6 +2435,10 @@ void character_creator_ui::setup_input_context( input_context &cc_ictxt, bool qu
     cc_ictxt.register_action( "QUIT" );
     cc_ictxt.register_action( "HELP_KEYBINDINGS" );
     cc_ictxt.register_action( "REPEAT_NARRATION" );
+    if( cc_uistate.selected_tab == CHARCREATOR_SUMMARY ) {
+        cc_ictxt.register_action( "UP" );
+        cc_ictxt.register_action( "DOWN" );
+    }
 
     cc_ictxt.register_action( "SAVE_TEMPLATE" );
     cc_ictxt.register_action( "RANDOMIZE_CHAR_NAME" );
@@ -2860,6 +2864,82 @@ void character_creator_ui_impl::draw_top_bar( const avatar &u ) const
                                       ui_parent->get_current_tab_input().get_desc( "HELP_KEYBINDINGS" ) ) );
 }
 
+// The summary is an ImGui table, which has no keyboard-focusable cells for NVDA.
+// Expose its information as short sections that can be reviewed with Up/Down.
+static std::vector<std::string> character_creator_summary_sections( const avatar &creator )
+{
+    std::vector<std::string> sections;
+    sections.push_back( string_format(
+                            _( "Identity. Name: %s. Age: %s. Height: %s. Gender: %s. Scenario: %s. Profession: %s." ),
+                            creator.name.empty() ? std::string( _( "Random" ) ) : creator.name,
+                            creator.age_string( get_scenario()->start_of_game() ),
+                            creator.height_string(), creator.male ? _( "Male" ) : _( "Female" ),
+                            get_scenario()->gender_appropriate_name( !creator.male ),
+                            creator.prof->gender_appropriate_name( creator.male ) ) );
+    sections.push_back( string_format( _( "Attributes. Strength %d. Dexterity %d. Intelligence %d. Perception %d." ),
+                                       creator.get_str_base(), creator.get_dex_base(),
+                                       creator.get_int_base(), creator.get_per_base() ) );
+
+    std::string traits = _( "Traits." );
+    const trait_group::Trait_list trait_list = creator.get_mutations_variants( false );
+    if( trait_list.empty() ) {
+        traits += " " + std::string( _( "None." ) );
+    } else {
+        for( const trait_and_var &trait : trait_list ) {
+            traits += " " + trait.name() + ".";
+        }
+    }
+    sections.push_back( traits );
+
+    std::string skills = _( "Skills." );
+    bool any_skill = false;
+    const std::vector<const Skill *> skill_list = Skill::get_skills_sorted_by(
+                []( const Skill & a, const Skill & b ) {
+        return localized_compare( a.name(), b.name() );
+    } );
+    for( const Skill *skill : skill_list ) {
+        const skill_id id = skill->ident();
+        int level = creator.get_skill_level( id );
+        for( const auto &bonus : creator.prof->skills() ) {
+            if( bonus.first == id ) {
+                level += bonus.second;
+                break;
+            }
+        }
+        for( const profession *hobby : creator.hobbies ) {
+            for( const auto &bonus : hobby->skills() ) {
+                if( bonus.first == id ) {
+                    level = std::max( level, bonus.second );
+                }
+            }
+        }
+        if( level > 0 ) {
+            skills += string_format( " %s %d.", skill->name(), level );
+            any_skill = true;
+        }
+    }
+    if( !any_skill ) {
+        skills += " " + std::string( _( "No trained skills." ) );
+    }
+    sections.push_back( skills );
+
+    std::string backgrounds = _( "Backgrounds." );
+    if( creator.hobbies.empty() ) {
+        backgrounds += " " + std::string( _( "None." ) );
+    } else {
+        for( const profession *hobby : creator.hobbies ) {
+            backgrounds += " " + hobby->gender_appropriate_name( creator.male ) + ".";
+        }
+    }
+    sections.push_back( backgrounds );
+
+    std::string location = _( "Starting location." );
+    location += " " + ( creator.random_start_location ? std::string( _( "Random." ) ) :
+                        creator.start_location.obj().name() + "." );
+    sections.push_back( location );
+    return sections;
+}
+
 bool character_creator_ui::display()
 {
     cc_uistate.reset();
@@ -2920,7 +3000,13 @@ bool character_creator_ui::display()
                 focus = _( "Skills" );
                 break;
             case CHARCREATOR_SUMMARY:
-                focus = _( "Summary. Review your character, then press Tab to finish." );
+                focus = _( "Summary. Up and Down review character details. Tab finishes character creation." );
+                {
+                    const std::vector<std::string> sections = character_creator_summary_sections( get_avatar() );
+                    const int index = std::clamp( cc_uistate.summary_section_index, 0,
+                                                  static_cast<int>( sections.size() ) - 1 );
+                    focus += " " + sections[index];
+                }
                 break;
             case character_creator_tab_LAST:
                 break;
@@ -2929,9 +3015,7 @@ bool character_creator_ui::display()
             static_cast<size_t>( current_tab_uilist->selected ) < current_tab_uilist->entries.size() ) {
             const uilist_entry &entry = current_tab_uilist->entries[current_tab_uilist->selected];
             focus += ". " + remove_color_tags( entry.txt );
-            if( !entry.desc.empty() ) {
-                focus += ". " + remove_color_tags( entry.desc );
-            }
+            // Status belongs immediately after the name; details come afterward.
             if( !entry.enabled ) {
                 focus += ". " + std::string( _( "Unavailable" ) );
             }
@@ -2955,6 +3039,30 @@ bool character_creator_ui::display()
             } else if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
                 focus += ". " + cc_uistate.sorted_traits[selected_index]->desc();
+            }
+            if( cc_uistate.selected_tab == CHARCREATOR_PROFESSION &&
+                static_cast<size_t>( selected_index ) < cc_uistate.sorted_professions.size() ) {
+                const profession &prof = cc_uistate.sorted_professions[selected_index].obj();
+                for( const auto &bonus : prof.skills() ) {
+                    focus += string_format( _( ". Starting skill: %s, level %d" ),
+                                            bonus.first->name(), bonus.second );
+                }
+                for( const trait_and_var &trait : prof.get_locked_traits() ) {
+                    focus += ". " + std::string( _( "Starting trait: " ) ) + trait.name();
+                }
+            } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
+                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
+                const profession &hobby = cc_uistate.sorted_hobbies[selected_index].obj();
+                for( const auto &bonus : hobby.skills() ) {
+                    focus += string_format( _( ". Background skill: %s, level %d" ),
+                                            bonus.first->name(), bonus.second );
+                }
+                for( const trait_and_var &trait : hobby.get_locked_traits() ) {
+                    focus += ". " + std::string( _( "Background trait: " ) ) + trait.name();
+                }
+            }
+            if( !entry.desc.empty() ) {
+                focus += ". " + remove_color_tags( entry.desc );
             }
             // Selection is conveyed visually with colors in these lists.
             // Speak the state explicitly, without requiring a second menu.
@@ -2983,11 +3091,6 @@ bool character_creator_ui::display()
             }
             if( creator_tab_changed ) {
                 if( cc_uistate.selected_tab == CHARCREATOR_SUMMARY ) {
-                    const avatar &creator = get_avatar();
-                    speech += ". " + string_format( _( "Name: %s. Age: %s. Height: %s. Gender: %s." ),
-                            creator.name.empty() ? std::string( _( "Random" ) ) : creator.name,
-                            creator.age_string( get_scenario()->start_of_game() ),
-                            creator.height_string(), creator.male ? _( "Male" ) : _( "Female" ) );
                     speech += ". " + string_format( _( "Edit name: %s. Edit age: %s. Edit height: %s. Change blood type: %s. Change gender: %s. Change outfit: %s. Choose starting location: %s." ),
                             current_tab_input.get_desc( "CHANGE_NAME", 1U ),
                             current_tab_input.get_desc( "CHANGE_AGE", 1U ),
@@ -3564,6 +3667,11 @@ bool character_creator_ui::handle_action( const std::string &action )
             cc_uistate.switched_tab = cc_uistate.selected_tab;
             upon_switching_tab();
         }
+    } else if( cc_uistate.selected_tab == CHARCREATOR_SUMMARY &&
+               ( action == "UP" || action == "DOWN" ) ) {
+        const int count = static_cast<int>( character_creator_summary_sections( you ).size() );
+        cc_uistate.summary_section_index = ( cc_uistate.summary_section_index +
+                                             ( action == "DOWN" ? 1 : count - 1 ) ) % count;
     } else if( action == "SCROLL_INFOBOX_UP" ) {
         cc_uistate.scrolled_up = true;
     } else if( action == "SCROLL_INFOBOX_DOWN" ) {
@@ -3599,10 +3707,20 @@ bool character_creator_ui::handle_action( const std::string &action )
         cc_uistate.reset();
         you.randomize( true );
         update_uilist_entries();
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            std::string( _( "Character rerolled." ) ) + " " +
+            character_creator_summary_sections( you ).front(), true
+        } );
     } else if( action == "REROLL_CHARACTER_WITH_SCENARIO" ) {
         cc_uistate.reset();
         you.randomize( false );
         update_uilist_entries();
+        get_narration_service().announce( {
+            narration_event::status_changed,
+            std::string( _( "Character rerolled, scenario retained." ) ) + " " +
+            character_creator_summary_sections( you ).front(), true
+        } );
     } else if( action == "CHANGE_GENDER" ) {
         you.male = !you.male;
     } else if( action == "CHANGE_OUTFIT" ) {
