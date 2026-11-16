@@ -3222,10 +3222,6 @@ bool character_creator_ui::display()
             }
             if( creator_tab_changed ) {
                 if( cc_uistate.selected_tab == CHARCREATOR_SUMMARY ) {
-                    speech += ". " + string_format( _( "Name: %s. Age: %s. Height: %s. Gender: %s." ),
-                                                    creator.name.empty() ? std::string( _( "Random" ) ) : creator.name,
-                                                    creator.age_string( get_scenario()->start_of_game() ),
-                                                    creator.height_string(), creator.male ? _( "Male" ) : _( "Female" ) );
                     speech += ". " + string_format(
                                   _( "Edit name: %s. Edit age: %s. Edit height: %s. Change blood type: %s. Change gender: %s. Change outfit: %s. Choose starting location: %s." ),
                                   current_tab_input.get_desc( "CHANGE_NAME", 1U ),

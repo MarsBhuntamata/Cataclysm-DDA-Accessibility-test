@@ -79,6 +79,8 @@ struct character_creator_uistate {
     int selected_stat_index = 0;
     int selected_trait_index = 0;
     int selected_skill_index = 0;
+    // Position within the NVDA-readable ImGui character summary.
+    int summary_section_index = 0;
 
     // the currently selected tab
     character_creator_tab selected_tab = CHARCREATOR_SCENARIO;

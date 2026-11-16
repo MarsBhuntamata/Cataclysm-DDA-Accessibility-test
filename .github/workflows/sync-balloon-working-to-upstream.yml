@@ -36,28 +36,35 @@ jobs:
             exit 0
           fi
           if ! git merge --no-ff --no-commit origin/balloon-accessibility-framework; then
-            # These three conflicts were reviewed against both sources.
-            # Upstream owns its redesigned tile renderer and map/vision caches;
-            # working owns the Remembered Vehicles mission tab and its narration.
-            # Any other conflict means something changed: stop rather than guess.
+            # The new chargen conflict was reviewed and its accessibility
+            # additions were ported to upstream's newer character creator.
+            # Refuse any other conflict set rather than risking game changes.
             mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
-            actual="$(printf '%s\\n' "${unresolved[@]}" | sort)"
-            expected="$(printf '%s\\n' src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp | sort)"
-            if [[ "$actual" != "$expected" ]]; then
+            if [[ "${#unresolved[@]}" -ne 1 || "${unresolved[0]}" != "src/newcharacter.cpp" ]]; then
               echo "::error::Unexpected merge conflicts; refusing to discard changes."
               git status --short
               git merge --abort || true
               exit 1
             fi
-            git checkout --ours -- src/cata_tiles.cpp src/map.cpp
-            git checkout --theirs -- src/mission_ui.cpp
-            git add src/cata_tiles.cpp src/map.cpp src/mission_ui.cpp
+            # Never replace newer upstream scenario/rating/portrait logic.
+            # Read once into a file so pipefail cannot mistake grep -q's early
+            # exit for a failed git show on this large source file.
+            git show HEAD:src/newcharacter.cpp > "$RUNNER_TEMP/upstream-newcharacter.cpp"
+            if ! grep -q 'character_creator_summary_sections' "$RUNNER_TEMP/upstream-newcharacter.cpp" ||
+               ! grep -q 'CHARACTER_CREATION_HARD_LIMIT' "$RUNNER_TEMP/upstream-newcharacter.cpp" ||
+               ! grep -q 'Starting location selected' "$RUNNER_TEMP/upstream-newcharacter.cpp"; then
+              echo "::error::Reviewed accessibility changes missing from upstream."
+              git merge --abort || true
+              exit 1
+            fi
+            git checkout --ours -- src/newcharacter.cpp
+            git add src/newcharacter.cpp
             if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
               echo "::error::Unresolved conflicts remain."
               git merge --abort || true
               exit 1
             fi
-            echo "Resolved reviewed conflicts: upstream renderer/map, working mission UI."
+            echo "Resolved reviewed conflict: upstream chargen retained with NVDA changes."
           fi
           git commit -m "Integrate all cumulative NVDA accessibility fixes from working branch"
           git push origin HEAD:balloon-upstream-integration-2026-11-14
