@@ -3027,6 +3027,20 @@ bool character_creator_ui::display()
                 focus += scen == get_scenario() ? ". " + std::string( _( "Selected scenario" ) ) :
                          ". " + std::string( _( "Not selected" ) );
                 focus += ". " + scen->description( creator.male );
+                focus += string_format( _( ". Starting area: %s. %d locations, %d variants." ),
+                                        scen->start_name(), scen->start_location_count(),
+                                        scen->start_location_targets_count() );
+                if( scen->vehicle() ) {
+                    focus += ". " + std::string( _( "Starting vehicle: " ) ) +
+                             scen->vehicle()->name.translated();
+                }
+                for( const mission_type_id mission_id : scen->missions() ) {
+                    focus += ". " + std::string( _( "Starting mission: " ) ) +
+                             mission_type::get( mission_id )->tname();
+                }
+                if( !scen->can_pick().success() ) {
+                    focus += ". " + scen->can_pick().str();
+                }
             } else if( cc_uistate.selected_tab == CHARCREATOR_PROFESSION &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_professions.size() ) {
                 const profession_id prof = cc_uistate.sorted_professions[selected_index];
@@ -3035,10 +3049,16 @@ bool character_creator_ui::display()
                 focus += ". " + prof->description( creator.male );
             } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
-                focus += ". " + cc_uistate.sorted_hobbies[selected_index]->description( creator.male );
+                const profession_id hobby = cc_uistate.sorted_hobbies[selected_index];
+                focus += creator.hobbies.count( &*hobby ) ? ". " + std::string( _( "Selected" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+                focus += ". " + hobby->description( creator.male );
             } else if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
-                focus += ". " + cc_uistate.sorted_traits[selected_index]->desc();
+                const trait_id trait = cc_uistate.sorted_traits[selected_index];
+                focus += creator.has_trait( trait ) ? ". " + std::string( _( "Selected" ) ) :
+                         ". " + std::string( _( "Not selected" ) );
+                focus += ". " + trait->desc();
             }
             if( cc_uistate.selected_tab == CHARCREATOR_PROFESSION &&
                 static_cast<size_t>( selected_index ) < cc_uistate.sorted_professions.size() ) {
@@ -3050,6 +3070,27 @@ bool character_creator_ui::display()
                 for( const trait_and_var &trait : prof.get_locked_traits() ) {
                     focus += ". " + std::string( _( "Starting trait: " ) ) + trait.name();
                 }
+                for( const proficiency_id &proficiency : prof.proficiencies() ) {
+                    focus += ". " + std::string( _( "Starting proficiency: " ) ) + proficiency->name();
+                }
+                for( const bionic_id &cbm : prof.CBMs() ) {
+                    focus += ". " + std::string( _( "Starting bionic: " ) ) + cbm->name.translated();
+                }
+                for( const auto &spell : prof.spells() ) {
+                    focus += string_format( _( ". Starting spell: %s, level %d" ),
+                                            spell.first->name, spell.second );
+                }
+                if( prof.vehicle() ) {
+                    focus += ". " + std::string( _( "Starting vehicle: " ) ) +
+                             prof.vehicle()->name.translated();
+                }
+                for( const mtype_id &pet : prof.pets() ) {
+                    focus += ". " + std::string( _( "Starting pet: " ) ) + monster( pet ).get_name();
+                }
+                if( prof.starting_cash() ) {
+                    focus += ". " + std::string( _( "Starting money: " ) ) +
+                             format_money( *prof.starting_cash() );
+                }
             } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
                        static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
                 const profession &hobby = cc_uistate.sorted_hobbies[selected_index].obj();
@@ -3060,26 +3101,21 @@ bool character_creator_ui::display()
                 for( const trait_and_var &trait : hobby.get_locked_traits() ) {
                     focus += ". " + std::string( _( "Background trait: " ) ) + trait.name();
                 }
+                for( const proficiency_id &proficiency : hobby.proficiencies() ) {
+                    focus += ". " + std::string( _( "Background proficiency: " ) ) + proficiency->name();
+                }
+                for( const bionic_id &cbm : hobby.CBMs() ) {
+                    focus += ". " + std::string( _( "Background bionic: " ) ) + cbm->name.translated();
+                }
+                for( const auto &spell : hobby.spells() ) {
+                    focus += string_format( _( ". Background spell: %s, level %d" ),
+                                            spell.first->name, spell.second );
+                }
             }
             if( !entry.desc.empty() ) {
                 focus += ". " + remove_color_tags( entry.desc );
             }
-            // Selection is conveyed visually with colors in these lists.
-            // Speak the state explicitly, without requiring a second menu.
-            if( cc_uistate.selected_tab == CHARCREATOR_TRAITS &&
-                selected_index >= 0 &&
-                static_cast<size_t>( selected_index ) < cc_uistate.sorted_traits.size() ) {
-                const trait_id trait = cc_uistate.sorted_traits[selected_index];
-                focus += get_avatar().has_trait( trait ) ? ". " + std::string( _( "Selected" ) ) :
-                         ". " + std::string( _( "Not selected" ) );
-            } else if( cc_uistate.selected_tab == CHARCREATOR_BACKGROUND &&
-                       selected_index >= 0 &&
-                       static_cast<size_t>( selected_index ) < cc_uistate.sorted_hobbies.size() ) {
-                const profession_id background = cc_uistate.sorted_hobbies[selected_index];
-                focus += get_avatar().hobbies.count( &*background ) ?
-                         ". " + std::string( _( "Selected" ) ) :
-                         ". " + std::string( _( "Not selected" ) );
-            }
+
         }
         const bool creator_tab_changed = cc_uistate.selected_tab != last_announced_creator_tab;
         if( first_character_creator_announcement || creator_tab_changed ||
@@ -3600,8 +3636,24 @@ static int choose_location( const avatar &you )
     if( you.random_start_location ) {
         select_location.selected = 0;
     }
+    select_location.title = _( "Starting locations" );
     select_location.setup();
     select_location.query();
+    if( select_location.ret == RANDOM_START_LOC_ENTRY ) {
+        get_narration_service().announce( {
+            narration_event::status_changed, _( "Random starting location selected." ), true
+        } );
+    } else if( select_location.ret >= 0 ) {
+        for( const start_location &loc : start_locations::get_all() ) {
+            if( loc.id.id().to_i() == select_location.ret ) {
+                get_narration_service().announce( {
+                    narration_event::status_changed,
+                    string_format( _( "Starting location selected: %s." ), loc.name() ), true
+                } );
+                break;
+            }
+        }
+    }
     return select_location.ret;
 }
 
