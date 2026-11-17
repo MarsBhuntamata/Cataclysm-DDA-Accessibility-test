@@ -278,12 +278,12 @@ void mission_ui_impl::draw_controls()
                     vehicle_locations.push_back( { tracked.first, tracked.second } );
                 }
                 std::sort( vehicle_locations.begin(), vehicle_locations.end(),
-            [&player_pos]( const point_of_interest &lhs, const point_of_interest &rhs ) {
-                const int ldist = rl_dist( player_pos, lhs.pos );
-                const int rdist = rl_dist( player_pos, rhs.pos );
-                if( ldist != rdist ) {
-                    return ldist < rdist;
-                }
+                [&player_pos]( const point_of_interest &lhs, const point_of_interest &rhs ) {
+                    const int ldist = rl_dist( player_pos, lhs.pos );
+                    const int rdist = rl_dist( player_pos, rhs.pos );
+                    if( ldist != rdist ) {
+                        return ldist < rdist;
+                    }
                     return lhs.text < rhs.text;
                 } );
                 vehicles_loaded = true;
