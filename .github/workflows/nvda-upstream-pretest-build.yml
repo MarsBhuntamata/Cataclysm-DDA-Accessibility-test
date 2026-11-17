@@ -1,5 +1,6 @@
 name: NVDA upstream pre-test build
-# Verify the completed NVDA working-to-upstream merge (3ad108d6); no build behavior changed.
+# Build the current upstream integration source, including synchronized NVDA improvements.
+# Touching this workflow also triggers its path-filtered push build after a bot-driven merge.
 
 on:
   push:
