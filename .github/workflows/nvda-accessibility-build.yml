@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - balloon-accessibility-framework
+      - balloon-isherwood-save-compat
     paths:
       - 'src/**'
       - 'tests/**'
       - 'data/raw/keybindings.json'
+      - 'data/json/obsoletion_and_migration_0.J/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'build-scripts/**'
