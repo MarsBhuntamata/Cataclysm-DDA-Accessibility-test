@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iterator>
@@ -562,8 +563,43 @@ std::vector<om_vehicle> overmapbuffer::get_vehicle( const tripoint_abs_omt &p )
     return result;
 }
 
-std::vector<overmapbuffer::t_tracked_vehicle> overmapbuffer::get_loaded_tracked_vehicles() const
+std::vector<overmapbuffer::t_tracked_vehicle> overmapbuffer::get_all_tracked_vehicles()
 {
+    // Vehicle tracking is stored in the terrain overmap files.  On reload,
+    // only nearby overmaps are loaded, so enumerate the existing saved files
+    // before constructing the list.  Never generate fresh overmaps here.
+    const std::filesystem::path save_dir =
+        PATH_INFO::current_dimension_save_path().get_unrelative_path();
+    const bool compressed = world_generator->active_world->has_compression_enabled();
+    const std::filesystem::path search_dir = compressed ?
+            save_dir / zzip_overmap_directory : save_dir;
+    std::error_code ec;
+    std::filesystem::directory_iterator it( search_dir, ec );
+    const std::filesystem::directory_iterator end;
+    for( ; !ec && it != end; it.increment( ec ) ) {
+        if( !it->is_regular_file( ec ) || ec ) {
+            continue;
+        }
+        std::string filename = it->path().filename().string();
+        if( compressed ) {
+            if( filename.size() <= zzip_suffix.size() ||
+                filename.compare( filename.size() - zzip_suffix.size(),
+                                  zzip_suffix.size(), zzip_suffix ) != 0 ) {
+                continue;
+            }
+            filename.resize( filename.size() - zzip_suffix.size() );
+        }
+        int x = 0;
+        int y = 0;
+        int consumed = 0;
+        if( std::sscanf( filename.c_str(), "o.%d.%d%n", &x, &y, &consumed ) != 2 ||
+            consumed != static_cast<int>( filename.size() ) ) {
+            continue;
+        }
+        // get_existing loads an overmap only when it is already saved.
+        get_existing( point_abs_om( x, y ) );
+    }
+
     std::vector<t_tracked_vehicle> result;
     for( const auto &entry : overmaps ) {
         const overmap &om = *entry.second;
