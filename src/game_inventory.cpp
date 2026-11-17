@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "avatar.h"
 #include "basecamp.h"
@@ -2716,10 +2717,25 @@ cataimgui::bounds game_menus::inv::compare_item_menu::get_bounds()
 
 bool game_menus::inv::compare_item_menu::show()
 {
+    // The side-by-side ImGui comparison draws rich item statistics but has no
+    // keyboard accessibility tree. Read both complete descriptions once.
+    const std::string comparison_narration =
+        string_format( _( "Compare items. First: %s. %s. Second: %s. %s." ),
+                       first.tname(), remove_color_tags( format_item_info( first_info, {} ) ),
+                       second.tname(), remove_color_tags( format_item_info( second_info, {} ) ) ) +
+        ( confirm_message.empty() ? "" : ". " + remove_color_tags( confirm_message ) );
+    ctxt.register_action( "REPEAT_NARRATION" );
+    get_narration_service().announce( {
+        narration_event::ui_opened, comparison_narration, true
+    } );
     while( true ) {
         ui_manager::redraw();
 
         std::string action = has_button_action() ? get_button_action() : ctxt.handle_input();
+        if( action == "REPEAT_NARRATION" ) {
+            get_narration_service().repeat_last();
+            continue;
+        }
 
         if( action == "UP" ) {
             s = cataimgui::scroll::line_up;

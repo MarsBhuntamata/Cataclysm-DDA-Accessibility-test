@@ -1817,9 +1817,15 @@ class exosuit_interact
                     if( pocket_name.empty() ) {
                         pocket_name = _( "Unnamed pocket" );
                     }
+                    // Narrate the same pocket attributes shown in the side
+                    // information pane, not just the highlight and occupancy.
+                    std::vector<iteminfo> pocket_details;
+                    pocket->general_info( pocket_details, cur_pocket, true );
+                    pocket->contents_info( pocket_details, cur_pocket, true );
                     const std::string pocket_focus = string_format(
                                 _( "Pocket %d of %d: %s. %s." ), cur_pocket + 1, pocket_count,
-                                pocket_name, pocket->empty() ? _( "Empty" ) : _( "Occupied" ) );
+                                pocket_name, pocket->empty() ? _( "Empty" ) : _( "Occupied" ) ) +
+                                " " + remove_color_tags( format_item_info( pocket_details, {} ) );
                     if( first_pocket_announcement || pocket_focus != last_pocket_focus ) {
                         get_narration_service().announce( {
                             first_pocket_announcement ? narration_event::ui_opened :
