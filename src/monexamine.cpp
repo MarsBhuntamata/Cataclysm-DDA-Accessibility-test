@@ -316,8 +316,9 @@ bool give_items_to( monster &z )
     player_character.drop( to_move, z.pos_bub(), true );
     // Print an appropriate message for the inserted item or items
     if( to_move.size() > 1 ) {
-        add_msg( _( "You put %1$s items in the %2$s on your %3$s." ), to_move.size(), storage.tname(),
-                 pet_name );
+        //~ %1$d - number of items, %2$s - storage item name, %3$s - pet name
+        add_msg( _( "You put %1$d items in the %2$s on your %3$s." ),
+                 static_cast<int>( to_move.size() ), storage.tname(), pet_name );
     } else {
         item_location loc = to_move.front().first;
         item &it = *loc;
