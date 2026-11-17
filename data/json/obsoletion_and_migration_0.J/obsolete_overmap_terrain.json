@@ -618,5 +618,15 @@
       "lmoe_under_empty_west": "lmoe_under_west",
       "lmoe_zombie_under_empty_west": "lmoe_under_west"
     }
+  },
+  {
+    "type": "oter_id_migration",
+    "//": "Compatibility with saves using the directional Isherwood Barry rescue field terrain. The current terrain is non-rotatable.",
+    "oter_ids": {
+      "isherwood_barry_rescue_field_north": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_east": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_south": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_west": "isherwood_barry_rescue_field"
+    }
   }
 ]
