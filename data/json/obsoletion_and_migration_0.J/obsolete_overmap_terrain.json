@@ -639,7 +639,12 @@
   },
   {
     "type": "oter_id_migration",
-    "//": "Replaced to be rotatable in 0.J experimental, by #89250",
-    "oter_ids": { "isherwood_barry_rescue_field": "isherwood_barry_rescue_field_north" }
+    "//": "Compatibility with directional Isherwood rescue field ids in saves; current terrain is not directional.",
+    "oter_ids": {
+      "isherwood_barry_rescue_field_north": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_east": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_south": "isherwood_barry_rescue_field",
+      "isherwood_barry_rescue_field_west": "isherwood_barry_rescue_field"
+    }
   }
 ]
