@@ -8,10 +8,13 @@ on:
       - balloon-upstream-pretest-2026-11-07
       - balloon-upstream-integration-2026-11-14
       - balloon-upstream-shane-status-port
+      - balloon-upstream-repair-2026-11-18
     paths:
       - 'src/**'
       - 'tests/**'
       - 'data/raw/keybindings.json'
+      - 'data/json/**'
+      - 'data/mods/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'build-scripts/**'
