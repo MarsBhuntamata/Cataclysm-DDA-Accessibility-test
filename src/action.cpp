@@ -1178,8 +1178,19 @@ std::optional<tripoint_rel_ms> choose_direction( const std::string &message,
     temp_hide_advanced_inv();
     std::string action;
     bool done = false;
+    bool announced_direction_prompt = false;
     do {
         ui_manager::redraw();
+        // The direction picker is a static popup, not an accessible uilist.
+        // Speak its prompt once for keyboard and screen-reader users.
+        if( !announced_direction_prompt ) {
+            get_narration_service().announce( {
+                narration_event::ui_opened,
+                string_format( _( "%s Use a direction key to choose a tile, or Escape to cancel." ),
+                               message ), true
+            } );
+            announced_direction_prompt = true;
+        }
         action = ctxt.handle_input();
         if( std::optional<tripoint_rel_ms> vec = ctxt.get_direction_rel_ms( action ) ) {
             FacingDirection &facing = get_player_character().facing;

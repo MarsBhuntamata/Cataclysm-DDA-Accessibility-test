@@ -1333,6 +1333,8 @@ std::optional<int> deploy_furn_actor::use( Character *p, item &it,
 
     here->furn_set( suitable.value(), furn_type, false, false, true );
     it.spill_contents( suitable.value() );
+    // Deploying furniture previously completed silently, even for the player.
+    p->add_msg_if_player( m_info, _( "You deploy the %s." ), it.tname() );
     form_loc( *p, here, pos, it ).remove_item();
     p->mod_moves( -to_moves<int>( 2_seconds ) );
     return 0;
