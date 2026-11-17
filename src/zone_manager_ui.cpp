@@ -341,6 +341,9 @@ void zone_manager_ui::display_zone_manager()
         static_popup popup;
         popup.on_top( true );
         popup.message( "%s", _( "Select first point." ) );
+        get_narration_service().announce( {
+            narration_event::contextual_help, _( "Select first point for the zone." ), true
+        } );
 
         tripoint_bub_ms center = pos + u.view_offset;
 
@@ -349,6 +352,9 @@ void zone_manager_ui::display_zone_manager()
         if( first.position )
         {
             popup.message( "%s", _( "Select second point." ) );
+            get_narration_service().announce( {
+                narration_event::contextual_help, _( "Select second point for the zone." ), true
+            } );
 
             const look_around_result second = g->look_around( /*show_window=*/false, center, *first.position,
                     true, true, false );
@@ -390,6 +396,9 @@ void zone_manager_ui::display_zone_manager()
         static_popup popup;
         popup.on_top( true );
         popup.message( "%s", _( "Select first point." ) );
+        get_narration_service().announce( {
+            narration_event::contextual_help, _( "Select first point for the zone." ), true
+        } );
 
         tripoint_bub_ms center = pos + u.view_offset;
 
@@ -398,6 +407,9 @@ void zone_manager_ui::display_zone_manager()
         if( first.position )
         {
             popup.message( "%s", _( "Select second point." ) );
+            get_narration_service().announce( {
+                narration_event::contextual_help, _( "Select second point for the zone." ), true
+            } );
 
             const look_around_result second = g->look_around( /*show_window=*/false, center, *first.position,
                     true, true, false );
@@ -804,6 +816,10 @@ void zone_manager_ui::display_zone_manager()
                         static_popup message_pop;
                         message_pop.on_top( true );
                         message_pop.message( "%s", _( "Moving zone." ) );
+                        get_narration_service().announce( {
+                            narration_event::contextual_help,
+                            _( "Moving zone. Choose the new position." ), true
+                        } );
                         const tripoint_bub_ms zone_local_start_point = here.get_bub( zone.get_start_point() );
                         const tripoint_bub_ms zone_local_end_point = here.get_bub( zone.get_end_point() );
                         // local position of the zone center, used to calculate the u.view_offset,

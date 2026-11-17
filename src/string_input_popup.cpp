@@ -3,6 +3,7 @@
 #include <cctype>
 #include <climits>
 
+#include "accessibility.h"
 #include "cata_scope_helpers.h"
 #include "catacharset.h"
 #include "generic_factory.h"
@@ -419,6 +420,25 @@ const std::string &string_input_popup::query_string( const bool loop, const bool
 
     _canceled = false;
     _confirmed = false;
+    // Legacy curses text entry has no automatic NVDA focus events.  Announce
+    // the prompt only for its standalone window, not each redraw or embedded
+    // custom-window control.
+    if( !draw_only && !custom_window ) {
+        std::string prompt = remove_color_tags( _title );
+        if( !_description.empty() ) {
+            if( !prompt.empty() ) {
+                prompt += ". ";
+            }
+            prompt += remove_color_tags( _description );
+        }
+        if( prompt.empty() ) {
+            prompt = _( "Text input" );
+        }
+        if( !_text.empty() ) {
+            prompt += ". " + std::string( _( "Current text: " ) ) + _text;
+        }
+        get_narration_service().announce( { narration_event::ui_opened, prompt, true } );
+    }
     do {
         if( _text_changed ) {
             ret = utf8_wrapper( _text );

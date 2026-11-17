@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "accessibility.h"
 #include "action.h"
 #include "activity_actor_definitions.h"
 #include "avatar.h"
@@ -2129,9 +2130,33 @@ class exosuit_interact
 
         void interact_loop() {
             bool done = false;
+            bool first_pocket_announcement = true;
+            std::string last_pocket_focus;
             shared_ptr_fast<ui_adaptor> current_ui = create_or_get_ui_adaptor();
             while( !done ) {
                 ui_manager::redraw();
+                // Exoskeleton modules are browsed in a custom curses selector.
+                // Their highlight previously carried no screen-reader focus.
+                if( pocket_count > 0 ) {
+                    const item_pocket *pocket = suit->get_container_pockets()[cur_pocket];
+                    std::string pocket_name = get_pocket_name( pocket );
+                    if( pocket_name.empty() ) {
+                        pocket_name = _( "Unnamed pocket" );
+                    }
+                    const std::string pocket_focus = string_format(
+                                _( "Pocket %d of %d: %s. %s." ), cur_pocket + 1, pocket_count,
+                                pocket_name, pocket->empty() ? _( "Empty" ) : _( "Occupied" ) );
+                    if( first_pocket_announcement || pocket_focus != last_pocket_focus ) {
+                        get_narration_service().announce( {
+                            first_pocket_announcement ? narration_event::ui_opened :
+                            narration_event::selection_changed,
+                            first_pocket_announcement ? suit->tname() + ". " + pocket_focus :
+                            pocket_focus, true
+                        } );
+                        last_pocket_focus = pocket_focus;
+                        first_pocket_announcement = false;
+                    }
+                }
                 std::string action = ctxt.handle_input();
                 if( action == "MOUSE_MOVE" || action == "SELECT" ) {
                     std::optional<point> coord = ctxt.get_coordinates_text( w_border );

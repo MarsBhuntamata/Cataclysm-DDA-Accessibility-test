@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 
+#include "accessibility.h"
 #include "activity_actor_definitions.h"
 #include "ammo.h"
 #include "avatar.h"
@@ -1106,6 +1107,8 @@ void iexamine::vending( Character &you, const tripoint_bub_ms &examp )
         draw_item_info( w_item_info, data );
     } );
 
+    bool first_vending_announcement = true;
+    std::string last_vending_focus;
     for( ;; ) {
         ui_manager::redraw();
 
@@ -1114,6 +1117,23 @@ void iexamine::vending( Character &you, const tripoint_bub_ms &examp )
         // Item info
         auto &cur_items = item_list[static_cast<size_t>( cur_pos )]->second;
         auto &cur_item  = cur_items.back();
+
+        // The vending-machine list draws its own highlighted row instead of
+        // using uilist; announce the focused product and affordability.
+        const std::string vending_focus = string_format(
+                _( "Item %d of %d: %s. Price %s. Money remaining %s." ),
+                cur_pos + 1, num_items, cur_item->display_name(),
+                format_money( cur_item->price( false ) ), format_money( money ) );
+        if( first_vending_announcement || vending_focus != last_vending_focus ) {
+            get_narration_service().announce( {
+                first_vending_announcement ? narration_event::ui_opened :
+                narration_event::selection_changed,
+                first_vending_announcement ? std::string( _( "Vending machine. " ) ) + vending_focus :
+                vending_focus, true
+            } );
+            last_vending_focus = vending_focus;
+            first_vending_announcement = false;
+        }
 
         const std::string &action = ctxt.handle_input();
         if( navigate_ui_list( action, cur_pos, 3, num_items, true ) ) {
