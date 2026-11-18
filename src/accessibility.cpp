@@ -1,6 +1,6 @@
 #include "accessibility.h"
 
-#include <chrono>
+#include <chrono>\n#include <cwctype>
 #include <deque>
 #include <memory>
 #include <string>
@@ -229,6 +229,126 @@ class nvda_controller_backend : public speech_backend
         }
 };
 
+// Optional non-NVDA screen-reader bridge.  The game never sends narration to
+// both NVDA Controller and Tolk: exactly one backend attaches to the service.
+// Tolk.dll is loaded at runtime, so the NVDA-only package still runs without it.
+class tolk_screenreader_backend : public speech_backend
+{
+    public:
+        bool initialize()
+        {
+            std::vector<wchar_t> executable_path( 32768, L'\\0' );
+            const DWORD length = GetModuleFileNameW( nullptr, executable_path.data(),
+                                 static_cast<DWORD>( executable_path.size() ) );
+            if( length == 0 || length >= executable_path.size() ) {
+                return false;
+            }
+            std::wstring path( executable_path.data(), length );
+            const size_t separator = path.find_last_of( L"\\\\/" );
+            if( separator == std::wstring::npos ) {
+                return false;
+            }
+            path.resize( separator + 1 );
+            path += L"Tolk.dll";
+            library = LoadLibraryW( path.c_str() );
+            if( library == nullptr ) {
+                log_accessibility_diagnostic( "Tolk.dll not packaged; non-NVDA output unavailable." );
+                return false;
+            }
+
+            load = reinterpret_cast<load_fn>( GetProcAddress( library, "Tolk_Load" ) );
+            unload = reinterpret_cast<unload_fn>( GetProcAddress( library, "Tolk_Unload" ) );
+            try_sapi = reinterpret_cast<try_sapi_fn>( GetProcAddress( library, "Tolk_TrySAPI" ) );
+            detect = reinterpret_cast<detect_fn>( GetProcAddress( library, "Tolk_DetectScreenReader" ) );
+            output = reinterpret_cast<output_fn>( GetProcAddress( library, "Tolk_Output" ) );
+            silence = reinterpret_cast<silence_fn>( GetProcAddress( library, "Tolk_Silence" ) );
+            braille_text = reinterpret_cast<braille_fn>( GetProcAddress( library, "Tolk_Braille" ) );
+            if( !load || !unload || !try_sapi || !detect || !output || !silence ) {
+                log_accessibility_diagnostic( "Tolk.dll lacks required exports." );
+                return false;
+            }
+            try_sapi( false ); // Never silently speak via a second synthesizer.
+            load();
+            loaded = true;
+            const wchar_t *reader = detect();
+            if( reader == nullptr || reader[0] == L'\\0' ) {
+                log_accessibility_diagnostic( "Tolk detected no active reader." );
+                return false;
+            }
+            std::wstring reader_name( reader );
+            std::wstring lowered = reader_name;
+            for( wchar_t &ch : lowered ) {
+                ch = static_cast<wchar_t>( towlower( ch ) );
+            }
+            // Do not route NVDA through Tolk, even if the direct client is
+            // temporarily unavailable: that could duplicate speech later.
+            if( lowered.find( L"nvda" ) != std::wstring::npos ) {
+                log_accessibility_diagnostic( "Tolk selected NVDA; refusing duplicate NVDA route." );
+                return false;
+            }
+            log_accessibility_diagnostic( "Tolk attached to a non-NVDA screen reader." );
+            return true;
+        }
+
+        ~tolk_screenreader_backend() override
+        {
+            if( loaded && unload != nullptr ) {
+                unload();
+            }
+            // Keep the DLL mapped through Windows process teardown.
+        }
+
+        void speak( const narration_request &request ) override
+        {
+            const std::wstring wide = utf8_to_wide( request.text );
+            if( !wide.empty() && output != nullptr ) {
+                output( wide.c_str(), request.interrupt );
+            }
+        }
+
+        void cancel() override
+        {
+            if( silence != nullptr ) {
+                silence();
+            }
+        }
+
+        void braille( const std::string &text ) override
+        {
+            if( braille_text != nullptr ) {
+                const std::wstring wide = utf8_to_wide( text );
+                if( !wide.empty() ) {
+                    braille_text( wide.c_str() );
+                }
+            }
+        }
+
+    private:
+        using load_fn = void ( __cdecl * )();
+        using unload_fn = void ( __cdecl * )();
+        using try_sapi_fn = void ( __cdecl * )( bool );
+        using detect_fn = const wchar_t *( __cdecl * )();
+        using output_fn = bool ( __cdecl * )( const wchar_t *, bool );
+        using silence_fn = bool ( __cdecl * )();
+        using braille_fn = bool ( __cdecl * )( const wchar_t * );
+
+        HMODULE library = nullptr;
+        load_fn load = nullptr;
+        unload_fn unload = nullptr;
+        try_sapi_fn try_sapi = nullptr;
+        detect_fn detect = nullptr;
+        output_fn output = nullptr;
+        silence_fn silence = nullptr;
+        braille_fn braille_text = nullptr;
+        bool loaded = false;
+};
+
+std::unique_ptr<tolk_screenreader_backend> &get_tolk_backend()
+{
+    static std::unique_ptr<tolk_screenreader_backend> backend;
+    return backend;
+}
+
 std::unique_ptr<nvda_controller_backend> &get_nvda_backend()
 {
     static std::unique_ptr<nvda_controller_backend> backend;
@@ -340,15 +460,24 @@ bool initialize_accessibility()
     log_accessibility_diagnostic( "Accessibility initialization entry point reached." );
     std::unique_ptr<nvda_controller_backend> &backend = get_nvda_backend();
     backend = std::make_unique<nvda_controller_backend>();
-    if( !backend->initialize() ) {
-        log_accessibility_diagnostic( "FAIL: NVDA backend initialization failed." );
-        backend.reset();
-        get_narration_service().set_backend( nullptr );
-        return false;
+    if( backend->initialize() ) {
+        get_narration_service().set_backend( backend.get() );
+        log_accessibility_diagnostic( "PASS: NVDA backend initialized and attached to narration service." );
+        return true;
     }
-    get_narration_service().set_backend( backend.get() );
-    log_accessibility_diagnostic( "PASS: NVDA backend initialized and attached to narration service." );
-    return true;
+    backend.reset();
+    log_accessibility_diagnostic( "NVDA unavailable. Trying non-NVDA Tolk backend." );
+    std::unique_ptr<tolk_screenreader_backend> &tolk = get_tolk_backend();
+    tolk = std::make_unique<tolk_screenreader_backend>();
+    if( tolk->initialize() ) {
+        get_narration_service().set_backend( tolk.get() );
+        log_accessibility_diagnostic( "PASS: non-NVDA Tolk backend initialized." );
+        return true;
+    }
+    tolk.reset();
+    get_narration_service().set_backend( nullptr );
+    log_accessibility_diagnostic( "No supported screen reader detected." );
+    return false;
 #else
     get_narration_service().set_backend( nullptr );
     return false;
@@ -446,6 +575,7 @@ void shutdown_accessibility()
 #if defined(_WIN32)
     // The controller DLL intentionally remains loaded until process termination.
     get_nvda_backend().reset();
-    log_accessibility_diagnostic( "Accessibility backend detached; controller DLL remains loaded." );
+    get_tolk_backend().reset();
+    log_accessibility_diagnostic( "Accessibility backend detached; libraries remain mapped." );
 #endif
 }
