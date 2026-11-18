@@ -116,6 +116,57 @@ jobs:
           if (-not $clientLicense) { throw "NVDA Controller Client license.txt was not found." }
           Copy-Item -LiteralPath $clientLicense.FullName -Destination (Join-Path $stage "nvda-controller-client-license.txt") -Force
 
+          # Optional Tolk distribution for non-NVDA screen-reader testing.
+          # Tolk is LGPL-licensed; include the upstream license if available.
+          # Do not fail the NVDA test package if upstream releases are unavailable.
+          try {
+            $headers = @{ 'User-Agent' = 'cdda-accessibility-build' }
+            $release = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/ndarilek/tolk/releases/latest'
+            $asset = $release.assets | Where-Object { $_.name -match '\\.zip
+          # Packaging only the exe and DLLs makes a nonfunctional standalone zip.
+          Copy-Item -LiteralPath (Join-Path $PWD "data") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "gfx") -Destination $stage -Recurse -Force
+          Copy-Item -LiteralPath (Join-Path $PWD "LICENSE.txt") -Destination $stage -Force
+
+          @('@echo off', 'cd /d "%~dp0"', '"cataclysm-tiles.exe"') |
+            Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
+
+          foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
+            if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing packaged dependency: $required" }
+          }
+          Write-Host "Packaged game, runtime dependencies, NVDA Controller Client and game data."
+          Get-ChildItem -Path $stage | ForEach-Object { Write-Host $_.Name }
+
+      - name: Upload Windows game and runtime package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdda-screenreader-routing-test
+          path: out/package/cdda-screenreader-routing-test/*
+          if-no-files-found: error
+          retention-days: 14
+ } | Select-Object -First 1
+            if ($asset) {
+              $tolkZip = Join-Path $env:RUNNER_TEMP 'tolk-dist.zip'
+              $tolkDir = Join-Path $env:RUNNER_TEMP 'tolk-dist'
+              Invoke-WebRequest -Headers $headers -Uri $asset.browser_download_url -OutFile $tolkZip
+              Expand-Archive -LiteralPath $tolkZip -DestinationPath $tolkDir -Force
+              $tolkDll = Get-ChildItem -Path $tolkDir -Filter Tolk.dll -File -Recurse |
+                Where-Object { $_.FullName -match '[\\\\/](x64|64-bit|win64)[\\\\/]' } | Select-Object -First 1
+              if ($tolkDll) {
+                Copy-Item -LiteralPath $tolkDll.FullName -Destination $stage -Force
+                $tolkLicense = Get-ChildItem -Path $tolkDir -Filter LICENSE.txt -File -Recurse | Select-Object -First 1
+                if ($tolkLicense) { Copy-Item -LiteralPath $tolkLicense.FullName -Destination (Join-Path $stage 'tolk-license.txt') -Force }
+                Write-Host 'Optional x64 Tolk.dll packaged for non-NVDA readers.'
+              } else {
+                Write-Warning 'Tolk release had no identifiable x64 Tolk.dll; non-NVDA testing requires adding one manually.'
+              }
+            } else {
+              Write-Warning 'No Tolk ZIP asset found; non-NVDA testing requires Tolk.dll.'
+            }
+          } catch {
+            Write-Warning "Optional Tolk package unavailable: $_"
+          }
+
           # The game must be launched beside its game data and graphics.
           # Packaging only the exe and DLLs makes a nonfunctional standalone zip.
           Copy-Item -LiteralPath (Join-Path $PWD "data") -Destination $stage -Recurse -Force
