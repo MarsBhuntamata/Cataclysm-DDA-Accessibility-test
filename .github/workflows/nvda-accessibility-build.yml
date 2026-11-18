@@ -1,9 +1,10 @@
-name: NVDA accessibility test build
+name: Screen reader routing test build
 
 on:
   push:
     branches:
       - balloon-accessibility-framework
+      - balloon-screenreader-routing-test
     paths:
       - 'src/**'
       - 'tests/**'
@@ -83,7 +84,7 @@ jobs:
           $installedRoot = Join-Path $buildRoot "vcpkg_installed/x64-windows-static"
           $exe = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.exe -File -Recurse | Select-Object -First 1
           if (-not $exe) { throw "The game executable was not produced." }
-          $stage = Join-Path $PWD "out/package/cdda-nvda-test-build"
+          $stage = Join-Path $PWD "out/package/cdda-screenreader-routing-test"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item -LiteralPath $exe.FullName -Destination $stage
           $pdb = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.pdb -File -Recurse | Select-Object -First 1
@@ -133,7 +134,7 @@ jobs:
       - name: Upload Windows game and runtime package
         uses: actions/upload-artifact@v4
         with:
-          name: cdda-nvda-test-build
-          path: out/package/cdda-nvda-test-build/*
+          name: cdda-screenreader-routing-test
+          path: out/package/cdda-screenreader-routing-test/*
           if-no-files-found: error
           retention-days: 14
