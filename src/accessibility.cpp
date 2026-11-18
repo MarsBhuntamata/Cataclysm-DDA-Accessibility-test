@@ -237,14 +237,14 @@ class tolk_screenreader_backend : public speech_backend
     public:
         bool initialize()
         {
-            std::vector<wchar_t> executable_path( 32768, L'\\0' );
+            std::vector<wchar_t> executable_path( 32768, L'\0' );
             const DWORD length = GetModuleFileNameW( nullptr, executable_path.data(),
                                  static_cast<DWORD>( executable_path.size() ) );
             if( length == 0 || length >= executable_path.size() ) {
                 return false;
             }
             std::wstring path( executable_path.data(), length );
-            const size_t separator = path.find_last_of( L"\\\\/" );
+            const size_t separator = path.find_last_of( L"\\/" );
             if( separator == std::wstring::npos ) {
                 return false;
             }
@@ -271,7 +271,7 @@ class tolk_screenreader_backend : public speech_backend
             load();
             loaded = true;
             const wchar_t *reader = detect();
-            if( reader == nullptr || reader[0] == L'\\0' ) {
+            if( reader == nullptr || reader[0] == L'\0' ) {
                 log_accessibility_diagnostic( "Tolk detected no active reader." );
                 return false;
             }
