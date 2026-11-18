@@ -203,6 +203,7 @@ class options_manager
         void init();
         void add_options_general();
         void add_options_interface();
+        void add_options_accessibility();
         void add_options_graphics();
         void add_options_world_default();
         void add_options_debug();
