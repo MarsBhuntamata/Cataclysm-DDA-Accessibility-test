@@ -1,6 +1,7 @@
 #include "accessibility.h"
 
 #include <chrono>
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <string>
@@ -229,6 +230,158 @@ class nvda_controller_backend : public speech_backend
         }
 };
 
+// Prism is an optional, dynamically loaded output adapter. We select only
+// explicitly named non-NVDA screen readers, never Prism's automatic "best"
+// backend (which may pick NVDA or a system synthesizer). This ensures that
+// our established NVDA Controller and Prism paths cannot both speak.
+class prism_screenreader_backend : public speech_backend
+{
+    public:
+        bool initialize()
+        {
+            std::vector<wchar_t> executable_path( 32768, L'\0' );
+            const DWORD length = GetModuleFileNameW( nullptr, executable_path.data(),
+                                 static_cast<DWORD>( executable_path.size() ) );
+            if( length == 0 || length >= executable_path.size() ) {
+                return false;
+            }
+            std::wstring directory( executable_path.data(), length );
+            const size_t slash = directory.find_last_of( L"\\/" );
+            if( slash == std::wstring::npos ) {
+                return false;
+            }
+            directory.resize( slash + 1 );
+            library = LoadLibraryW( ( directory + L"prism.dll" ).c_str() );
+            if( library == nullptr ) {
+                log_accessibility_diagnostic( "Prism library not found: no non-NVDA speech available." );
+                return false;
+            }
+
+            init = reinterpret_cast<init_fn>( GetProcAddress( library, "prism_init" ) );
+            shutdown = reinterpret_cast<shutdown_fn>( GetProcAddress( library, "prism_shutdown" ) );
+            create = reinterpret_cast<create_fn>( GetProcAddress( library, "prism_registry_create" ) );
+            initialize_backend = reinterpret_cast<initialize_backend_fn>(
+                                     GetProcAddress( library, "prism_backend_initialize" ) );
+            free_backend = reinterpret_cast<free_backend_fn>( GetProcAddress( library, "prism_backend_free" ) );
+            speak_backend = reinterpret_cast<speak_backend_fn>( GetProcAddress( library, "prism_backend_speak" ) );
+            stop_backend = reinterpret_cast<stop_backend_fn>( GetProcAddress( library, "prism_backend_stop" ) );
+            braille_backend = reinterpret_cast<braille_backend_fn>( GetProcAddress( library, "prism_backend_braille" ) );
+            backend_name = reinterpret_cast<backend_name_fn>( GetProcAddress( library, "prism_backend_name" ) );
+            if( !init || !shutdown || !create || !initialize_backend || !free_backend ||
+                !speak_backend || !stop_backend || !braille_backend || !backend_name ) {
+                log_accessibility_diagnostic( "Prism DLL exports do not match the expected C ABI." );
+                return false;
+            }
+
+            context = init( nullptr );
+            if( context == nullptr ) {
+                log_accessibility_diagnostic( "Prism context initialization failed." );
+                return false;
+            }
+
+            // Fixed backend IDs from Prism v0.18.4's published prism.h.
+            // Exclude NVDA (direct controller owns it), UIA (generic output),
+            // Windows SAPI and OneCore (system synthesizers).
+            static constexpr std::uint64_t supported_readers[] = {
+                0xAC3D60E9BD84B53EULL, // JAWS
+                0xAE439D62DC7B1479ULL, // ZoomText
+                0x3D93C56C9E7F2A2EULL, // ZDSR
+                0x8380F2A37B2C3EB6ULL, // System Access
+                0xED4760890B55C2F2ULL, // Sense Reader
+                0x285ABA1C16F3300FULL, // Boy PC Reader
+                0x344B951962E3B835ULL, // PC Talker
+                0x9120D89908785C13ULL  // Window-Eyes
+            };
+            for( std::uint64_t id : supported_readers ) {
+                void *candidate = create( context, id );
+                if( candidate == nullptr ) {
+                    continue;
+                }
+                if( initialize_backend( candidate ) == 0 ) { // PRISM_OK
+                    backend = candidate;
+                    const char *name = backend_name( backend );
+                    log_accessibility_diagnostic( std::string( "PASS: Prism non-NVDA backend selected: " ) +
+                                                  ( name != nullptr ? name : "(unknown)" ) );
+                    return true;
+                }
+                free_backend( candidate );
+            }
+            log_accessibility_diagnostic( "Prism: no supported non-NVDA screen reader active." );
+            return false;
+        }
+
+        ~prism_screenreader_backend() override
+        {
+            if( backend != nullptr && free_backend != nullptr ) {
+                free_backend( backend );
+            }
+            if( context != nullptr && shutdown != nullptr ) {
+                shutdown( context );
+            }
+            // Keep Prism mapped until Windows process teardown, as with NVDA.
+        }
+
+        void speak( const narration_request &request ) override
+        {
+            if( backend != nullptr && speak_backend != nullptr ) {
+                const int result = speak_backend( backend, request.text.c_str(), request.interrupt );
+                if( result != 0 ) {
+                    log_accessibility_diagnostic( "Prism speech failed: code " + std::to_string( result ) );
+                }
+            }
+        }
+
+        void cancel() override
+        {
+            if( backend != nullptr && stop_backend != nullptr ) {
+                const int result = stop_backend( backend );
+                if( result != 0 ) {
+                    log_accessibility_diagnostic( "Prism stop returned code " + std::to_string( result ) );
+                }
+            }
+        }
+
+        void braille( const std::string &text ) override
+        {
+            if( backend != nullptr && braille_backend != nullptr ) {
+                const int result = braille_backend( backend, text.c_str() );
+                if( result != 0 ) {
+                    log_accessibility_diagnostic( "Prism braille returned code " + std::to_string( result ) );
+                }
+            }
+        }
+
+    private:
+        using init_fn = void *( __cdecl * )( void * );
+        using shutdown_fn = void ( __cdecl * )( void * );
+        using create_fn = void *( __cdecl * )( void *, std::uint64_t );
+        using initialize_backend_fn = int ( __cdecl * )( void * );
+        using free_backend_fn = void ( __cdecl * )( void * );
+        using speak_backend_fn = int ( __cdecl * )( void *, const char *, bool );
+        using stop_backend_fn = int ( __cdecl * )( void * );
+        using braille_backend_fn = int ( __cdecl * )( void *, const char * );
+        using backend_name_fn = const char *( __cdecl * )( void * );
+
+        HMODULE library = nullptr;
+        void *context = nullptr;
+        void *backend = nullptr;
+        init_fn init = nullptr;
+        shutdown_fn shutdown = nullptr;
+        create_fn create = nullptr;
+        initialize_backend_fn initialize_backend = nullptr;
+        free_backend_fn free_backend = nullptr;
+        speak_backend_fn speak_backend = nullptr;
+        stop_backend_fn stop_backend = nullptr;
+        braille_backend_fn braille_backend = nullptr;
+        backend_name_fn backend_name = nullptr;
+};
+
+std::unique_ptr<prism_screenreader_backend> &get_prism_backend()
+{
+    static std::unique_ptr<prism_screenreader_backend> backend;
+    return backend;
+}
+
 std::unique_ptr<nvda_controller_backend> &get_nvda_backend()
 {
     static std::unique_ptr<nvda_controller_backend> backend;
@@ -340,15 +493,23 @@ bool initialize_accessibility()
     log_accessibility_diagnostic( "Accessibility initialization entry point reached." );
     std::unique_ptr<nvda_controller_backend> &backend = get_nvda_backend();
     backend = std::make_unique<nvda_controller_backend>();
-    if( !backend->initialize() ) {
-        log_accessibility_diagnostic( "FAIL: NVDA backend initialization failed." );
-        backend.reset();
-        get_narration_service().set_backend( nullptr );
-        return false;
+    if( backend->initialize() ) {
+        get_narration_service().set_backend( backend.get() );
+        log_accessibility_diagnostic( "PASS: NVDA backend initialized and attached to narration service." );
+        return true;
     }
-    get_narration_service().set_backend( backend.get() );
-    log_accessibility_diagnostic( "PASS: NVDA backend initialized and attached to narration service." );
-    return true;
+    backend.reset();
+    log_accessibility_diagnostic( "NVDA unavailable; probing Prism's non-NVDA screen readers." );
+    std::unique_ptr<prism_screenreader_backend> &prism = get_prism_backend();
+    prism = std::make_unique<prism_screenreader_backend>();
+    if( prism->initialize() ) {
+        get_narration_service().set_backend( prism.get() );
+        return true;
+    }
+    prism.reset();
+    get_narration_service().set_backend( nullptr );
+    log_accessibility_diagnostic( "No screen reader backend available." );
+    return false;
 #else
     get_narration_service().set_backend( nullptr );
     return false;
@@ -446,6 +607,7 @@ void shutdown_accessibility()
 #if defined(_WIN32)
     // The controller DLL intentionally remains loaded until process termination.
     get_nvda_backend().reset();
+    get_prism_backend().reset();
     log_accessibility_diagnostic( "Accessibility backend detached; controller DLL remains loaded." );
 #endif
 }
