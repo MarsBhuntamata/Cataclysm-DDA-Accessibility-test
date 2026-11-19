@@ -104,6 +104,8 @@ class mission_ui_impl : public cataimgui::window
         // per mission-screen opening, not on every ImGui redraw.
         bool discoveries_loaded = false;
         std::vector<point_of_interest> discovered_locations;
+        bool vehicles_loaded = false;
+        std::vector<point_of_interest> vehicle_locations;
 
         float window_width = std::clamp( float( str_width_to_pixels( EVEN_MINIMUM_TERM_WIDTH ) ),
                                          ImGui::GetMainViewport()->Size.x / 2,
@@ -270,19 +272,23 @@ void mission_ui_impl::draw_controls()
         }
         if( ImGui::BeginTabItem( _( "REMEMBERED VEHICLES" ), nullptr, flags ) ) {
             selected_tab = mission_ui_tab_enum::REMEMBERED_VEHICLES;
-            const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
-            for( const auto &tracked : overmap_buffer.get_loaded_tracked_vehicles() ) {
-                remembered_vehicles.push_back( { tracked.first, tracked.second } );
-            }
-            std::sort( remembered_vehicles.begin(), remembered_vehicles.end(),
-            [&player_pos]( const point_of_interest &lhs, const point_of_interest &rhs ) {
-                const int ldist = rl_dist( player_pos, lhs.pos );
-                const int rdist = rl_dist( player_pos, rhs.pos );
-                if( ldist != rdist ) {
-                    return ldist < rdist;
+            if( !vehicles_loaded ) {
+                const tripoint_abs_omt player_pos = get_avatar().pos_abs_omt();
+                for( const auto &tracked : overmap_buffer.get_all_tracked_vehicles() ) {
+                    vehicle_locations.push_back( { tracked.first, tracked.second } );
                 }
-                return lhs.text < rhs.text;
-            } );
+                std::sort( vehicle_locations.begin(), vehicle_locations.end(),
+                [&player_pos]( const point_of_interest &lhs, const point_of_interest &rhs ) {
+                    const int ldist = rl_dist( player_pos, lhs.pos );
+                    const int rdist = rl_dist( player_pos, rhs.pos );
+                    if( ldist != rdist ) {
+                        return ldist < rdist;
+                    }
+                    return lhs.text < rhs.text;
+                } );
+                vehicles_loaded = true;
+            }
+            remembered_vehicles = vehicle_locations;
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -403,7 +409,7 @@ void mission_ui_impl::draw_controls()
             mission_report = _( "Map discoveries. Nearest first" );
             break;
         case mission_ui_tab_enum::REMEMBERED_VEHICLES:
-            mission_report = _( "Remembered vehicles. Nearest first. Loaded overmaps only." );
+            mission_report = _( "Remembered vehicles. Nearest first. Includes saved overmaps." );
             break;
         default:
             break;
