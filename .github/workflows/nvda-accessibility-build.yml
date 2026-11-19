@@ -1,9 +1,10 @@
-name: NVDA accessibility test build
+name: Prism screen reader routing test build
 
 on:
   push:
     branches:
       - balloon-accessibility-framework
+      - balloon-prism-routing-test
     paths:
       - 'src/**'
       - 'tests/**'
@@ -83,7 +84,7 @@ jobs:
           $installedRoot = Join-Path $buildRoot "vcpkg_installed/x64-windows-static"
           $exe = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.exe -File -Recurse | Select-Object -First 1
           if (-not $exe) { throw "The game executable was not produced." }
-          $stage = Join-Path $PWD "out/package/cdda-nvda-test-build"
+          $stage = Join-Path $PWD "out/package/cdda-prism-routing-test"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item -LiteralPath $exe.FullName -Destination $stage
           $pdb = Get-ChildItem -Path $buildRoot -Filter cataclysm-tiles.pdb -File -Recurse | Select-Object -First 1
@@ -115,6 +116,36 @@ jobs:
           if (-not $clientLicense) { throw "NVDA Controller Client license.txt was not found." }
           Copy-Item -LiteralPath $clientLicense.FullName -Destination (Join-Path $stage "nvda-controller-client-license.txt") -Force
 
+          # Prism release is pinned independently of CDDA's vcpkg dependency graph.
+          # Use the published Windows x64 runtime so the existing game build
+          # and its compiler settings do not change.
+          $prismVersion = "v0.18.4"
+          $prismZip = Join-Path $env:RUNNER_TEMP "prism-windows-x64.zip"
+          $prismDir = Join-Path $env:RUNNER_TEMP "prism-windows-x64"
+          Invoke-WebRequest -Uri "https://github.com/ethindp/prism/releases/download/$prismVersion/prism-windows-x64.zip" -OutFile $prismZip
+          Expand-Archive -LiteralPath $prismZip -DestinationPath $prismDir -Force
+          $prismDll = Get-ChildItem -Path $prismDir -Filter prism.dll -File -Recurse | Select-Object -First 1
+          if (-not $prismDll) { throw "Prism runtime archive did not contain prism.dll." }
+          # Copy runtime DLLs colocated with Prism. Do not overwrite the game
+          # runtime dependencies already packaged by CDDA.
+          Get-ChildItem -LiteralPath $prismDll.DirectoryName -Filter *.dll -File | ForEach-Object {
+            $destination = Join-Path $stage $_.Name
+            if (-not (Test-Path -LiteralPath $destination)) {
+              Copy-Item -LiteralPath $_.FullName -Destination $destination
+            }
+          }
+          if (-not (Test-Path (Join-Path $stage "prism.dll"))) {
+            throw "Prism DLL was not staged."
+          }
+          $prismNotices = Get-ChildItem -Path $prismDir -Include LICENSE,LICENSE.txt,NOTICE,NOTICE.txt -File -Recurse
+          foreach ($notice in $prismNotices) {
+            $name = "prism-" + $notice.Name
+            if (-not (Test-Path (Join-Path $stage $name))) {
+              Copy-Item -LiteralPath $notice.FullName -Destination (Join-Path $stage $name)
+            }
+          }
+          Write-Host "Packaged Prism v0.18.4 for the non-NVDA routing test."
+
           # The game must be launched beside its game data and graphics.
           # Packaging only the exe and DLLs makes a nonfunctional standalone zip.
           Copy-Item -LiteralPath (Join-Path $PWD "data") -Destination $stage -Recurse -Force
@@ -124,7 +155,7 @@ jobs:
           @('@echo off', 'cd /d "%~dp0"', '"cataclysm-tiles.exe"') |
             Set-Content -LiteralPath (Join-Path $stage "start-cdda-nvda.cmd") -Encoding ascii
 
-          foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
+          foreach ($required in @("cataclysm-tiles.exe", "cataclysm-tiles.pdb", "mpg123.dll", "nvdaControllerClient.dll", "prism.dll", "data", "gfx", "start-cdda-nvda.cmd")) {
             if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing packaged dependency: $required" }
           }
           Write-Host "Packaged game, runtime dependencies, NVDA Controller Client and game data."
@@ -133,7 +164,7 @@ jobs:
       - name: Upload Windows game and runtime package
         uses: actions/upload-artifact@v4
         with:
-          name: cdda-nvda-test-build
-          path: out/package/cdda-nvda-test-build/*
+          name: cdda-prism-routing-test
+          path: out/package/cdda-prism-routing-test/*
           if-no-files-found: error
           retention-days: 14
