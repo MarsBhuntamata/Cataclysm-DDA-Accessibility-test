@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'data/raw/keybindings.json'
+      - 'data/json/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'build-scripts/**'
