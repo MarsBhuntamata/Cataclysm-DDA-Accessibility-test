@@ -40,6 +40,21 @@ jobs:
           if ! git merge --no-ff --no-commit FETCH_HEAD; then
             echo "MERGE CONFLICT: no commit or push performed" | tee -a "$GITHUB_STEP_SUMMARY"
             git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+            python3 - <<'PY'
+          import pathlib, subprocess
+          files = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=U"], text=True).splitlines()
+          for path in files:
+              lines = pathlib.Path(path).read_text().splitlines()
+              print(f"\\n===== CONFLICT HUNKS IN {path} =====")
+              starts = [i for i, line in enumerate(lines) if line.startswith("<<<<<<< ")]
+              for n, i in enumerate(starts):
+                  end = next((j for j in range(i+1, len(lines)) if lines[j].startswith(">>>>>>> ")), min(i+100,len(lines)-1))
+                  print(f"--- conflict {n+1} at line {i+1} ---")
+                  lo, hi = max(0,i-4), min(len(lines),end+5)
+                  for j in range(lo,min(hi,lo+115)):
+                      print(f"{j+1}: {lines[j][:230]}")
+                  if hi-lo>115: print(f"... {hi-lo-115} more context lines")
+          PY
             git merge --abort || true
             exit 1
           fi
