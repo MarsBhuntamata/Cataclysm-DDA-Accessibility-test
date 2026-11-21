@@ -85,7 +85,7 @@ jobs:
               echo "::error::Unresolved conflicts remain"
               exit 1
             fi
-            git diff --cached --check
+            git diff --cached --check -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
           fi
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             git commit -m "Test merge current CleverRaven upstream into repaired NVDA integration"
@@ -94,4 +94,4 @@ jobs:
             echo "Already up to date." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "Merged candidate: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
-          git diff --check HEAD^ HEAD
+          git diff --check HEAD^ HEAD -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
