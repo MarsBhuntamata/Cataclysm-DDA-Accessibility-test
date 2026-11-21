@@ -105,5 +105,10 @@
       },
       { "u_spawn_item": { "global_val": "item_type" } }
     ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_MEDICAL_MUTATIONS_CLEANING_WOUNDS",
+    "effect": [  ]
   }
 ]
