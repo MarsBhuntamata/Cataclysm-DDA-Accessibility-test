@@ -1,4 +1,5 @@
 name: NVDA upstream pre-test build
+# Rebuild reconciled November 21 upstream source after successful source merge.
 # Build the current upstream integration source, including synchronized NVDA improvements.
 # Touching this workflow also triggers its path-filtered push build after a bot-driven merge.
 
