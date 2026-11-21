@@ -599,7 +599,7 @@
     "symbol": "~",
     "quench": -5,
     "healthy": -1,
-    "description": "Water with soap added.  Not good for drinking.",
+    "description": "Water with soap added.  Not good for drinking, but perfect for cleaning wounds.",
     "price": "0 cent",
     "price_postapoc": "0 cent",
     "volume": "250 ml",
@@ -2253,7 +2253,7 @@
     "type": "ITEM",
     "subtypes": [ "AMMO" ],
     "name": { "str_sp": "steel-reinforced epoxy" },
-    "description": "A strong adhesive reinforced with steel, primarily used to repair and adhering metals.",
+    "description": "A strong adhesive reinforced with steel, primarily used for repairing and adhering metals.",
     "price_postapoc": "10 cents"
   }
 ]

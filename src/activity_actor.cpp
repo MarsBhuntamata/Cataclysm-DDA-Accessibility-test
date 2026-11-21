@@ -2414,7 +2414,7 @@ bool read_activity_actor::player_readma( avatar &you )
 
     if( one_in( difficulty ) ) {
         // learn martial art
-        mart_iter->second.call( &you, *book, you.pos_bub() );
+        mart_iter->second.call( &you, book, you.pos_bub() );
         return true;
     } else if( continuous ) {
         switch( rng( 1, 5 ) ) {
@@ -10448,11 +10448,11 @@ void invoke_item_activity_actor::do_turn( player_activity &, Character &who )
     std::string _method = method;
     if( method.empty() ) {
         who.cancel_activity();
-        who.invoke_item( _item.get_item() );
+        who.invoke_item( _item );
         return;
     }
     who.cancel_activity();
-    who.invoke_item( _item.get_item(), _method );
+    who.invoke_item( _item, _method );
 }
 
 void invoke_item_activity_actor::serialize( JsonOut &jsout ) const
@@ -11445,14 +11445,9 @@ void fix_wound_activity_actor::finish( player_activity &act, Character &who )
     who.invalidate_crafting_inventory();
 
     for( int i = 0; i < amount; i++ ) {
-        for( const wound_type_id &id : fix.wounds_removed ) {
-            bp->remove_wound( id );
-        }
-    }
-
-    for( int i = 0; i < amount; i++ ) {
         for( const wound_type_id &id : fix.wounds_added ) {
-            bp->add_wound( id, who );
+            const wound *to_be_removed = bp->get_wound( mended_wound );
+            bp->add_wound( id, who, to_be_removed->get_hp_damage() );
         }
     }
 
@@ -11460,12 +11455,18 @@ void fix_wound_activity_actor::finish( player_activity &act, Character &who )
         bp->mod_hp_cur( fix.mod_hp * amount );
     }
 
-    for( const auto& [skill_id, level] : fix.skills ) {
-        who.practice( skill_id, 10 * amount, static_cast<int>( level * 1.25 ) );
+    for( const wound_skill &sk : fix.skills ) {
+        who.practice( sk.skill, 10 * amount, static_cast<int>( sk.level * 1.25 ) );
     }
 
     for( const wound_proficiency &wound_prof : fix.proficiencies ) {
         who.practice_proficiency( wound_prof.prof, fix.time );
+    }
+
+    for( int i = 0; i < amount; i++ ) {
+        for( const wound_type_id &id : fix.wounds_removed ) {
+            bp->remove_wound( id );
+        }
     }
 
     add_msg( m_good, fix.success_msg.translated() );

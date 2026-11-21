@@ -5622,7 +5622,7 @@ bool game::npc_menu( npc &who )
                 u.i_rem( &used );
             }
         } else {
-            bool did_use = u.invoke_item( &used, heal_string, who.pos_bub() );
+            bool did_use = u.invoke_item( loc, heal_string, who.pos_bub() );
             if( did_use ) {
                 // Note: exiting a body part selection menu counts as use here
                 u.mod_moves( -300 );
@@ -5891,10 +5891,12 @@ void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
 
     const tripoint_bub_ms player_pos = u.pos_bub();
 
+    // Normally examining terrain or furniture is a "minor" offense, but some might be flagged differently.
+    const bool extra_alarming_action = here.has_flag( "FACTION_SECURITY", examp );
     if( here.has_furn( examp ) ) {
         if( !u.cant_do_mounted() ) {
             if( !here.has_flag( "FREE_TO_EXAMINE", examp ) &&
-                !warn_player_maybe_anger_local_faction( false, true ) ) {
+                !warn_player_maybe_anger_local_faction( extra_alarming_action, true ) ) {
                 return; // player declined to mess with faction's stuff
             }
             xfurn_t.examine( u, examp );
@@ -5902,7 +5904,7 @@ void game::examine( const tripoint_bub_ms &examp, bool with_pickup )
     } else {
         if( xter_t.can_examine( examp ) && !u.is_mounted() ) {
             if( !here.has_flag( "FREE_TO_EXAMINE", examp ) &&
-                !warn_player_maybe_anger_local_faction( false, true ) ) {
+                !warn_player_maybe_anger_local_faction( extra_alarming_action, true ) ) {
                 return; // player declined to mess with faction's stuff
             }
             xter_t.examine( u, examp );
