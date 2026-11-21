@@ -1,0 +1,53 @@
+name: Safe November 21 upstream merge rehearsal
+
+on:
+  push:
+    branches:
+      - balloon-upstream-nov21-merge-test
+    paths:
+      - '.github/workflows/upstream-nov21-safe-merge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: balloon-nov21-safe-merge
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out isolated upstream candidate
+        uses: actions/checkout@v4
+        with:
+          ref: balloon-upstream-nov21-merge-test
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Fetch and safely merge current CleverRaven master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add cleverraven https://github.com/CleverRaven/Cataclysm-DDA.git
+          git fetch --no-tags cleverraven master
+          echo "CleverRaven master: $(git rev-parse FETCH_HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Candidate before merge: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Never silently choose upstream or ours at a conflict.
+          if ! git merge --no-ff --no-commit FETCH_HEAD; then
+            echo "MERGE CONFLICT: no commit or push performed" | tee -a "$GITHUB_STEP_SUMMARY"
+            git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+            git merge --abort || true
+            exit 1
+          fi
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git commit -m "Test merge current CleverRaven upstream into repaired NVDA integration"
+            git push origin HEAD:balloon-upstream-nov21-merge-test
+          else
+            echo "Already up to date." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Merged candidate: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          git diff --check HEAD^ HEAD
