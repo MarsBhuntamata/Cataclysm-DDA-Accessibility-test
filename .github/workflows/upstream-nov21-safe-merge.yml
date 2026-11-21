@@ -37,8 +37,11 @@ jobs:
           echo "CleverRaven master: $(git rev-parse FETCH_HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Candidate before merge: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           # Never silently choose upstream or ours at a conflict.
+          # Only source/data from CleverRaven are imported, not its workflows.
           python3 -m py_compile build-scripts/balloon_nov21_reconcile.py
-          if ! git merge --no-ff --no-commit FETCH_HEAD; then
+          # Squash imports upstream source without pushing upstream's workflow-history
+          # commits, which GitHub App credentials lack permission to publish.
+          if ! git merge --squash FETCH_HEAD; then
             # Only the six inspected files may conflict. Do not auto-resolve anything else.
             python3 - <<'PY'
           import subprocess
@@ -87,11 +90,19 @@ jobs:
             fi
             git diff --cached --check -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
           fi
-          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-            git commit -m "Test merge current CleverRaven upstream into repaired NVDA integration"
-            git push origin HEAD:balloon-upstream-nov21-merge-test
+          # Upstream workflow files are infrastructure and must not be overwritten
+          # by source synchronization. The bot can push ordinary source changes.
+          git restore --source=HEAD --staged --worktree -- .github/workflows
+          if [ -n "$(git diff --cached --name-only -- .github/workflows)" ]; then
+            echo "::error::Workflow changes remain staged; refusing push."
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "No source changes to import." | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "Already up to date." | tee -a "$GITHUB_STEP_SUMMARY"
+            git diff --cached --check -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
+            git commit -m "Integrate upstream CDDA source safely, preserving NVDA customizations"
+            git push origin HEAD:balloon-upstream-nov21-merge-test
           fi
           echo "Merged candidate: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           git diff --check HEAD^ HEAD -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
