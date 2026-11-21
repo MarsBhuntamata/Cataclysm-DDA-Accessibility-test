@@ -37,26 +37,55 @@ jobs:
           echo "CleverRaven master: $(git rev-parse FETCH_HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Candidate before merge: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           # Never silently choose upstream or ours at a conflict.
+          python3 -m py_compile build-scripts/balloon_nov21_reconcile.py
           if ! git merge --no-ff --no-commit FETCH_HEAD; then
-            echo "MERGE CONFLICT: no commit or push performed" | tee -a "$GITHUB_STEP_SUMMARY"
-            git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+            # Only the six inspected files may conflict. Do not auto-resolve anything else.
             python3 - <<'PY'
-          import pathlib, subprocess
-          files = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=U"], text=True).splitlines()
-          for path in files:
-              lines = pathlib.Path(path).read_text().splitlines()
-              print(f"\\n===== CONFLICT HUNKS IN {path} =====")
-              starts = [i for i, line in enumerate(lines) if line.startswith("<<<<<<< ")]
-              for n, i in enumerate(starts):
-                  end = next((j for j in range(i+1, len(lines)) if lines[j].startswith(">>>>>>> ")), min(i+100,len(lines)-1))
-                  print(f"--- conflict {n+1} at line {i+1} ---")
-                  lo, hi = max(0,i-4), min(len(lines),end+5)
-                  for j in range(lo,min(hi,lo+115)):
-                      print(f"{j+1}: {lines[j][:230]}")
-                  if hi-lo>115: print(f"... {hi-lo-115} more context lines")
+          import subprocess
+          expected = {
+              "data/mods/Xedra_Evolved/mutations/paraclesians/sylph_eocs.json",
+              "data/mods/Xedra_Evolved/mutations/paraclesians/sylph_mutation_spells.json",
+              "data/mods/Xedra_Evolved/mutations/paraclesians/sylph_spell_learning_eocs.json",
+              "src/iuse_actor.cpp",
+              "src/map.cpp",
+              "src/npctalk.cpp",
+          }
+          actual = set(subprocess.check_output(
+              ["git", "diff", "--name-only", "--diff-filter=U"], text=True
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f"Unexpected conflict set: {sorted(actual ^ expected)}")
+          print("Six expected conflicts verified; applying reviewed source ports")
           PY
-            git merge --abort || true
-            exit 1
+            # Xedra files require the new upstream Sylph progression consistently.
+            # The three C++ files were reorganized: their accessibility changes
+            # are explicitly reintroduced below in the new upstream locations.
+            git checkout --theirs -- \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_eocs.json \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_mutation_spells.json \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_spell_learning_eocs.json \
+              src/iuse_actor.cpp src/map.cpp src/npctalk.cpp
+            git add -- \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_eocs.json \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_mutation_spells.json \
+              data/mods/Xedra_Evolved/mutations/paraclesians/sylph_spell_learning_eocs.json \
+              src/iuse_actor.cpp src/map.cpp src/npctalk.cpp
+            python3 build-scripts/balloon_nov21_reconcile.py
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("data/mods/Xedra_Evolved/mutations/paraclesians")
+          for p in (root/"sylph_eocs.json",root/"sylph_mutation_spells.json",
+                    root/"sylph_spell_learning_eocs.json"):
+              json.loads(p.read_text())
+          print("Resolved Sylph JSON files parse successfully")
+          PY
+            git add -- src/iuse_actor.cpp src/dialogue.cpp src/map_cache.cpp
+            if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+              echo "::error::Unresolved conflicts remain"
+              exit 1
+            fi
+            git diff --cached --check
           fi
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             git commit -m "Test merge current CleverRaven upstream into repaired NVDA integration"
