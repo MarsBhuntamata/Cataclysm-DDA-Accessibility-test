@@ -1399,6 +1399,11 @@ void overmap::migrate_oter_ids( const std::unordered_map<tripoint_om_omt, std::s
 void overmap::migrate_camps( const std::vector<tripoint_abs_omt> &points ) const
 {
     for( const tripoint_abs_omt &point : points ) {
+        // During overmap loading, this overmap's camps may not yet be visible
+        // through overmap_buffer. Do not recreate a camp already serialized here.
+        if( camps.find( point.xy() ) != camps.end() ) {
+            continue;
+        }
         std::optional<basecamp *> bcp = overmap_buffer.find_camp( point.xy() );
         if( bcp ) {
             continue; // Already a camp nearby, can't put down another one
