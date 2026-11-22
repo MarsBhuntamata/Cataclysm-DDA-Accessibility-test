@@ -11,6 +11,7 @@ on:
       - balloon-upstream-shane-status-port
       - balloon-upstream-repair-2026-11-18
       - balloon-upstream-nov21-merge-test
+      - balloon-isherwood-camp-duplicate-guard
     paths:
       - 'src/**'
       - 'tests/**'
