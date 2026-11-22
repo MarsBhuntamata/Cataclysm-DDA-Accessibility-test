@@ -592,7 +592,9 @@
   {
     "type": "oter_id_migration",
     "//": "Corrected rotation in 0.J experimental",
-    "oter_ids": { "hw_supports": "hw_supports_north" }
+    "oter_ids": {
+      "hw_supports": "hw_supports_north"
+    }
   },
   {
     "type": "oter_id_migration",
@@ -639,12 +641,9 @@
   },
   {
     "type": "oter_id_migration",
-    "//": "Compatibility with directional Isherwood rescue field ids in saves; current terrain is not directional.",
+    "//": "Legacy non-directional Isherwood rescue field was replaced by rotatable terrain in 0.J; map old ID to valid north-facing terrain.",
     "oter_ids": {
-      "isherwood_barry_rescue_field_north": "isherwood_barry_rescue_field",
-      "isherwood_barry_rescue_field_east": "isherwood_barry_rescue_field",
-      "isherwood_barry_rescue_field_south": "isherwood_barry_rescue_field",
-      "isherwood_barry_rescue_field_west": "isherwood_barry_rescue_field"
+      "isherwood_barry_rescue_field": "isherwood_barry_rescue_field_north"
     }
   }
 ]
