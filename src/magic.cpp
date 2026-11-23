@@ -10,6 +10,7 @@
 #include <set>
 #include <utility>
 
+#include "accessibility.h"
 #include "avatar.h"
 #include "bodypart.h"
 #include "calendar.h"
@@ -2847,6 +2848,30 @@ class spellcasting_callback : public uilist_callback
         bool key( const input_context &ctxt, const input_event &event, int entnum,
                   uilist *menu ) override {
             const std::string &action = ctxt.input_to_action( event );
+            if( action == "READ_SPELL_DETAILS" ) {
+                if( entnum < 0 || static_cast<size_t>( entnum ) >= known_spells.size() ) {
+                    return true;
+                }
+                const spell &sp = *known_spells[entnum];
+                Character &pc = get_player_character();
+                std::string description = sp.description();
+                parse_tags( description, pc, pc );
+                std::string details = string_format( _( "%s. Spell level %d. %s" ),
+                                                    sp.name(), sp.get_effective_level(), description );
+                details += " " + sp.enumerate_spell_data( pc );
+                details += string_format( _( " Casting cost: %s %s. Casting time: %s. Targets: %s. Range: %d." ),
+                                          sp.energy_cost_string( pc ), sp.energy_string(),
+                                          moves_to_string( sp.casting_time( pc ) ),
+                                          sp.enumerate_targets(), sp.range( pc ) );
+                if( sp.aoe( pc ) > 0 ) {
+                    details += string_format( _( " Area of effect: %d." ), sp.aoe( pc ) );
+                }
+                if( sp.damage( pc ) != 0 ) {
+                    details += string_format( _( " Damage or healing: %s." ), sp.damage_string( pc ) );
+                }
+                get_narration_service().announce( { narration_event::contextual_help, details, true } );
+                return true;
+            }
             if( action == "CAST_IGNORE" ) {
                 casting_ignore = !casting_ignore;
                 return true;
@@ -3413,6 +3438,7 @@ spell &known_magic::select_spell( Character &guy )
     spell_menu.input_category = "SPELL_MENU";
     spell_menu.additional_actions.emplace_back( "CHOOSE_INVLET", translation() );
     spell_menu.additional_actions.emplace_back( "CAST_IGNORE", translation() );
+    spell_menu.additional_actions.emplace_back( "READ_SPELL_DETAILS", translation() );
     spell_menu.additional_actions.emplace_back( "SCROLL_UP_SPELL_MENU", translation() );
     spell_menu.additional_actions.emplace_back( "SCROLL_DOWN_SPELL_MENU", translation() );
     spell_menu.additional_actions.emplace_back( "SCROLL_FAVORITE", translation() );
