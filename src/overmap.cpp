@@ -3908,6 +3908,12 @@ void overmap::add_camp( const point_abs_omt &p, const basecamp &camp )
 {
     auto it = camps.emplace( p, camp );
     if( !it.second ) {
+        // A generic legacy camp registration may run when loading an already
+        // registered Isherwood Stables.  Preserve the named camp and its data.
+        if( camp.camp_name() == "faction_camp" &&
+            it.first->second.camp_name() == "Isherwood Stables" ) {
+            return;
+        }
         debugmsg( "Tried to add a basecamp %s at %s when basecamp %s is already present", camp.camp_name(),
                   p.to_string(), it.first->second.camp_name() );
     }
