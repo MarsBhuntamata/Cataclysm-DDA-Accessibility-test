@@ -14,6 +14,7 @@ on:
       - balloon-isherwood-camp-duplicate-guard
       - balloon-shane-radar-upstream-test
       - balloon-shane-spell-details-test
+      - balloon-isherwood-load-fix-nov24
     paths:
       - 'src/**'
       - 'tests/**'
