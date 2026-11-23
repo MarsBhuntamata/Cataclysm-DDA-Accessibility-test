@@ -3913,6 +3913,13 @@ void overmap::add_camp( const point_abs_omt &p, const basecamp &camp )
 {
     auto it = camps.emplace( p, camp );
     if( !it.second ) {
+        // When loading older worlds, an already registered Isherwood Stables can
+        // receive a second, generic faction_camp registration.  Keep the named
+        // camp and its data; this is not a competing camp.
+        if( camp.camp_name() == "faction_camp" &&
+            it.first->second.camp_name() == "Isherwood Stables" ) {
+            return;
+        }
         debugmsg( "Tried to add a basecamp %s at %s when basecamp %s is already present", camp.camp_name(),
                   p.to_string(), it.first->second.camp_name() );
     }
