@@ -312,6 +312,14 @@
   },
   {
     "type": "keybinding",
+    "id": "READ_SPELL_DETAILS",
+    "category": "SPELL_MENU",
+    "name": "Read selected spell description, effects and casting details",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+
+  {
+    "type": "keybinding",
     "id": "CAST_IGNORE",
     "category": "SPELL_MENU",
     "name": "Toggle ignore distractions",
