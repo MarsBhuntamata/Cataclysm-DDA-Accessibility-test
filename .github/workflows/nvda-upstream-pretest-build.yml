@@ -1,19 +1,11 @@
-name: NVDA upstream pre-test build
-# Rebuild reconciled November 21 upstream source after successful source merge.
-# Build the current upstream integration source, including synchronized NVDA improvements.
-# Touching this workflow also triggers its path-filtered push build after a bot-driven merge.
+name: NVDA upstream balloon build
+# Canonical upstream accessibility build. Keep this branch as the only
+# upstream build target; the stable working branch has its own workflow.
 
 on:
   push:
     branches:
-      - balloon-upstream-pretest-2026-11-07
-      - balloon-upstream-integration-2026-11-14
-      - balloon-upstream-shane-status-port
-      - balloon-upstream-repair-2026-11-18
-      - balloon-upstream-nov21-merge-test
-      - balloon-isherwood-camp-duplicate-guard
-      - balloon-shane-radar-upstream-test
-      - balloon-shane-spell-details-test
+      - balloon-upstream
     paths:
       - 'src/**'
       - 'tests/**'
