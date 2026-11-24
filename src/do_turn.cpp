@@ -63,6 +63,7 @@
 #include "point.h"
 #include "popup.h"
 #include "rng.h"
+#include "scene_radar.h"
 #include "scent_map.h"
 #include "sdlsound.h"
 #include "simple_pathfinding.h"
@@ -650,6 +651,16 @@ bool game::do_turn()
                     wait_popup_reset();
                     ui_manager::redraw();
                 }
+
+                // Speak what came into view since the last action. The redraw
+                // above is skipped during activities and auto-travel, so bring
+                // the vision caches up to date the way drawing would.
+                if( get_option<bool>( "A11Y_RADAR" ) && uquit != QUIT_WATCH ) {
+                    m.build_map_cache( u.posz() );
+                    m.update_visibility_cache( u.posz() );
+                }
+                radar_update( u, u.has_distant_destination() ||
+                              ( u.in_vehicle && u.controlling_vehicle ) );
 
                 if( queue_screenshot ) {
                     take_screenshot();
