@@ -1053,6 +1053,7 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             }
         }
     }
+    const auto draw_points_ready = std::chrono::steady_clock::now();
     overlay_strings = here.overlay_strings_cache;
     color_blocks = here.color_blocks_cache;
 
@@ -1088,6 +1089,7 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
         }
     } );
 
+    const auto lighting_ready = std::chrono::steady_clock::now();
     // Multi z-level draw mode
     // Start drawing from the lowest visible z-level (some off-screen tiles
     // are considered visible here to simplify the logic.)
@@ -1129,8 +1131,9 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             // tint overlay. We do this before the layer loop so that:
             //   (a) we can skip bounds/sprite tracking for tiles that won't be tinted,
             //   (b) the overlay pass later can iterate only tinted tiles.
+            auto &row_points = here.draw_points_cache[cur_zlevel][row];
             std::vector<tile_render_info *> row_tinted;
-            for( tile_render_info &p : here.draw_points_cache[cur_zlevel][row] ) {
+            for( tile_render_info &p : row_points ) {
                 p.com.height_3d = ( cur_zlevel - center.z() ) * zlevel_height;
                 p.com.needs_tint = false;
                 if( !zlev_has_color ) {
@@ -1176,7 +1179,13 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             for( auto f : drawing_layers ) {
                 const bool overlay_layer = f == &cata_tiles::draw_zone_mark ||
                                            f == &cata_tiles::draw_zombie_revival_indicators;
-                for( tile_render_info &p : here.draw_points_cache[cur_zlevel][row] ) {
+                for( tile_render_info &p : row_points ) {
+                    // Vision effects are rendered exclusively in the terrain pass.
+                    // Avoid ten redundant per-layer visits to non-sprite entries.
+                    if( f != &cata_tiles::draw_terrain &&
+                        std::holds_alternative<tile_render_info::vision_effect>( p.var ) ) {
+                        continue;
+                    }
                     const bool tint_tile = !overlay_layer && p.com.needs_tint;
                     const bool mask_tint = tint_tile && !shader_tint && !iso;
                     m_cur_tint = tint_tile && shader_tint ? &p.com.tint_color : nullptr;
@@ -1650,6 +1659,7 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
         }
     }
 
+    const auto layers_ready = std::chrono::steady_clock::now();
     RenderSetClipRect( renderer, nullptr );
     // Unbind any GPU render state held across sprite batches so ImGui or the
     // next-frame draws see clean state. On flush failure the bind boundary
@@ -1666,6 +1676,14 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
         const long long total_us = std::chrono::duration_cast<std::chrono::microseconds>(
                                        std::chrono::steady_clock::now() - render_start ).count();
         if( sample || total_us >= 50000 ) {
+            const auto phase_us = []( const auto &a, const auto &b ) {
+                return std::chrono::duration_cast<std::chrono::microseconds>( b - a ).count();
+            };
+            record_look_profiler_sample( "LOOK2_TILES_PHASES z=" + std::to_string( center.z() ) +
+                                         " setup_and_points_us=" + std::to_string( phase_us( render_start, draw_points_ready ) ) +
+                                         " lighting_start_us=" + std::to_string( phase_us( draw_points_ready, lighting_ready ) ) +
+                                         " layers_us=" + std::to_string( phase_us( lighting_ready, layers_ready ) ) +
+                                         " flush_us=" + std::to_string( phase_us( layers_ready, std::chrono::steady_clock::now() ) ) );
             record_look_profiler_sample(
                 "LOOK2_TILES_END z=" + std::to_string( center.z() ) +
                 " total_us=" + std::to_string( total_us ) +
