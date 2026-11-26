@@ -839,7 +839,16 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
                             ll = lit_level::DARK;
                             invisible[0] = true;
                         } else {
-                            if( would_apply_vision_effects( offscreen_type ) ) {
+                            // Outside the loaded map, an unseen tile has no
+                            // remembered terrain or draw override.  The
+                            // viewport was already cleared to opaque black
+                            // at the start of this draw.  Do not allocate and
+                            // render one identical HIDDEN lighting sprite
+                            // for every such off-map cell.  Keep special
+                            // visibility effects (e.g. boomered darkness)
+                            // and all remembered/overridden tiles intact.
+                            if( offscreen_type != visibility_type::HIDDEN &&
+                                would_apply_vision_effects( offscreen_type ) ) {
                                 here.draw_points_cache[zlevel][row].emplace_back( tile_render_info::common{ pos, 0},
                                         tile_render_info::vision_effect{ offscreen_type } );
                             }
