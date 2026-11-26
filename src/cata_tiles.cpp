@@ -1090,6 +1090,9 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
     } );
 
     const auto lighting_ready = std::chrono::steady_clock::now();
+    // Diagnostics are collected only while look profiling is active.
+    std::array<long long, 11> layer_duration_us{};
+    long long profiled_draw_entries = 0;
     // Multi z-level draw mode
     // Start drawing from the lowest visible z-level (some off-screen tiles
     // are considered visible here to simplify the logic.)
@@ -1132,6 +1135,9 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             //   (a) we can skip bounds/sprite tracking for tiles that won't be tinted,
             //   (b) the overlay pass later can iterate only tinted tiles.
             auto &row_points = here.draw_points_cache[cur_zlevel][row];
+            if( profile ) {
+                profiled_draw_entries += static_cast<long long>( row_points.size() );
+            }
             std::vector<tile_render_info *> row_tinted;
             for( tile_render_info &p : row_points ) {
                 p.com.height_3d = ( cur_zlevel - center.z() ) * zlevel_height;
@@ -1176,7 +1182,9 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             // let draw_sprite_at accumulate the screen extent and record each
             // sprite for later silhouette replay. zone marks and revival indicators
             // are UI overlays and take no tint
-            for( auto f : drawing_layers ) {
+            for( size_t layer_index = 0; layer_index < drawing_layers.size(); ++layer_index ) {
+                const auto f = drawing_layers[layer_index];
+                const auto layer_start = profile ? std::chrono::steady_clock::now() : render_start;
                 const bool overlay_layer = f == &cata_tiles::draw_zone_mark ||
                                            f == &cata_tiles::draw_zombie_revival_indicators;
                 for( tile_render_info &p : row_points ) {
@@ -1224,6 +1232,10 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
                             ( this->*f )( p.com.pos, ll, p.com.height_3d, invisible, false );
                         }
                     }
+                }
+                if( profile ) {
+                    layer_duration_us[layer_index] += std::chrono::duration_cast<std::chrono::microseconds>(
+                                                      std::chrono::steady_clock::now() - layer_start ).count();
                 }
             }
             m_cur_bounds = nullptr;
@@ -1679,6 +1691,18 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
             const auto phase_us = []( const auto &a, const auto &b ) {
                 return std::chrono::duration_cast<std::chrono::microseconds>( b - a ).count();
             };
+            std::string layer_timings = "LOOK2_TILES_LAYER_DETAIL z=" + std::to_string( center.z() ) +
+                                        " entries=" + std::to_string( profiled_draw_entries );
+            static constexpr std::array<const char *, 11> layer_names = {{
+                    "terrain", "furniture", "graffiti", "trap", "part_con",
+                    "field_item", "vpart_no_roof", "vpart_roof", "critter",
+                    "zone", "revival"
+                }};
+            for( size_t i = 0; i < layer_duration_us.size(); ++i ) {
+                layer_timings += " " + std::string( layer_names[i] ) + "_us=" +
+                                 std::to_string( layer_duration_us[i] );
+            }
+            record_look_profiler_sample( layer_timings );
             record_look_profiler_sample( "LOOK2_TILES_PHASES z=" + std::to_string( center.z() ) +
                                          " setup_and_points_us=" + std::to_string( phase_us( render_start, draw_points_ready ) ) +
                                          " lighting_start_us=" + std::to_string( phase_us( draw_points_ready, lighting_ready ) ) +
