@@ -1157,6 +1157,10 @@ void bodypart::add_or_worsen_wound( const wound &wd, const Character *who,
 
                 remove_wound( *old_wound );
                 add_wound( new_wound );
+                // A wound can progress only once per damage event.  Continuing
+                // would try to retrieve the now-removed original wound again
+                // if a later progression chance also succeeds.
+                break;
             }
         }
 
