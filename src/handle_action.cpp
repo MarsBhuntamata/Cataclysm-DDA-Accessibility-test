@@ -530,6 +530,36 @@ static void rcdrive( const point_rel_ms &d )
     }
 }
 
+// Accessibility-only heading report.  Vehicle angles are measured clockwise
+// from east, matching map coordinates (positive y points south).
+// The actual body direction and requested steering direction can differ while
+// turning or sliding, so announce both rather than treating steering as facing.
+static std::string vehicle_compass_heading( const units::angle &angle )
+{
+    const int degrees = ( static_cast<int>( std::lround( to_degrees( angle ) ) ) % 360 + 360 ) % 360;
+    const int octant = ( ( degrees + 22 ) / 45 ) % 8;
+    switch( octant ) {
+        case 0: return _( "east" );
+        case 1: return _( "southeast" );
+        case 2: return _( "south" );
+        case 3: return _( "southwest" );
+        case 4: return _( "west" );
+        case 5: return _( "northwest" );
+        case 6: return _( "north" );
+        default: return _( "northeast" );
+    }
+}
+
+static std::string accessible_vehicle_heading( const vehicle &veh )
+{
+    const std::string facing = vehicle_compass_heading( veh.face.dir() );
+    const std::string steering = vehicle_compass_heading( veh.turn_dir );
+    if( facing == steering ) {
+        return string_format( _( "Vehicle facing %s. Steering straight." ), facing );
+    }
+    return string_format( _( "Vehicle facing %s. Steering toward %s." ), facing, steering );
+}
+
 static void pldrive( const tripoint_rel_ms &p )
 {
     if( !g->check_safe_mode_allowed() ) {
@@ -608,6 +638,11 @@ static void pldrive( const tripoint_rel_ms &p )
         }
     }
     veh->pldrive( here, get_avatar(), p.x(), p.y(), p.z() );
+    if( p.x() != 0 ) {
+        get_narration_service().announce( {
+            narration_event::status_changed, accessible_vehicle_heading( *veh ), true
+        } );
+    }
 }
 
 static void pldrive( point_rel_ms d )
@@ -3395,8 +3430,20 @@ bool game::handle_action()
     if( action == "DESCRIBE_STATUS" ) {
         // A quick glance at the sidebar: visible creatures, then only the
         // values a sighted player would see highlighted.
+        std::string report = build_status_glance( player_character );
+        if( player_character.controlling_vehicle ) {
+            vehicle *veh = g->remoteveh();
+            if( !veh ) {
+                if( const optional_vpart_position vp = get_map().veh_at( player_character.pos_bub() ) ) {
+                    veh = &vp->vehicle();
+                }
+            }
+            if( veh ) {
+                report += " " + accessible_vehicle_heading( *veh );
+            }
+        }
         get_narration_service().announce( {
-            narration_event::status_changed, build_status_glance( player_character ), true
+            narration_event::status_changed, report, true
         } );
         return false;
     }
