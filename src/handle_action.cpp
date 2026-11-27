@@ -560,20 +560,18 @@ static std::string accessible_vehicle_heading( const vehicle &veh )
     return string_format( _( "Vehicle facing %s. Steering toward %s." ), facing, steering );
 }
 
-// On-demand driving reconnaissance. Reuse the game's own forward corridor,
-// which spans the vehicle front rather than just the driver's seat.
-// This intentionally reports only visible, loaded, blocking squares and never
-// changes speed or steering. Reverse and curved future paths are not predicted.
-static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
-        const Character &driver )
+// Read-ahead for manual driving. Compare the current heading with one
+// steering increment in either direction, using the existing vehicle-width
+// corridor. This is a projection, not a collision simulation: it does not
+// account for the rear swinging around, skidding, or reversing.
+static std::string accessible_vehicle_corridor_scan( vehicle &veh, map &here,
+        const Character &driver, const units::angle &steer_offset,
+        const std::string &label )
 {
-    if( veh.velocity < 0 ) {
-        return _( "Vehicle reversing. Forward obstacle scan does not cover the reverse path." );
-    }
-
-    const std::set<point_abs_ms> corridor = veh.immediate_path( &here );
+    const std::set<point_abs_ms> corridor = veh.immediate_path( &here, steer_offset );
     const std::set<tripoint_abs_ms> footprint = veh.get_points();
-    int nearest = 13;
+    constexpr int max_report_distance = 8;
+    int nearest = max_report_distance + 1;
     std::string nearest_name;
     const int z = driver.pos_bub().z();
 
@@ -583,11 +581,11 @@ static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
             continue;
         }
 
-        int distance = 13;
+        int distance = max_report_distance + 1;
         for( const tripoint_abs_ms &occupied : footprint ) {
             distance = std::min( distance, rl_dist( occupied.xy(), pos ) );
         }
-        if( distance == 0 || distance > 12 || distance >= nearest ) {
+        if( distance == 0 || distance > max_report_distance || distance >= nearest ) {
             continue;
         }
 
@@ -613,11 +611,29 @@ static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
     }
 
     if( nearest_name.empty() ) {
-        return _( "Forward scan: no visible blocking obstacles detected within 12 tiles. "
-                  "Unseen hazards and turns are not covered." );
+        return string_format( _( "%s: no visible obstruction within %d tiles." ),
+                              label, max_report_distance );
     }
-    return string_format( _( "Forward scan: %s in the vehicle's path, approximately %d tiles away." ),
-                          nearest_name, nearest );
+    return string_format( _( "%s: %s, approximately %d tiles away." ),
+                          label, nearest_name, nearest );
+}
+
+static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
+        const Character &driver )
+{
+    if( veh.velocity < 0 ) {
+        return _( "Vehicle reversing. Forward and turn projections do not cover the reverse path." );
+    }
+
+    std::string result = _( "Projected vehicle clearance." );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, 0_degrees,
+                        _( "Ahead" ) );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, -vehicles::steer_increment,
+                        _( "One steer left" ) );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, vehicles::steer_increment,
+                        _( "One steer right" ) );
+    result += " " + std::string( _( "Projections cannot predict skids, rear swing, or unseen hazards." ) );
+    return result;
 }
 
 static void pldrive( const tripoint_rel_ms &p )
