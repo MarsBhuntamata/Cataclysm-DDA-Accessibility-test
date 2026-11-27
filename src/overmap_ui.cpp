@@ -2962,7 +2962,12 @@ std::pair<std::string, nc_color> oter_symbol_and_color( const tripoint_abs_omt &
 void ui::omap::display()
 {
     g->overmap_data = overmap_ui::overmap_draw_data_t(); //reset data
-    g->overmap_data.origin_pos = get_player_character().pos_abs_omt();
+    // The overmap "look" action converts its cursor back to a local tile.
+    // Keep the player's position *within* the overmap tile, otherwise it
+    // starts looking at that tile's corner instead of at the player.
+    std::tie( g->overmap_data.origin_pos,
+              g->overmap_data.origin_remainder ) =
+                  project_remain<coords::omt>( get_player_character().pos_abs() );
     g->overmap_data.debug_editor = debug_mode; // always display debug editor if game is in debug mode
     overmap_ui::display();
 }
