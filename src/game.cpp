@@ -6281,7 +6281,11 @@ std::optional<std::vector<tripoint_bub_ms>> game::safe_route_to( Character &who,
 
 std::optional<tripoint_bub_ms> game::look_around()
 {
-    tripoint_bub_ms center = u.pos_bub() + u.view_offset;
+    // Driving shifts the viewport ahead of the vehicle. Do not make that
+    // screen-space offset the starting location for a player's look cursor:
+    // it must begin at the driver's actual map tile, not a point down the road.
+    tripoint_bub_ms center = u.controlling_vehicle ? u.pos_bub() :
+                             u.pos_bub() + u.view_offset;
     look_around_result result = look_around( /*show_window=*/true, center, center, false, false,
                                 false );
     return result.position;
