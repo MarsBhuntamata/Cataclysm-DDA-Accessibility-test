@@ -560,6 +560,66 @@ static std::string accessible_vehicle_heading( const vehicle &veh )
     return string_format( _( "Vehicle facing %s. Steering toward %s." ), facing, steering );
 }
 
+// On-demand driving reconnaissance. Reuse the game's own forward corridor,
+// which spans the vehicle front rather than just the driver's seat.
+// This intentionally reports only visible, loaded, blocking squares and never
+// changes speed or steering. Reverse and curved future paths are not predicted.
+static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
+        const Character &driver )
+{
+    if( veh.velocity < 0 ) {
+        return _( "Vehicle reversing. Forward obstacle scan does not cover the reverse path." );
+    }
+
+    const std::set<point_abs_ms> corridor = veh.immediate_path( &here );
+    const std::set<tripoint_abs_ms> footprint = veh.get_points();
+    int nearest = 13;
+    std::string nearest_name;
+    const int z = driver.pos_bub().z();
+
+    for( const point_abs_ms &pos : corridor ) {
+        const tripoint_bub_ms tile{ here.get_bub( pos ), z };
+        if( !here.inbounds( tile ) || !here.pl_sees( tile, -1 ) ) {
+            continue;
+        }
+
+        int distance = 13;
+        for( const tripoint_abs_ms &occupied : footprint ) {
+            distance = std::min( distance, rl_dist( occupied.xy(), pos ) );
+        }
+        if( distance == 0 || distance > 12 || distance >= nearest ) {
+            continue;
+        }
+
+        std::string obstacle;
+        if( const optional_vpart_position other = here.veh_at( tile ) ) {
+            if( &other->vehicle() != &veh ) {
+                obstacle = other->vehicle().name;
+            }
+        }
+        if( obstacle.empty() && here.impassable_ter_furn( tile ) ) {
+            obstacle = here.has_furn( tile ) ? here.furnname( tile ) : here.tername( tile );
+        }
+        if( obstacle.empty() ) {
+            const Creature *critter = get_creature_tracker().creature_at( tile );
+            if( critter && critter != &driver && driver.sees( here, *critter ) ) {
+                obstacle = critter->disp_name();
+            }
+        }
+        if( !obstacle.empty() ) {
+            nearest = distance;
+            nearest_name = obstacle;
+        }
+    }
+
+    if( nearest_name.empty() ) {
+        return _( "Forward scan: no visible blocking obstacles detected within 12 tiles. "
+                  "Unseen hazards and turns are not covered." );
+    }
+    return string_format( _( "Forward scan: %s in the vehicle's path, approximately %d tiles away." ),
+                          nearest_name, nearest );
+}
+
 static void pldrive( const tripoint_rel_ms &p )
 {
     if( !g->check_safe_mode_allowed() ) {
@@ -3440,6 +3500,7 @@ bool game::handle_action()
             }
             if( veh ) {
                 report += " " + accessible_vehicle_heading( *veh );
+                report += " " + accessible_vehicle_forward_scan( *veh, get_map(), player_character );
             }
         }
         get_narration_service().announce( {
