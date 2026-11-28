@@ -3524,6 +3524,26 @@ bool game::handle_action()
         } );
         return false;
     }
+    if( action == "VEHICLE_CLEARANCE" ) {
+        vehicle *veh = g->remoteveh();
+        if( !veh ) {
+            if( const optional_vpart_position vp = get_map().veh_at( player_character.pos_bub() ) ) {
+                veh = &vp->vehicle();
+            }
+        }
+        if( !veh ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help, _( "No vehicle at your position to scan." ), true
+            } );
+        } else {
+            get_narration_service().announce( {
+                narration_event::contextual_help,
+                accessible_vehicle_heading( *veh ) + " " +
+                accessible_vehicle_forward_scan( *veh, get_map(), player_character ), true
+            } );
+        }
+        return false;
+    }
     if( action == "STATUS_BROWSER" ) {
         // The full sidebar, section by section, in the player's own layout order.
         show_status_browser( player_character );
