@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - balloon-accessibility-framework
+      - balloon-upstream
     paths:
       - 'src/**'
       - 'tests/**'
