@@ -2763,6 +2763,7 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "SURVEY_SURROUNDINGS", to_translation( "Describe eight nearby tiles" ) );
         ctxt.register_action( "DESCRIBE_SCENE", to_translation( "Describe the scene in view" ) );
         ctxt.register_action( "DESCRIBE_STATUS", to_translation( "Speak status glance" ) );
+        ctxt.register_action( "VEHICLE_CLEARANCE", to_translation( "Describe vehicle clearance ahead and when steering" ) );
         ctxt.register_action( "STATUS_BROWSER", to_translation( "Open spoken status browser" ) );
         ctxt.register_action( "READ_RECENT_MESSAGES", to_translation( "Read recent game messages" ) );
         ctxt.register_action( "TOGGLE_TERRAIN_NARRATION",
@@ -6254,7 +6255,11 @@ std::optional<std::vector<tripoint_bub_ms>> game::safe_route_to( Character &who,
 
 std::optional<tripoint_bub_ms> game::look_around()
 {
-    tripoint_bub_ms center = u.pos_bub() + u.view_offset;
+    // Driving shifts the viewport ahead of the vehicle. Do not make that
+    // screen-space offset the starting location for a player's look cursor:
+    // it must begin at the driver's actual map tile, not a point down the road.
+    tripoint_bub_ms center = u.controlling_vehicle ? u.pos_bub() :
+                             u.pos_bub() + u.view_offset;
     look_around_result result = look_around( /*show_window=*/true, center, center, false, false,
                                 false );
     return result.position;
