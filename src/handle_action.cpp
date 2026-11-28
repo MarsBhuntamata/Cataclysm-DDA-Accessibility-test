@@ -527,6 +527,112 @@ static void rcdrive( const point_rel_ms &d )
     }
 }
 
+// Accessibility-only heading report.  Vehicle angles are measured clockwise
+// from east, matching map coordinates (positive y points south).
+// The actual body direction and requested steering direction can differ while
+// turning or sliding, so announce both rather than treating steering as facing.
+static std::string vehicle_compass_heading( const units::angle &angle )
+{
+    const int degrees = ( static_cast<int>( std::lround( to_degrees( angle ) ) ) % 360 + 360 ) % 360;
+    const int octant = ( ( degrees + 22 ) / 45 ) % 8;
+    switch( octant ) {
+        case 0: return _( "east" );
+        case 1: return _( "southeast" );
+        case 2: return _( "south" );
+        case 3: return _( "southwest" );
+        case 4: return _( "west" );
+        case 5: return _( "northwest" );
+        case 6: return _( "north" );
+        default: return _( "northeast" );
+    }
+}
+
+static std::string accessible_vehicle_heading( const vehicle &veh )
+{
+    const std::string facing = vehicle_compass_heading( veh.face.dir() );
+    const std::string steering = vehicle_compass_heading( veh.turn_dir );
+    if( facing == steering ) {
+        return string_format( _( "Vehicle facing %s. Steering straight." ), facing );
+    }
+    return string_format( _( "Vehicle facing %s. Steering toward %s." ), facing, steering );
+}
+
+// Read-ahead for manual driving. Compare the current heading with one
+// steering increment in either direction, using the existing vehicle-width
+// corridor. This is a projection, not a collision simulation: it does not
+// account for the rear swinging around, skidding, or reversing.
+static std::string accessible_vehicle_corridor_scan( vehicle &veh, map &here,
+        const Character &driver, const units::angle &steer_offset,
+        const std::string &label )
+{
+    const std::set<point_abs_ms> corridor = veh.immediate_path( &here, steer_offset );
+    const std::set<tripoint_abs_ms> footprint = veh.get_points();
+    constexpr int max_report_distance = 8;
+    int nearest = max_report_distance + 1;
+    std::string nearest_name;
+    const int z = driver.pos_bub().z();
+
+    for( const point_abs_ms &pos : corridor ) {
+        const tripoint_bub_ms tile{ here.get_bub( pos ), z };
+        if( !here.inbounds( tile ) || !here.pl_sees( tile, -1 ) ) {
+            continue;
+        }
+
+        int distance = max_report_distance + 1;
+        for( const tripoint_abs_ms &occupied : footprint ) {
+            distance = std::min( distance, rl_dist( occupied.xy(), pos ) );
+        }
+        if( distance == 0 || distance > max_report_distance || distance >= nearest ) {
+            continue;
+        }
+
+        std::string obstacle;
+        if( const optional_vpart_position other = here.veh_at( tile ) ) {
+            if( &other->vehicle() != &veh ) {
+                obstacle = other->vehicle().name;
+            }
+        }
+        if( obstacle.empty() && here.impassable_ter_furn( tile ) ) {
+            obstacle = here.has_furn( tile ) ? here.furnname( tile ) : here.tername( tile );
+        }
+        if( obstacle.empty() ) {
+            const Creature *critter = get_creature_tracker().creature_at( tile );
+            if( critter && critter != &driver && driver.sees( here, *critter ) ) {
+                obstacle = critter->disp_name();
+            }
+        }
+        if( !obstacle.empty() ) {
+            nearest = distance;
+            nearest_name = obstacle;
+        }
+    }
+
+    if( nearest_name.empty() ) {
+        return string_format( _( "%s: no visible obstruction within %d tiles." ),
+                              label, max_report_distance );
+    }
+    return string_format( _( "%s: %s, approximately %d tiles away." ),
+                          label, nearest_name, nearest );
+}
+
+static std::string accessible_vehicle_forward_scan( vehicle &veh, map &here,
+        const Character &driver )
+{
+    if( veh.velocity < 0 ) {
+        return _( "Vehicle reversing. Forward and turn projections do not cover the reverse path." );
+    }
+
+    std::string result = _( "Projected vehicle clearance." );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, 0_degrees,
+                        _( "Ahead" ) );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, -vehicles::steer_increment,
+                        _( "One steer left" ) );
+    result += " " + accessible_vehicle_corridor_scan( veh, here, driver, vehicles::steer_increment,
+                        _( "One steer right" ) );
+    result += " " + std::string( _( "Projections cannot predict skids, rear swing, or unseen hazards." ) );
+    return result;
+}
+
 static void pldrive( const tripoint_rel_ms &p )
 {
     if( !g->check_safe_mode_allowed() ) {
@@ -605,6 +711,11 @@ static void pldrive( const tripoint_rel_ms &p )
         }
     }
     veh->pldrive( here, get_avatar(), p.x(), p.y(), p.z() );
+    if( p.x() != 0 ) {
+        get_narration_service().announce( {
+            narration_event::status_changed, accessible_vehicle_heading( *veh ), true
+        } );
+    }
 }
 
 static void pldrive( point_rel_ms d )
@@ -3466,9 +3577,42 @@ bool game::handle_action()
     if( action == "DESCRIBE_STATUS" ) {
         // A quick glance at the sidebar: visible creatures, then only the
         // values a sighted player would see highlighted.
+        std::string report = build_status_glance( player_character );
+        if( player_character.controlling_vehicle ) {
+            vehicle *veh = g->remoteveh();
+            if( !veh ) {
+                if( const optional_vpart_position vp = get_map().veh_at( player_character.pos_bub() ) ) {
+                    veh = &vp->vehicle();
+                }
+            }
+            if( veh ) {
+                report += " " + accessible_vehicle_heading( *veh );
+                report += " " + accessible_vehicle_forward_scan( *veh, get_map(), player_character );
+            }
+        }
         get_narration_service().announce( {
-            narration_event::status_changed, build_status_glance( player_character ), true
+            narration_event::status_changed, report, true
         } );
+        return false;
+    }
+    if( action == "VEHICLE_CLEARANCE" ) {
+        vehicle *veh = g->remoteveh();
+        if( !veh ) {
+            if( const optional_vpart_position vp = get_map().veh_at( player_character.pos_bub() ) ) {
+                veh = &vp->vehicle();
+            }
+        }
+        if( !veh ) {
+            get_narration_service().announce( {
+                narration_event::contextual_help, _( "No vehicle at your position to scan." ), true
+            } );
+        } else {
+            get_narration_service().announce( {
+                narration_event::contextual_help,
+                accessible_vehicle_heading( *veh ) + " " +
+                accessible_vehicle_forward_scan( *veh, get_map(), player_character ), true
+            } );
+        }
         return false;
     }
     if( action == "STATUS_BROWSER" ) {
