@@ -5695,11 +5695,11 @@
   {
     "type": "keybinding",
     "id": "VEHICLE_CLEARANCE",
-    "name": "Speak vehicle clearance ahead, left, and right (Ctrl+Shift+G)",
+    "name": "Speak vehicle clearance ahead, left, and right (Ctrl+G)",
     "category": "DEFAULTMODE",
     "bindings": [
-      { "input_method": "keyboard_char", "key": "CTRL+SHIFT+G" },
-      { "input_method": "keyboard_code", "key": "g", "mod": [ "ctrl", "shift" ] }
+      { "input_method": "keyboard_char", "key": "CTRL+G" },
+      { "input_method": "keyboard_code", "key": "g", "mod": [ "ctrl" ] }
     ]
   },
   {
