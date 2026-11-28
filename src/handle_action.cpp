@@ -62,7 +62,6 @@
 #include "itype.h"
 #include "iuse.h"
 #include "level_cache.h"
-#include "line.h"
 #include "live_view.h"
 #include "magic.h"
 #include "magic_enchantment.h"
@@ -566,21 +565,8 @@ static std::string accessible_vehicle_corridor_scan( vehicle &veh, map &here,
         const Character &driver, const units::angle &steer_offset,
         const std::string &label )
 {
+    const std::set<point_abs_ms> corridor = veh.immediate_path( &here, steer_offset );
     const std::set<tripoint_abs_ms> footprint = veh.get_points();
-    // Sweep every occupied vehicle tile, not merely the front bumper.
-    // This includes wide bodies, side-mounted parts and trailing sections.
-    // The ray projects translation only; a turn can also swing the rear.
-    std::set<point_abs_ms> corridor;
-    tileray ray;
-    ray.init( round_to_multiple_of( normalize( veh.face.dir() + steer_offset ),
-                                    vehicles::steer_increment ) );
-    for( int step = 1; step <= 8; ++step ) {
-        ray.advance( 1 );
-        const point offset( ray.dx(), ray.dy() );
-        for( const tripoint_abs_ms &occupied : footprint ) {
-            corridor.emplace( occupied.xy() + offset );
-        }
-    }
     constexpr int max_report_distance = 8;
     int nearest = max_report_distance + 1;
     std::string nearest_name;
